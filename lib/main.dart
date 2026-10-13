@@ -6,7 +6,10 @@ void main() {
   WidgetsFlutterBinding.ensureInitialized();
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
+    systemNavigationBarColor: Colors.transparent,
+    systemNavigationBarDividerColor: Colors.transparent,
     statusBarIconBrightness: Brightness.dark,
+    systemNavigationBarIconBrightness: Brightness.dark,
   ));
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   runApp(const KitabiApp());
@@ -289,7 +292,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 }
 
-// ============ Home Shell with Floating Nav ============
+// ============ Home Shell with Floating Nav (GRAY + SMALL) ============
 class HomeShell extends StatefulWidget {
   const HomeShell({super.key});
   @override
@@ -310,55 +313,67 @@ class _HomeShellState extends State<HomeShell> {
       const AccountTab(),
     ];
 
+    final bottomInset = MediaQuery.of(context).padding.bottom;
+
     return Scaffold(
       extendBody: true,
+      backgroundColor: const Color(0xFFF5F7FA),
       body: tabs[_index],
       bottomNavigationBar: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        padding: EdgeInsets.fromLTRB(
+          40, 0, 40, bottomInset + 12),
         child: Container(
+          height: 58,
           decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(28),
+            color: const Color(0xFF2C2C2E),
+            borderRadius: BorderRadius.circular(30),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.15),
-                blurRadius: 25,
+                color: Colors.black.withOpacity(0.35),
+                blurRadius: 22,
                 offset: const Offset(0, 8),
               ),
             ],
           ),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(28),
+            borderRadius: BorderRadius.circular(30),
             child: NavigationBar(
-              height: 68,
-              backgroundColor: Colors.white,
+              height: 58,
+              backgroundColor: const Color(0xFF2C2C2E),
               elevation: 0,
-              indicatorColor: const Color(0xFF1565C0).withOpacity(0.15),
+              surfaceTintColor: Colors.transparent,
+              indicatorColor: const Color(0xFF1565C0).withOpacity(0.9),
               selectedIndex: _index,
               onDestinationSelected: _goToTab,
-              labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+              labelBehavior:
+                  NavigationDestinationLabelBehavior.alwaysShow,
               destinations: const [
                 NavigationDestination(
-                  icon: Icon(Icons.home_outlined, color: Colors.grey),
-                  selectedIcon: Icon(Icons.home, color: Color(0xFF1565C0)),
+                  icon: Icon(Icons.home_outlined,
+                      color: Colors.white60, size: 20),
+                  selectedIcon: Icon(Icons.home,
+                      color: Colors.white, size: 20),
                   label: 'الرئيسية',
                 ),
                 NavigationDestination(
-                  icon: Icon(Icons.menu_book_outlined, color: Colors.grey),
-                  selectedIcon:
-                      Icon(Icons.menu_book, color: Color(0xFF1565C0)),
+                  icon: Icon(Icons.menu_book_outlined,
+                      color: Colors.white60, size: 20),
+                  selectedIcon: Icon(Icons.menu_book,
+                      color: Colors.white, size: 20),
                   label: 'المكتبة',
                 ),
                 NavigationDestination(
-                  icon: Icon(Icons.notifications_outlined, color: Colors.grey),
-                  selectedIcon:
-                      Icon(Icons.notifications, color: Color(0xFF1565C0)),
+                  icon: Icon(Icons.notifications_outlined,
+                      color: Colors.white60, size: 20),
+                  selectedIcon: Icon(Icons.notifications,
+                      color: Colors.white, size: 20),
                   label: 'الإشعارات',
                 ),
                 NavigationDestination(
-                  icon: Icon(Icons.person_outline, color: Colors.grey),
-                  selectedIcon:
-                      Icon(Icons.person, color: Color(0xFF1565C0)),
+                  icon: Icon(Icons.person_outline,
+                      color: Colors.white60, size: 20),
+                  selectedIcon: Icon(Icons.person,
+                      color: Colors.white, size: 20),
                   label: 'حسابي',
                 ),
               ],
@@ -380,12 +395,12 @@ class HomeTab extends StatelessWidget {
     return SingleChildScrollView(
       padding: EdgeInsets.only(
         top: MediaQuery.of(context).padding.top + 12,
-        bottom: 110,
+        bottom: MediaQuery.of(context).padding.bottom + 100,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Header - modern minimal
+          // Header - icon-only buttons
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Row(
@@ -429,15 +444,28 @@ class HomeTab extends StatelessWidget {
                     ],
                   ),
                 ),
-                _modernIconBtn(Icons.search_rounded),
-                const SizedBox(width: 8),
-                _modernIconBtn(Icons.tune_rounded),
+                // أيقونات بدون مربع
+                IconButton(
+                  onPressed: () {},
+                  icon: const Icon(Icons.search_rounded,
+                      color: Color(0xFF1565C0), size: 26),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+                const SizedBox(width: 18),
+                IconButton(
+                  onPressed: () {},
+                  icon: const Icon(Icons.tune_rounded,
+                      color: Color(0xFF1565C0), size: 26),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
               ],
             ),
           ),
           const SizedBox(height: 22),
 
-          // Hero banner with IMAGE
+          // Hero banner
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Container(
@@ -457,7 +485,6 @@ class HomeTab extends StatelessWidget {
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    // صورة تعليمية
                     Image.network(
                       'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=1200&q=80',
                       fit: BoxFit.cover,
@@ -481,7 +508,6 @@ class HomeTab extends StatelessWidget {
                             size: 100, color: Colors.white54),
                       ),
                     ),
-                    // Overlay gradient
                     Container(
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
@@ -489,12 +515,11 @@ class HomeTab extends StatelessWidget {
                           end: Alignment.bottomCenter,
                           colors: [
                             Colors.black.withOpacity(0.15),
-                            Colors.black.withOpacity(0.75),
+                            Colors.black.withOpacity(0.78),
                           ],
                         ),
                       ),
                     ),
-                    // Content
                     Padding(
                       padding: const EdgeInsets.all(22),
                       child: Column(
@@ -543,22 +568,24 @@ class HomeTab extends StatelessWidget {
                           ),
                           const SizedBox(height: 16),
                           SizedBox(
-                            height: 50,
+                            height: 48,
                             child: ElevatedButton.icon(
                               onPressed: onStartLearning,
                               icon: const Icon(Icons.play_arrow_rounded,
-                                  size: 26),
+                                  size: 24),
                               label: const Text('ابدأ التعلم',
                                   style: TextStyle(
-                                      fontSize: 16,
+                                      fontSize: 15,
                                       fontWeight: FontWeight.bold)),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.white,
                                 foregroundColor: const Color(0xFF1565C0),
                                 elevation: 6,
                                 shadowColor: Colors.black45,
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 22),
                                 shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(14),
+                                  borderRadius: BorderRadius.circular(30),
                                 ),
                               ),
                             ),
@@ -652,7 +679,6 @@ class HomeTab extends StatelessWidget {
           ),
           const SizedBox(height: 25),
 
-          // Title
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 20),
             child: Text('المراحل الدراسية في ليبيا',
@@ -705,26 +731,6 @@ class HomeTab extends StatelessWidget {
           const SizedBox(height: 25),
         ],
       ),
-    );
-  }
-
-  Widget _modernIconBtn(IconData icon) {
-    return Container(
-      width: 46,
-      height: 46,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: Colors.grey.shade100, width: 1.5),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Icon(icon, size: 22, color: const Color(0xFF1565C0)),
     );
   }
 
@@ -875,7 +881,8 @@ class LibraryTab extends StatelessWidget {
         const SizedBox(height: 15),
         Expanded(
           child: GridView.builder(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 110),
+            padding: EdgeInsets.fromLTRB(16, 0, 16,
+                MediaQuery.of(context).padding.bottom + 100),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 2,
               crossAxisSpacing: 12,
@@ -1047,7 +1054,7 @@ class _AccountTabState extends State<AccountTab> {
         top: MediaQuery.of(context).padding.top + 20,
         left: 16,
         right: 16,
-        bottom: 110,
+        bottom: MediaQuery.of(context).padding.bottom + 100,
       ),
       children: [
         const Row(
