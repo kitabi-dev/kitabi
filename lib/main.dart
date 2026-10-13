@@ -292,7 +292,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 }
 
-// ============ Home Shell with Floating Nav (GRAY + SMALL) ============
+// ============ Home Shell with Custom Bottom Nav ============
 class HomeShell extends StatefulWidget {
   const HomeShell({super.key});
   @override
@@ -320,61 +320,75 @@ class _HomeShellState extends State<HomeShell> {
       backgroundColor: const Color(0xFFF5F7FA),
       body: tabs[_index],
       bottomNavigationBar: Padding(
-        padding: EdgeInsets.fromLTRB(
-          40, 0, 40, bottomInset + 12),
+        padding: EdgeInsets.fromLTRB(24, 0, 24, bottomInset + 14),
         child: Container(
-          height: 58,
+          height: 72,
           decoration: BoxDecoration(
             color: const Color(0xFF2C2C2E),
-            borderRadius: BorderRadius.circular(30),
+            borderRadius: BorderRadius.circular(36),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(0.35),
-                blurRadius: 22,
-                offset: const Offset(0, 8),
+                blurRadius: 24,
+                offset: const Offset(0, 10),
               ),
             ],
           ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(30),
-            child: NavigationBar(
-              height: 58,
-              backgroundColor: const Color(0xFF2C2C2E),
-              elevation: 0,
-              surfaceTintColor: Colors.transparent,
-              indicatorColor: const Color(0xFF1565C0).withOpacity(0.9),
-              selectedIndex: _index,
-              onDestinationSelected: _goToTab,
-              labelBehavior:
-                  NavigationDestinationLabelBehavior.alwaysShow,
-              destinations: const [
-                NavigationDestination(
-                  icon: Icon(Icons.home_outlined,
-                      color: Colors.white60, size: 20),
-                  selectedIcon: Icon(Icons.home,
-                      color: Colors.white, size: 20),
-                  label: 'الرئيسية',
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _navItem(0, Icons.home_outlined, Icons.home, 'الرئيسية'),
+              _navItem(1, Icons.menu_book_outlined, Icons.menu_book, 'المكتبة'),
+              _navItem(2, Icons.notifications_outlined,
+                  Icons.notifications, 'الإشعارات'),
+              _navItem(3, Icons.person_outline, Icons.person, 'حسابي'),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _navItem(int index, IconData icon, IconData activeIcon, String label) {
+    final bool selected = _index == index;
+    return Expanded(
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(30),
+          onTap: () => _goToTab(index),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: selected
+                        ? const Color(0xFF1565C0)
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Icon(
+                    selected ? activeIcon : icon,
+                    color: selected ? Colors.white : Colors.white60,
+                    size: 22,
+                  ),
                 ),
-                NavigationDestination(
-                  icon: Icon(Icons.menu_book_outlined,
-                      color: Colors.white60, size: 20),
-                  selectedIcon: Icon(Icons.menu_book,
-                      color: Colors.white, size: 20),
-                  label: 'المكتبة',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.notifications_outlined,
-                      color: Colors.white60, size: 20),
-                  selectedIcon: Icon(Icons.notifications,
-                      color: Colors.white, size: 20),
-                  label: 'الإشعارات',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.person_outline,
-                      color: Colors.white60, size: 20),
-                  selectedIcon: Icon(Icons.person,
-                      color: Colors.white, size: 20),
-                  label: 'حسابي',
+                const SizedBox(height: 3),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 10,
+                    height: 1,
+                    fontWeight:
+                        selected ? FontWeight.bold : FontWeight.w400,
+                    color: selected ? Colors.white : Colors.white60,
+                  ),
                 ),
               ],
             ),
@@ -395,12 +409,11 @@ class HomeTab extends StatelessWidget {
     return SingleChildScrollView(
       padding: EdgeInsets.only(
         top: MediaQuery.of(context).padding.top + 12,
-        bottom: MediaQuery.of(context).padding.bottom + 100,
+        bottom: MediaQuery.of(context).padding.bottom + 110,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Header - icon-only buttons
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Row(
@@ -444,7 +457,6 @@ class HomeTab extends StatelessWidget {
                     ],
                   ),
                 ),
-                // أيقونات بدون مربع
                 IconButton(
                   onPressed: () {},
                   icon: const Icon(Icons.search_rounded,
@@ -464,8 +476,6 @@ class HomeTab extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 22),
-
-          // Hero banner
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Container(
@@ -599,8 +609,6 @@ class HomeTab extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 22),
-
-          // Stats
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
@@ -617,8 +625,6 @@ class HomeTab extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 25),
-
-          // AI Card
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Container(
@@ -678,7 +684,6 @@ class HomeTab extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 25),
-
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 20),
             child: Text('المراحل الدراسية في ليبيا',
@@ -692,7 +697,6 @@ class HomeTab extends StatelessWidget {
                 style: TextStyle(color: Colors.grey, fontSize: 13)),
           ),
           const SizedBox(height: 15),
-
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: _stageCard(
@@ -882,7 +886,7 @@ class LibraryTab extends StatelessWidget {
         Expanded(
           child: GridView.builder(
             padding: EdgeInsets.fromLTRB(16, 0, 16,
-                MediaQuery.of(context).padding.bottom + 100),
+                MediaQuery.of(context).padding.bottom + 110),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 2,
               crossAxisSpacing: 12,
@@ -1054,7 +1058,7 @@ class _AccountTabState extends State<AccountTab> {
         top: MediaQuery.of(context).padding.top + 20,
         left: 16,
         right: 16,
-        bottom: MediaQuery.of(context).padding.bottom + 100,
+        bottom: MediaQuery.of(context).padding.bottom + 110,
       ),
       children: [
         const Row(
