@@ -174,8 +174,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  void _msg(String m) => ScaffoldMessenger.of(context)
-      .showSnackBar(SnackBar(content: Text(m)));
+  void _msg(String m) => showKitabiSnack(context, m);
 
   @override
   Widget build(BuildContext context) {
@@ -220,7 +219,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               const SizedBox(height: 10),
               const Center(
                 child: Text('سجل بياناتك لتبدأ رحلتك التعليمية',
-                    style: TextStyle(fontSize: 15, color: Colors.grey)),
+                    style: TextStyle(fontSize: 15, color: Color(0xFF555555))),
               ),
               const SizedBox(height: 40),
               TextField(
@@ -282,7 +281,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide(color: Colors.grey.shade200),
+        borderSide: BorderSide(color: Color(0xFFE5E5E5)),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(16),
@@ -376,7 +375,7 @@ class _HomeShellState extends State<HomeShell> {
                   ),
                   child: Icon(
                     selected ? activeIcon : icon,
-                    color: selected ? Colors.white : Colors.white60,
+                    color: selected ? Colors.white : Colors.white70,
                     size: 22,
                   ),
                 ),
@@ -388,7 +387,7 @@ class _HomeShellState extends State<HomeShell> {
                     height: 1,
                     fontWeight:
                         selected ? FontWeight.bold : FontWeight.w400,
-                    color: selected ? Colors.white : Colors.white60,
+                    color: selected ? Colors.white : Colors.white70,
                   ),
                 ),
               ],
@@ -453,7 +452,7 @@ class HomeTab extends StatelessWidget {
                       Text('كتابي',
                           style: TextStyle(
                               fontSize: 12,
-                              color: Colors.grey,
+                              color: Color(0xFF555555),
                               fontWeight: FontWeight.w500)),
                     ],
                   ),
@@ -674,12 +673,12 @@ class HomeTab extends StatelessWidget {
                         SizedBox(height: 4),
                         Text('قريباً في الإصدار 0.2',
                             style: TextStyle(
-                                color: Colors.grey, fontSize: 12)),
+                                color: Color(0xFF555555), fontSize: 12)),
                       ],
                     ),
                   ),
                   const Icon(Icons.arrow_forward_ios,
-                      size: 16, color: Colors.grey),
+                      size: 16, color: Color(0xFF555555)),
                 ],
               ),
             ),
@@ -696,7 +695,7 @@ class HomeTab extends StatelessWidget {
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 20),
             child: Text('اختر مرحلتك لاستعراض الفصول والمقررات',
-                style: TextStyle(color: Colors.grey, fontSize: 13)),
+                style: TextStyle(color: Color(0xFF555555), fontSize: 13)),
           ),
           const SizedBox(height: 15),
           Padding(
@@ -771,7 +770,7 @@ class HomeTab extends StatelessWidget {
                 style: const TextStyle(
                     fontSize: 18, fontWeight: FontWeight.bold)),
             Text(label,
-                style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                style: const TextStyle(fontSize: 11, color: Color(0xFF555555))),
           ],
         ),
       ),
@@ -828,11 +827,11 @@ class HomeTab extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(desc,
                     style: const TextStyle(
-                        fontSize: 11, color: Colors.grey, height: 1.4)),
+                        fontSize: 11, color: Color(0xFF555555), height: 1.4)),
               ],
             ),
           ),
-          const Icon(Icons.arrow_back_ios, size: 14, color: Colors.grey),
+          const Icon(Icons.arrow_back_ios, size: 14, color: Color(0xFF555555)),
         ],
       ),
     );
@@ -882,7 +881,7 @@ class LibraryTab extends StatelessWidget {
         const Padding(
           padding: EdgeInsets.symmetric(horizontal: 20),
           child: Text('اختر صفك الدراسي لعرض الكتب والمواد',
-              style: TextStyle(color: Colors.grey, fontSize: 13)),
+              style: TextStyle(color: Color(0xFF555555), fontSize: 13)),
         ),
         const SizedBox(height: 15),
         Expanded(
@@ -911,9 +910,7 @@ class LibraryTab extends StatelessWidget {
                   child: InkWell(
                     borderRadius: BorderRadius.circular(26),
                     onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(g['name'])),
-                      );
+                      showKitabiSnack(context, g['name']);
                     },
                     child: Padding(
                       padding: const EdgeInsets.symmetric(
@@ -1012,14 +1009,14 @@ class NotificationsTab extends StatelessWidget {
                     ],
                   ),
                   child: const Icon(Icons.notifications_off,
-                      size: 60, color: Colors.grey),
+                      size: 60, color: Color(0xFF555555)),
                 ),
                 const SizedBox(height: 20),
                 const Text('لا توجد إشعارات حالياً',
-                    style: TextStyle(fontSize: 18, color: Colors.grey)),
+                    style: TextStyle(fontSize: 18, color: Color(0xFF555555))),
                 const SizedBox(height: 8),
                 const Text('ستظهر هنا الإشعارات الجديدة',
-                    style: TextStyle(fontSize: 13, color: Colors.grey)),
+                    style: TextStyle(fontSize: 13, color: Color(0xFF555555))),
               ],
             ),
           ),
@@ -1029,7 +1026,7 @@ class NotificationsTab extends StatelessWidget {
   }
 }
 
-// ============ Account Tab ============
+// ============ Account Tab (Redesigned) ============
 class AccountTab extends StatefulWidget {
   const AccountTab({super.key});
   @override
@@ -1050,7 +1047,7 @@ class _AccountTabState extends State<AccountTab> {
   Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      _name = prefs.getString('user_name') ?? '';
+      _name = prefs.getString('user_name') ?? 'طالب';
       _grade = prefs.getString('user_grade') ?? '';
       _muraqaba = prefs.getString('user_muraqaba') ?? '';
     });
@@ -1068,151 +1065,295 @@ class _AccountTabState extends State<AccountTab> {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
+    return SingleChildScrollView(
       padding: EdgeInsets.only(
-        top: MediaQuery.of(context).padding.top + 20,
-        left: 16,
-        right: 16,
+        top: MediaQuery.of(context).padding.top + 16,
         bottom: MediaQuery.of(context).padding.bottom + 110,
       ),
-      children: [
-        const Row(
-          children: [
-            Icon(Icons.person, color: Color(0xFF1565C0), size: 28),
-            SizedBox(width: 10),
-            Text('حسابي',
-                style: TextStyle(
-                    fontSize: 24, fontWeight: FontWeight.bold)),
-          ],
-        ),
-        const SizedBox(height: 20),
-        Container(
-          padding: const EdgeInsets.all(22),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF1565C0), Color(0xFF42A5F5)],
-              begin: Alignment.topRight,
-              end: Alignment.bottomLeft,
-            ),
-            borderRadius: BorderRadius.circular(26),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF1565C0).withOpacity(0.35),
-                blurRadius: 22,
-                offset: const Offset(0, 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // ==== بطاقة رئيسية كبيرة ====
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Container(
+              padding: const EdgeInsets.all(22),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF1565C0), Color(0xFF42A5F5)],
+                  begin: Alignment.topRight,
+                  end: Alignment.bottomLeft,
+                ),
+                borderRadius: BorderRadius.circular(30),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF1565C0).withOpacity(0.4),
+                    blurRadius: 25,
+                    offset: const Offset(0, 12),
+                  ),
+                ],
               ),
-            ],
+              child: Column(
+                children: [
+                  Stack(
+                    children: [
+                      Container(
+                        width: 100,
+                        height: 100,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                              color: Colors.white, width: 3),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.15),
+                              blurRadius: 15,
+                              offset: const Offset(0, 6),
+                            ),
+                          ],
+                        ),
+                        child: Center(
+                          child: Text(
+                            _name.isNotEmpty ? _name[0] : '؟',
+                            style: const TextStyle(
+                              color: Color(0xFF1565C0),
+                              fontSize: 42,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        bottom: 0,
+                        right: 0,
+                        child: Container(
+                          padding: const EdgeInsets.all(7),
+                          decoration: BoxDecoration(
+                            color: Colors.amber,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                                color: Colors.white, width: 2),
+                          ),
+                          child: const Icon(Icons.edit,
+                              size: 14, color: Colors.white),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 15),
+                  Text(
+                    _name,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      _grade.isNotEmpty ? _grade : 'طالب',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
-          child: Column(
-            children: [
-              CircleAvatar(
-                radius: 42,
-                backgroundColor: Colors.white,
-                child: Text(
-                  _name.isNotEmpty ? _name[0] : '؟',
-                  style: const TextStyle(
-                    color: Color(0xFF1565C0),
-                    fontSize: 34,
-                    fontWeight: FontWeight.bold,
+          const SizedBox(height: 18),
+
+          // ==== إحصائيات ====
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 18),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.06),
+                    blurRadius: 18,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  _statItem(Icons.local_fire_department,
+                      'النقاط', '420', const Color(0xFFFF6B35)),
+                  _vDivider(),
+                  _statItem(Icons.star, 'المستوى', '5',
+                      const Color(0xFFFFB300)),
+                  _vDivider(),
+                  _statItem(Icons.emoji_events, 'الإنجازات', '3',
+                      const Color(0xFF7E57C2)),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 18),
+
+          // ==== قائمة الخيارات ====
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 15,
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  _menuItem(Icons.person_outline,
+                      'معلوماتي الشخصية',
+                      const Color(0xFF1565C0), () {}),
+                  _menuDivider(),
+                  _menuItem(Icons.track_changes,
+                      'أهدافي التعليمية',
+                      const Color(0xFF66BB6A), () {}),
+                  _menuDivider(),
+                  _menuItem(Icons.notifications_none,
+                      'إشعاراتي',
+                      const Color(0xFFFFA726), () {}),
+                  _menuDivider(),
+                  _menuItem(Icons.dark_mode_outlined,
+                      'المظهر (الوضع الليلي)',
+                      const Color(0xFF7E57C2), () {}),
+                  _menuDivider(),
+                  _menuItem(Icons.help_outline,
+                      'المساعدة والدعم',
+                      const Color(0xFF26A69A), () {}),
+                  _menuDivider(),
+                  _menuItem(Icons.info_outline,
+                      'عن التطبيق',
+                      const Color(0xFF5E35B1), () {
+                    showAboutDialog(
+                      context: context,
+                      applicationName: 'KITABI',
+                      applicationVersion: '0.1.0',
+                      applicationIcon: const Icon(Icons.menu_book,
+                          size: 40, color: Color(0xFF1565C0)),
+                      children: const [
+                        Text(
+                            'تطبيق تعليمي مجاني للطلاب الليبيين.\nجميع الخصائص مجانية بالكامل.'),
+                      ],
+                    );
+                  }),
+                  _menuDivider(),
+                  _menuItem(Icons.admin_panel_settings,
+                      'غرفة التحكم',
+                      const Color(0xFFEF6C00), () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const ControlRoomScreen()),
+                    );
+                  }),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 18),
+
+          // ==== زر تسجيل خروج ====
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: SizedBox(
+              height: 55,
+              child: OutlinedButton.icon(
+                onPressed: _logout,
+                icon: const Icon(Icons.logout, color: Colors.red),
+                label: const Text('تسجيل خروج',
+                    style: TextStyle(
+                        color: Colors.red,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold)),
+                style: OutlinedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  side: const BorderSide(color: Colors.red, width: 1.5),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(18),
                   ),
                 ),
               ),
-              const SizedBox(height: 15),
-              Text(_name,
-                  style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold)),
-              const SizedBox(height: 6),
-              Text(_grade,
-                  style: const TextStyle(
-                      color: Colors.white70, fontSize: 14)),
-              Text(_muraqaba,
-                  style: const TextStyle(
-                      color: Colors.white70, fontSize: 13)),
-            ],
-          ),
-        ),
-        const SizedBox(height: 20),
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 12,
-              ),
-            ],
-          ),
-          child: Column(
-            children: [
-              _tile(Icons.info_outline, 'عن التطبيق', () {
-                showAboutDialog(
-                  context: context,
-                  applicationName: 'KITABI',
-                  applicationVersion: '0.1.0',
-                  applicationIcon: const Icon(Icons.menu_book,
-                      size: 40, color: Color(0xFF1565C0)),
-                  children: const [
-                    Text('تطبيق تعليمي مجاني للطلاب الليبيين.\nجميع الخصائص مجانية بالكامل.'),
-                  ],
-                );
-              }),
-              _divider(),
-              _tile(Icons.admin_panel_settings, 'غرفة التحكم', () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) => const ControlRoomScreen()),
-                );
-              }),
-            ],
-          ),
-        ),
-        const SizedBox(height: 20),
-        SizedBox(
-          height: 55,
-          child: OutlinedButton.icon(
-            onPressed: _logout,
-            icon: const Icon(Icons.logout, color: Colors.red),
-            label: const Text('تسجيل خروج',
-                style: TextStyle(
-                    color: Colors.red,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold)),
-            style: OutlinedButton.styleFrom(
-              backgroundColor: Colors.white,
-              side: const BorderSide(color: Colors.red, width: 1.5),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
-  Widget _tile(IconData i, String t, VoidCallback onTap) {
+  Widget _statItem(
+      IconData icon, String label, String value, Color color) {
+    return Expanded(
+      child: Column(
+        children: [
+          Icon(icon, color: color, size: 26),
+          const SizedBox(height: 6),
+          Text(value,
+              style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1A1A1A))),
+          const SizedBox(height: 2),
+          Text(label,
+              style: const TextStyle(
+                  fontSize: 11, color: Color(0xFF555555))),
+        ],
+      ),
+    );
+  }
+
+  Widget _vDivider() => Container(
+        width: 1,
+        height: 40,
+        color: const Color(0xFFE5E5E5),
+      );
+
+  Widget _menuItem(
+      IconData icon, String title, Color color, VoidCallback onTap) {
     return ListTile(
       leading: Container(
-        padding: const EdgeInsets.all(8),
+        padding: const EdgeInsets.all(9),
         decoration: BoxDecoration(
-          color: const Color(0xFF1565C0).withOpacity(0.1),
-          borderRadius: BorderRadius.circular(10),
+          color: color.withOpacity(0.12),
+          borderRadius: BorderRadius.circular(12),
         ),
-        child: Icon(i, color: const Color(0xFF1565C0), size: 22),
+        child: Icon(icon, color: color, size: 22),
       ),
-      title: Text(t, style: const TextStyle(fontWeight: FontWeight.w600)),
-      trailing: const Icon(Icons.arrow_forward_ios,
-          size: 14, color: Colors.grey),
+      title: Text(
+        title,
+        style: const TextStyle(
+          fontWeight: FontWeight.w600,
+          fontSize: 14,
+          color: Color(0xFF1A1A1A),
+        ),
+      ),
+      trailing: const Icon(Icons.arrow_back_ios,
+          size: 14, color: Color(0xFF555555)),
       onTap: onTap,
     );
   }
 
-  Widget _divider() =>
-      const Divider(height: 1, indent: 70, endIndent: 15);
+  Widget _menuDivider() => const Divider(
+      height: 1, indent: 70, endIndent: 15, color: Color(0xFFF0F0F0));
 }
 
 // ============ Control Room ============
@@ -1232,9 +1373,7 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
         _passController.text.trim() == 'العلم نور') {
       setState(() => _logged = true);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('بيانات خاطئة')),
-      );
+      showKitabiSnack(context, 'بيانات خاطئة');
     }
   }
 
@@ -1341,7 +1480,7 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
                         style: TextStyle(
                             fontWeight: FontWeight.bold, fontSize: 15)),
                     Text('v0.1 — قريباً المزيد',
-                        style: TextStyle(fontSize: 12, color: Colors.grey)),
+                        style: TextStyle(fontSize: 12, color: Color(0xFF555555))),
                   ],
                 ),
               ),
@@ -1382,13 +1521,42 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
         title: Text(t, style: const TextStyle(fontWeight: FontWeight.bold)),
         subtitle: Text(s, style: const TextStyle(fontSize: 12)),
         trailing: const Icon(Icons.arrow_forward_ios,
-            size: 14, color: Colors.grey),
+            size: 14, color: Color(0xFF555555)),
         onTap: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('$t — قريباً')),
-          );
+          showKitabiSnack(context, '$t — قريباً');
         },
       ),
     );
   }
+}
+
+
+// ============ Custom SnackBar (من اليمين، حواف من اليسار فقط) ============
+void showKitabiSnack(BuildContext context, String message) {
+  ScaffoldMessenger.of(context).clearSnackBars();
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text(
+        message,
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.bold,
+          fontSize: 14,
+        ),
+      ),
+      backgroundColor: const Color(0xFF2C2C2E),
+      behavior: SnackBarBehavior.floating,
+      margin: const EdgeInsets.only(left: 40, right: 0, bottom: 120),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      duration: const Duration(seconds: 2),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(20),
+          bottomLeft: Radius.circular(20),
+          topRight: Radius.zero,
+          bottomRight: Radius.zero,
+        ),
+      ),
+    ),
+  );
 }
