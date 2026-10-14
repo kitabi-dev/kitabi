@@ -2756,5 +2756,5 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
         },
       ),
     );
-  }
+}
 }
