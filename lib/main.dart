@@ -679,7 +679,7 @@ class HomeTab extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 80),
+          const SizedBox(height: 40),
 
           // ===== أحدث الدروس =====
           const Padding(
@@ -1994,7 +1994,7 @@ void showKitabiSnack(BuildContext context, String message) {
       ),
       backgroundColor: const Color(0xFF2C2C2E),
       behavior: SnackBarBehavior.floating,
-      margin: const EdgeInsets.only(left: 30, right: 0, bottom: 180),
+      margin: const EdgeInsets.only(left: 30, right: 0, bottom: 95),
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       duration: const Duration(seconds: 2),
       shape: const RoundedRectangleBorder(
