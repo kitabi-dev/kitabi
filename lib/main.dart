@@ -2168,7 +2168,7 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
                 'جديد',
                 Icons.upload_file_rounded,
                 const Color(0xFF00897B),
-                () => showKitabiSnack(context, 'رفع الكتب — قريباً'),
+                () => _showUploadBook(),
               ),
             ),
           ],
@@ -2206,7 +2206,7 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
                 'إدارة',
                 Icons.assignment_rounded,
                 const Color(0xFFD32F2F),
-                () => showKitabiSnack(context, 'الاختبارات — قريباً'),
+                () => _showQuizzes(),
               ),
             ),
             const SizedBox(width: 12),
@@ -2216,7 +2216,7 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
                 'تحليل',
                 Icons.bar_chart_rounded,
                 const Color(0xFF283593),
-                () => showKitabiSnack(context, 'الإحصائيات — قريباً'),
+                () => _showStatistics(),
               ),
             ),
           ],
@@ -2946,4 +2946,507 @@ void showKitabiSnack(BuildContext context, String message) {
       ),
     ),
   );
+
+
+  // ============ الإحصائيات ============
+  Future<void> _showStatistics() async {
+    int usersCount = 0;
+    int booksCount = 0;
+    int notifsCount = 0;
+    int videosCount = 0;
+    int quizzesCount = 0;
+    int bannedCount = 0;
+
+    try {
+      final users = await supabase.from('users').select('is_banned');
+      usersCount = users.length;
+      bannedCount = users.where((u) => u['is_banned'] == true).length;
+
+      final books = await supabase.from('books').select('id');
+      booksCount = books.length;
+
+      final notifs = await supabase.from('notifications').select('id');
+      notifsCount = notifs.length;
+
+      final videos = await supabase.from('videos').select('id');
+      videosCount = videos.length;
+
+      final quizzes = await supabase.from('quizzes').select('id');
+      quizzesCount = quizzes.length;
+    } catch (e) {
+      debugPrint('Stats error: $e');
+    }
+
+    if (!mounted) return;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => Container(
+        padding: const EdgeInsets.all(20),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(24),
+            topRight: Radius.circular(24),
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 50,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 15),
+            const Row(
+              children: [
+                Icon(Icons.bar_chart, color: Color(0xFF283593), size: 24),
+                SizedBox(width: 10),
+                Text('الإحصائيات',
+                    style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1A1A1A))),
+              ],
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                _statBox('المستخدمون', '$usersCount',
+                    Icons.people, const Color(0xFF1565C0)),
+                const SizedBox(width: 10),
+                _statBox('الكتب', '$booksCount',
+                    Icons.menu_book, const Color(0xFF00897B)),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                _statBox('الإشعارات', '$notifsCount',
+                    Icons.notifications, const Color(0xFF7B1FA2)),
+                const SizedBox(width: 10),
+                _statBox('الفيديوهات', '$videosCount',
+                    Icons.play_circle, const Color(0xFFD32F2F)),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                _statBox('الاختبارات', '$quizzesCount',
+                    Icons.assignment, const Color(0xFFEF6C00)),
+                const SizedBox(width: 10),
+                _statBox('المحظورون', '$bannedCount',
+                    Icons.block, const Color(0xFFD32F2F)),
+              ],
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _statBox(String label, String value, IconData icon, Color color) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 10),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: color.withOpacity(0.25)),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: color, size: 28),
+            const SizedBox(height: 8),
+            Text(value,
+                style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: color)),
+            const SizedBox(height: 4),
+            Text(label,
+                style: const TextStyle(
+                    fontSize: 11, color: Color(0xFF555555))),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ============ الاختبارات ============
+  Future<void> _showQuizzes() async {
+    List<Map<String, dynamic>> quizzes = [];
+    bool loading = true;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSt) {
+          if (loading) {
+            supabase
+                .from('quizzes')
+                .select()
+                .order('created_at', ascending: false)
+                .then((data) {
+              setSt(() {
+                quizzes = List<Map<String, dynamic>>.from(data);
+                loading = false;
+              });
+            }).catchError((e) {
+              setSt(() => loading = false);
+            });
+          }
+          return Container(
+            height: MediaQuery.of(context).size.height * 0.75,
+            padding: const EdgeInsets.all(20),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(24),
+                topRight: Radius.circular(24),
+              ),
+            ),
+            child: Column(
+              children: [
+                Container(
+                  width: 50,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 15),
+                Row(
+                  children: [
+                    const Icon(Icons.assignment,
+                        color: Color(0xFFD32F2F), size: 24),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text('الاختبارات (${quizzes.length})',
+                          style: const TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF1A1A1A))),
+                    ),
+                    IconButton(
+                      onPressed: () => _addQuiz(setSt),
+                      icon: const Icon(Icons.add_circle,
+                          color: Color(0xFF2E7D32), size: 28),
+                      tooltip: 'إضافة اختبار',
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Expanded(
+                  child: loading
+                      ? const Center(
+                          child: CircularProgressIndicator(
+                              color: Color(0xFFD32F2F)))
+                      : quizzes.isEmpty
+                          ? const Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.assignment_outlined,
+                                      size: 60, color: Color(0xFF555555)),
+                                  SizedBox(height: 12),
+                                  Text('لا توجد اختبارات بعد',
+                                      style: TextStyle(
+                                          color: Color(0xFF555555))),
+                                  SizedBox(height: 6),
+                                  Text('اضغط + لإضافة أول اختبار',
+                                      style: TextStyle(
+                                          fontSize: 12,
+                                          color: Color(0xFF888888))),
+                                ],
+                              ),
+                            )
+                          : ListView.separated(
+                              itemCount: quizzes.length,
+                              separatorBuilder: (_, __) =>
+                                  const SizedBox(height: 10),
+                              itemBuilder: (_, i) {
+                                final q = quizzes[i];
+                                return Container(
+                                  padding: const EdgeInsets.all(14),
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey.shade50,
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(
+                                        color: Colors.grey.shade200),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(10),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFD32F2F)
+                                              .withOpacity(0.1),
+                                          borderRadius:
+                                              BorderRadius.circular(12),
+                                        ),
+                                        child: const Icon(Icons.quiz,
+                                            color: Color(0xFFD32F2F),
+                                            size: 22),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(q['title'] ?? '',
+                                                style: const TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 14)),
+                                            Text(
+                                                '${q['grade'] ?? ''} • ${q['subject'] ?? ''}',
+                                                style: const TextStyle(
+                                                    fontSize: 11,
+                                                    color: Color(0xFF555555))),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _addQuiz(StateSetter setSt) async {
+    final titleCtrl = TextEditingController();
+    final subjectCtrl = TextEditingController();
+    final gradeCtrl = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.add_circle, color: Color(0xFF2E7D32)),
+            SizedBox(width: 10),
+            Text('اختبار جديد',
+                style: TextStyle(fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: titleCtrl,
+              decoration: InputDecoration(
+                labelText: 'عنوان الاختبار',
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: subjectCtrl,
+              decoration: InputDecoration(
+                labelText: 'المادة',
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: gradeCtrl,
+              decoration: InputDecoration(
+                labelText: 'الصف',
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (titleCtrl.text.trim().isEmpty) {
+                showKitabiSnack(context, 'اكتب عنوان الاختبار');
+                return;
+              }
+              Navigator.pop(dialogCtx);
+              try {
+                await supabase.from('quizzes').insert({
+                  'title': titleCtrl.text.trim(),
+                  'subject': subjectCtrl.text.trim(),
+                  'grade': gradeCtrl.text.trim(),
+                  'questions': [],
+                });
+                if (!mounted) return;
+                showKitabiSnack(context, 'تم إضافة الاختبار');
+                setSt(() {});
+              } catch (e) {
+                if (!mounted) return;
+                showKitabiSnack(context, 'فشل الإضافة');
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF2E7D32),
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('إضافة'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ============ رفع الكتب ============
+  Future<void> _showUploadBook() async {
+    final titleCtrl = TextEditingController();
+    final pdfCtrl = TextEditingController();
+    String selectedGrade = 'أول ابتدائي';
+    String selectedSubject = 'الرياضيات';
+
+    final List<String> grades = [
+      'أول ابتدائي', 'ثاني ابتدائي', 'ثالث ابتدائي',
+      'رابع ابتدائي', 'خامس ابتدائي', 'سادس ابتدائي',
+      'أول إعدادي', 'ثاني إعدادي', 'ثالث إعدادي',
+      'أولى ثانوي', 'ثانية ثانوي', 'ثالثة ثانوي',
+    ];
+
+    final List<String> subjects = [
+      'الرياضيات', 'اللغة العربية', 'اللغة الإنجليزية',
+      'التربية الإسلامية', 'الحاسوب', 'العلوم', 'الاجتماعيات',
+    ];
+
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (ctx, setSt) => AlertDialog(
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20)),
+          title: const Row(
+            children: [
+              Icon(Icons.upload_file, color: Color(0xFF00897B)),
+              SizedBox(width: 10),
+              Text('رفع كتاب جديد',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: titleCtrl,
+                  decoration: InputDecoration(
+                    labelText: 'عنوان الكتاب',
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: selectedGrade,
+                  decoration: InputDecoration(
+                    labelText: 'الصف',
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                  items: grades
+                      .map((g) =>
+                          DropdownMenuItem(value: g, child: Text(g)))
+                      .toList(),
+                  onChanged: (v) =>
+                      setSt(() => selectedGrade = v ?? selectedGrade),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: selectedSubject,
+                  decoration: InputDecoration(
+                    labelText: 'المادة',
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                  items: subjects
+                      .map((s) =>
+                          DropdownMenuItem(value: s, child: Text(s)))
+                      .toList(),
+                  onChanged: (v) =>
+                      setSt(() => selectedSubject = v ?? selectedSubject),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: pdfCtrl,
+                  decoration: InputDecoration(
+                    labelText: 'رابط PDF',
+                    hintText: 'https://example.com/book.pdf',
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogCtx),
+              child: const Text('إلغاء'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (titleCtrl.text.trim().isEmpty) {
+                  showKitabiSnack(context, 'اكتب عنوان الكتاب');
+                  return;
+                }
+                if (pdfCtrl.text.trim().isEmpty) {
+                  showKitabiSnack(context, 'اكتب رابط PDF');
+                  return;
+                }
+                Navigator.pop(dialogCtx);
+                try {
+                  await supabase.from('books').insert({
+                    'title': titleCtrl.text.trim(),
+                    'grade': selectedGrade,
+                    'subject': selectedSubject,
+                    'pdf_url': pdfCtrl.text.trim(),
+                    'uploaded_by': 'admin',
+                  });
+                  if (!mounted) return;
+                  showKitabiSnack(context, 'تم رفع الكتاب بنجاح');
+                } catch (e) {
+                  if (!mounted) return;
+                  showKitabiSnack(context, 'فشل الرفع');
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF00897B),
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('رفع'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
+
