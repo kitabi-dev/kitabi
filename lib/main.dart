@@ -10,8 +10,8 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:webview_flutter/webview_flutter.dart';
 import 'package:video_player/video_player.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 // ============ إعدادات Supabase ============
 const String kSupabaseUrl = 'https://vlyfghfoelbbbdljbvcr.supabase.co';
@@ -4046,7 +4046,6 @@ class VideoPlayerScreen extends StatefulWidget {
 
 class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   VideoPlayerController? _videoCtrl;
-  WebViewController? _webCtrl;
   bool _initializing = true;
   String _error = '';
 
@@ -4071,20 +4070,19 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     try {
       if (type == 'youtube') {
         final ytId = _extractId(url);
-        if (ytId == null) {
-          setState(() {
-            _error = 'رابط يوتيوب غير صحيح';
-            _initializing = false;
-          });
-          return;
+        final finalUrl = ytId != null
+            ? 'https://www.youtube.com/watch?v=$ytId'
+            : url;
+        try {
+          if (!await launchUrl(Uri.parse(finalUrl),
+              mode: LaunchMode.externalApplication)) {
+            throw 'لا يمكن فتح الرابط';
+          }
+        } catch (e) {
+          debugPrint('Launch error: $e');
         }
-        final embedUrl =
-            'https://www.youtube.com/embed/$ytId?autoplay=1&rel=0';
-        _webCtrl = WebViewController()
-          ..setJavaScriptMode(JavaScriptMode.unrestricted)
-          ..setBackgroundColor(Colors.black)
-          ..loadRequest(Uri.parse(embedUrl));
-        setState(() => _initializing = false);
+        if (mounted) Navigator.pop(context);
+        return;
       } else {
         // mp4
         _videoCtrl = VideoPlayerController.networkUrl(Uri.parse(url));
@@ -4159,12 +4157,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                           ],
                         ),
                       )
-                    : widget.video['video_type'] == 'youtube'
-                        ? WebViewWidget(controller: _webCtrl!)
-                        : AspectRatio(
-                            aspectRatio: _videoCtrl!.value.aspectRatio,
-                            child: VideoPlayer(_videoCtrl!),
-                          ),
+                    : AspectRatio(
+                        aspectRatio: _videoCtrl!.value.aspectRatio,
+                        child: VideoPlayer(_videoCtrl!),
+                      ),
           ),
           // معلومات
           Expanded(
