@@ -3341,10 +3341,9 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
   // ============ رفع الكتب ============
   Future<void> _showUploadBook() async {
     final titleCtrl = TextEditingController();
-    final pdfCtrl = TextEditingController();
     String selectedGrade = 'أول ابتدائي';
     String selectedSubject = 'الرياضيات';
-    String bookType = 'images';
+    String selectedCategory = 'book';
     List<XFile> pickedImages = [];
     bool uploading = false;
     double progress = 0;
@@ -3438,37 +3437,37 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
                         const SizedBox(width: 10),
                         Expanded(
                           child: RadioListTile<String>(
-                            title: const Text('صور',
+                            title: const Text('كتاب',
                                 style: TextStyle(fontSize: 13)),
-                            value: 'images',
-                            groupValue: bookType,
+                            value: 'book',
+                            groupValue: selectedCategory,
                             contentPadding: EdgeInsets.zero,
                             dense: true,
                             onChanged: uploading
                                 ? null
                                 : (v) => setSt(
-                                    () => bookType = v ?? 'images'),
+                                    () => selectedCategory = v ?? 'book'),
                           ),
                         ),
                         Expanded(
                           child: RadioListTile<String>(
-                            title: const Text('PDF',
+                            title: const Text('شيتات',
                                 style: TextStyle(fontSize: 13)),
-                            value: 'pdf',
-                            groupValue: bookType,
+                            value: 'sheets',
+                            groupValue: selectedCategory,
                             contentPadding: EdgeInsets.zero,
                             dense: true,
                             onChanged: uploading
                                 ? null
                                 : (v) => setSt(
-                                    () => bookType = v ?? 'pdf'),
+                                    () => selectedCategory = v ?? 'sheets'),
                           ),
                         ),
                       ],
                     ),
                   ),
                   const SizedBox(height: 12),
-                  if (bookType == 'images') ...[
+                  if (true) ...[
                     SizedBox(
                       width: double.infinity,
                       height: 45,
@@ -3552,16 +3551,7 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
                         ),
                       ),
                     ],
-                  ] else
-                    TextField(
-                      controller: pdfCtrl,
-                      decoration: InputDecoration(
-                        labelText: 'رابط PDF',
-                        hintText: 'https://example.com/book.pdf',
-                        border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                      ),
-                    ),
+                  ],
                   if (uploading) ...[
                     const SizedBox(height: 15),
                     LinearProgressIndicator(
@@ -3590,15 +3580,9 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
                         showKitabiSnack(context, 'اكتب عنوان الكتاب');
                         return;
                       }
-                      if (bookType == 'images' &&
-                          pickedImages.isEmpty) {
+                      if (pickedImages.isEmpty) {
                         showKitabiSnack(
                             context, 'اختر صور الكتاب أولاً');
-                        return;
-                      }
-                      if (bookType == 'pdf' &&
-                          pdfCtrl.text.trim().isEmpty) {
-                        showKitabiSnack(context, 'اكتب رابط PDF');
                         return;
                       }
 
@@ -3606,45 +3590,35 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
                       List<String> uploadedUrls = [];
 
                       try {
-                        if (bookType == 'images') {
-                          int idx = 0;
-                          for (var img in pickedImages) {
-                            idx++;
-                            setSt(() => progress = idx / pickedImages.length);
+                        int idx = 0;
+                        for (var img in pickedImages) {
+                          idx++;
+                          setSt(() => progress = idx / pickedImages.length);
 
-                            final bytes = await img.readAsBytes();
-                            final ext = img.path.split('.').last;
-                            final fileName =
-                                'book_${DateTime.now().millisecondsSinceEpoch}_${idx}.$ext';
+                          final bytes = await img.readAsBytes();
+                          final ext = img.path.split('.').last;
+                          final fileName =
+                              'book_${DateTime.now().millisecondsSinceEpoch}_${idx}.$ext';
 
-                            await supabase.storage
-                                .from('books')
-                                .uploadBinary(fileName, bytes);
+                          await supabase.storage
+                              .from('books')
+                              .uploadBinary(fileName, bytes);
 
-                            final url = supabase.storage
-                                .from('books')
-                                .getPublicUrl(fileName);
-                            uploadedUrls.add(url);
-                          }
-
-                          await supabase.from('books').insert({
-                            'title': titleCtrl.text.trim(),
-                            'grade': selectedGrade,
-                            'subject': selectedSubject,
-                            'book_type': 'images',
-                            'image_urls': uploadedUrls,
-                            'uploaded_by': 'admin',
-                          });
-                        } else {
-                          await supabase.from('books').insert({
-                            'title': titleCtrl.text.trim(),
-                            'grade': selectedGrade,
-                            'subject': selectedSubject,
-                            'book_type': 'pdf',
-                            'pdf_url': pdfCtrl.text.trim(),
-                            'uploaded_by': 'admin',
-                          });
+                          final url = supabase.storage
+                              .from('books')
+                              .getPublicUrl(fileName);
+                          uploadedUrls.add(url);
                         }
+
+                        await supabase.from('books').insert({
+                          'title': titleCtrl.text.trim(),
+                          'grade': selectedGrade,
+                          'subject': selectedSubject,
+                          'book_type': 'images',
+                          'category': selectedCategory,
+                          'image_urls': uploadedUrls,
+                          'uploaded_by': 'admin',
+                        });
 
                         if (!context.mounted) return;
                         Navigator.pop(dialogCtx);
