@@ -1,7 +1,18 @@
+// ============================================
+// Kitabi v0.1 — تطبيق تعليمي للطلاب الليبيين
+// ============================================
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+// ============ إعدادات Supabase ============
+const String kSupabaseUrl = 'https://vlyfghfoelbbbdljbvcr.supabase.co';
+const String kSupabaseAnonKey = 'sb_publishable_d4ZrC9cHXb8YvzyvlRkeCA_GOMtyzgt';
+
+// وصول سريع
+final supabase = Supabase.instance.client;
 
 // ============ نموذج إحصائيات المستخدم ============
 class UserStats {
@@ -11,41 +22,54 @@ class UserStats {
       'points': prefs.getInt('user_points') ?? 0,
       'level': prefs.getInt('user_level') ?? 1,
       'achievements': prefs.getInt('user_achievements') ?? 0,
-      'lessons': prefs.getInt('user_lessons') ?? 0,
     };
   }
 
-  // إضافة نقاط عند فعل معين
   static Future<void> addPoints(int amount) async {
     final prefs = await SharedPreferences.getInstance();
     final current = prefs.getInt('user_points') ?? 0;
     final newVal = current + amount;
     await prefs.setInt('user_points', newVal);
-
-    // حساب المستوى تلقائياً (كل 100 نقطة = مستوى)
     final level = (newVal ~/ 100) + 1;
     await prefs.setInt('user_level', level);
-
-    // الإنجازات: كل مستوى = إنجاز
     await prefs.setInt('user_achievements', level - 1);
-  }
-
-  static Future<void> addLesson() async {
-    final prefs = await SharedPreferences.getInstance();
-    final lessons = (prefs.getInt('user_lessons') ?? 0) + 1;
-    await prefs.setInt('user_lessons', lessons);
-    await addPoints(10); // كل درس = 10 نقاط
   }
 }
 
-// ============ إعدادات Supabase ============
-const String kSupabaseUrl = 'https://vlyfghfoelbbbdljbvcr.supabase.co';
-const String kSupabaseAnonKey = 'sb_publishable_d4ZrC9cHXb8YvzyvlRkeCA_GOMtyzgt';
+// ============ SnackBar مخصص ============
+void showKitabiSnack(BuildContext context, String message) {
+  ScaffoldMessenger.of(context).clearSnackBars();
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text(
+        message,
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.bold,
+          fontSize: 14,
+        ),
+      ),
+      backgroundColor: const Color(0xFF2C2C2E),
+      behavior: SnackBarBehavior.floating,
+      margin: const EdgeInsets.only(left: 30, right: 0, bottom: 95),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      duration: const Duration(seconds: 2),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(20),
+          bottomLeft: Radius.circular(20),
+          topRight: Radius.zero,
+          bottomRight: Radius.zero,
+        ),
+      ),
+    ),
+  );
+}
 
+// ============ Main ============
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // تهيئة Supabase
   await Supabase.initialize(
     url: kSupabaseUrl,
     anonKey: kSupabaseAnonKey,
@@ -62,106 +86,7 @@ Future<void> main() async {
   runApp(const KitabiApp());
 }
 
-// وصول سريع لـ Supabase
-final supabase = Supabase.instance.client;
-
-// ============ شاشة المحظور ============
-class BannedScreen extends StatelessWidget {
-  const BannedScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(28),
-                decoration: BoxDecoration(
-                  color: Colors.red.shade50,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.red.shade200, width: 3),
-                ),
-                child: const Icon(Icons.block,
-                    size: 80, color: Colors.red),
-              ),
-              const SizedBox(height: 30),
-              const Text(
-                'تم حظر حسابك',
-                style: TextStyle(
-                  fontSize: 26,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF1A1A1A),
-                ),
-              ),
-              const SizedBox(height: 15),
-              const Text(
-                'تم إيقاف حسابك من قبل إدارة التطبيق\nلأسباب تتعلق بمخالفة السياسات',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 15,
-                  color: Color(0xFF555555),
-                  height: 1.6,
-                ),
-              ),
-              const SizedBox(height: 40),
-              Container(
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 14,
-                    ),
-                  ],
-                ),
-                child: const Row(
-                  children: [
-                    Icon(Icons.info_outline, color: Color(0xFF1565C0)),
-                    SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        'للتواصل مع الإدارة: support@kitabi.ly',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Color(0xFF555555),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 30),
-              SizedBox(
-                width: double.infinity,
-                height: 55,
-                child: OutlinedButton.icon(
-                  onPressed: null,
-                  icon: const Icon(Icons.refresh),
-                  label: const Text('إعادة المحاولة لاحقاً'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF555555),
-                    side: const BorderSide(color: Color(0xFFE5E5E5)),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
+// ============ KitabiApp ============
 class KitabiApp extends StatelessWidget {
   const KitabiApp({super.key});
 
@@ -191,7 +116,7 @@ class KitabiApp extends StatelessWidget {
   }
 }
 
-// ============ Splash ============
+// ============ Splash Screen ============
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
   @override
@@ -209,6 +134,7 @@ class _SplashScreenState extends State<SplashScreen> {
     await Future.delayed(const Duration(seconds: 2));
     final prefs = await SharedPreferences.getInstance();
     final name = prefs.getString('user_name');
+    if (!mounted) return;
     if (name == null || name.isEmpty) {
       Navigator.pushReplacement(
         context,
@@ -217,7 +143,6 @@ class _SplashScreenState extends State<SplashScreen> {
       return;
     }
 
-    // التحقق من الحظر من Supabase
     bool banned = false;
     try {
       final data = await supabase
@@ -229,11 +154,12 @@ class _SplashScreenState extends State<SplashScreen> {
         banned = true;
       }
     } catch (e) {
-      debugPrint('Check banned error: \$e');
+      debugPrint('Check banned error: $e');
     }
 
     if (banned) {
       await prefs.clear();
+      if (!mounted) return;
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => const BannedScreen()),
@@ -297,7 +223,93 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 }
 
-// ============ Register ============
+// ============ Banned Screen ============
+class BannedScreen extends StatelessWidget {
+  const BannedScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(28),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.red.shade200, width: 3),
+                ),
+                child: const Icon(Icons.block, size: 80, color: Colors.red),
+              ),
+              const SizedBox(height: 30),
+              const Text('تم حظر حسابك',
+                  style: TextStyle(
+                      fontSize: 26,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1A1A1A))),
+              const SizedBox(height: 15),
+              const Text(
+                  'تم إيقاف حسابك من قبل إدارة التطبيق\nلأسباب تتعلق بمخالفة السياسات',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                      fontSize: 15,
+                      color: Color(0xFF555555),
+                      height: 1.6)),
+              const SizedBox(height: 40),
+              Container(
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 14),
+                  ],
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.info_outline, color: Color(0xFF1565C0)),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: Text('للتواصل مع الإدارة: support@kitabi.ly',
+                          style: TextStyle(
+                              fontSize: 13, color: Color(0xFF555555))),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 30),
+              SizedBox(
+                width: double.infinity,
+                height: 55,
+                child: OutlinedButton.icon(
+                  onPressed: null,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('إعادة المحاولة لاحقاً'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF555555),
+                    side: const BorderSide(color: Color(0xFFE5E5E5)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ============ Register Screen ============
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
   @override
@@ -308,6 +320,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _nameController = TextEditingController();
   String? _selectedGrade;
   String? _selectedMuraqaba;
+  bool _saving = false;
 
   final List<String> _grades = [
     'أول ابتدائي', 'ثاني ابتدائي', 'ثالث ابتدائي',
@@ -324,22 +337,25 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   Future<void> _save() async {
     if (_nameController.text.trim().isEmpty) {
-      _msg('اكتب اسمك');
+      showKitabiSnack(context, 'اكتب اسمك');
       return;
     }
     if (_selectedGrade == null) {
-      _msg('اختر صفك');
+      showKitabiSnack(context, 'اختر صفك');
       return;
     }
     if (_selectedMuraqaba == null) {
-      _msg('اختر مراقبتك');
+      showKitabiSnack(context, 'اختر مراقبتك');
       return;
     }
+
+    setState(() => _saving = true);
+
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('user_name', _nameController.text.trim());
     await prefs.setString('user_grade', _selectedGrade!);
     await prefs.setString('user_muraqaba', _selectedMuraqaba!);
-    // مكافأة ترحيب: 50 نقطة
+
     final currentPts = prefs.getInt('user_points') ?? 0;
     if (currentPts == 0) {
       await prefs.setInt('user_points', 50);
@@ -347,7 +363,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       await prefs.setInt('user_achievements', 0);
     }
 
-    // حفظ المستخدم في Supabase
+    // حفظ في Supabase
     try {
       final existing = await supabase
           .from('users')
@@ -365,7 +381,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         });
       }
     } catch (e) {
-      debugPrint('Supabase insert error: \$e');
+      debugPrint('Supabase insert error: $e');
     }
 
     if (!mounted) return;
@@ -375,7 +391,26 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  void _msg(String m) => showKitabiSnack(context, m);
+  InputDecoration _inputDeco(String label, IconData icon) {
+    return InputDecoration(
+      labelText: label,
+      prefixIcon: Icon(icon, color: const Color(0xFF1565C0)),
+      filled: true,
+      fillColor: Colors.white,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide.none,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide(color: Colors.grey.shade200),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: const BorderSide(color: Color(0xFF1565C0), width: 2),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -415,12 +450,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
               const Center(
                 child: Text('مرحباً بك في كتابي',
                     style: TextStyle(
-                        fontSize: 26, fontWeight: FontWeight.bold)),
+                        fontSize: 26,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1A1A1A))),
               ),
               const SizedBox(height: 10),
               const Center(
                 child: Text('سجل بياناتك لتبدأ رحلتك التعليمية',
-                    style: TextStyle(fontSize: 15, color: Color(0xFF555555))),
+                    style: TextStyle(
+                        fontSize: 15, color: Color(0xFF555555))),
               ),
               const SizedBox(height: 40),
               TextField(
@@ -449,7 +487,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               SizedBox(
                 height: 58,
                 child: ElevatedButton(
-                  onPressed: _save,
+                  onPressed: _saving ? null : _save,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF1565C0),
                     foregroundColor: Colors.white,
@@ -458,9 +496,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       borderRadius: BorderRadius.circular(16),
                     ),
                   ),
-                  child: const Text('دخول',
-                      style: TextStyle(
-                          fontSize: 20, fontWeight: FontWeight.bold)),
+                  child: _saving
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : const Text('دخول',
+                          style: TextStyle(
+                              fontSize: 20, fontWeight: FontWeight.bold)),
                 ),
               ),
             ],
@@ -469,30 +509,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
       ),
     );
   }
-
-  InputDecoration _inputDeco(String label, IconData icon) {
-    return InputDecoration(
-      labelText: label,
-      prefixIcon: Icon(icon, color: const Color(0xFF1565C0)),
-      filled: true,
-      fillColor: Colors.white,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide.none,
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide(color: Color(0xFFE5E5E5)),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: const BorderSide(color: Color(0xFF1565C0), width: 2),
-      ),
-    );
-  }
 }
 
-// ============ Home Shell with Custom Bottom Nav ============
+// ============ Home Shell ============
 class HomeShell extends StatefulWidget {
   const HomeShell({super.key});
   @override
@@ -540,8 +559,8 @@ class _HomeShellState extends State<HomeShell> {
             children: [
               _navItem(0, Icons.home_outlined, Icons.home, 'الرئيسية'),
               _navItem(1, Icons.menu_book_outlined, Icons.menu_book, 'المكتبة'),
-              _navItem(2, Icons.notifications_outlined,
-                  Icons.notifications, 'الإشعارات'),
+              _navItem(2, Icons.notifications_outlined, Icons.notifications,
+                  'الإشعارات'),
               _navItem(3, Icons.person_outline, Icons.person, 'حسابي'),
             ],
           ),
@@ -576,7 +595,7 @@ class _HomeShellState extends State<HomeShell> {
                   ),
                   child: Icon(
                     selected ? activeIcon : icon,
-                    color: selected ? Colors.white : Colors.white70,
+                    color: selected ? Colors.white : Colors.white60,
                     size: 22,
                   ),
                 ),
@@ -586,9 +605,8 @@ class _HomeShellState extends State<HomeShell> {
                   style: TextStyle(
                     fontSize: 10,
                     height: 1,
-                    fontWeight:
-                        selected ? FontWeight.bold : FontWeight.w400,
-                    color: selected ? Colors.white : Colors.white70,
+                    fontWeight: selected ? FontWeight.bold : FontWeight.w400,
+                    color: selected ? Colors.white : Colors.white60,
                   ),
                 ),
               ],
@@ -600,7 +618,7 @@ class _HomeShellState extends State<HomeShell> {
   }
 }
 
-// ============ Home Tab (Redesigned) ============
+// ============ Home Tab ============
 class HomeTab extends StatelessWidget {
   final VoidCallback onStartLearning;
   const HomeTab({super.key, required this.onStartLearning});
@@ -615,7 +633,6 @@ class HomeTab extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // ===== Header =====
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Row(
@@ -650,7 +667,8 @@ class HomeTab extends StatelessWidget {
                           style: TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.w900,
-                              letterSpacing: 3)),
+                              letterSpacing: 3,
+                              color: Color(0xFF1A1A1A))),
                       Text('كتابي',
                           style: TextStyle(
                               fontSize: 12,
@@ -678,10 +696,8 @@ class HomeTab extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 20),
-
-          // ===== Hero Banner =====
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Container(
               height: 250,
               decoration: BoxDecoration(
@@ -728,18 +744,31 @@ class HomeTab extends StatelessWidget {
                           begin: Alignment.topCenter,
                           end: Alignment.bottomCenter,
                           colors: [
-                            Colors.black.withOpacity(0.2),
-                            Colors.black.withOpacity(0.75),
+                            Colors.black.withOpacity(0.15),
+                            Colors.black.withOpacity(0.78),
                           ],
                         ),
                       ),
                     ),
                     Padding(
-                      padding: const EdgeInsets.all(20),
+                      padding: const EdgeInsets.all(22),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.end,
                         children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: Colors.amber.shade600,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: const Text('الإصدار 0.1 تجريبي',
+                                style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold)),
+                          ),
+                          const Spacer(),
                           const Text(
                             'التعلم هو مفتاح النجاح',
                             style: TextStyle(
@@ -766,6 +795,30 @@ class HomeTab extends StatelessWidget {
                               ],
                             ),
                           ),
+                          const SizedBox(height: 16),
+                          SizedBox(
+                            height: 48,
+                            child: ElevatedButton.icon(
+                              onPressed: onStartLearning,
+                              icon: const Icon(Icons.play_arrow_rounded,
+                                  size: 24),
+                              label: const Text('ابدأ التعلم',
+                                  style: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.bold)),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.white,
+                                foregroundColor: const Color(0xFF1565C0),
+                                elevation: 6,
+                                shadowColor: Colors.black45,
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 22),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(30),
+                                ),
+                              ),
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -775,8 +828,6 @@ class HomeTab extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 22),
-
-          // ===== 6 مربعات ملوّنة =====
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: GridView.count(
@@ -787,76 +838,42 @@ class HomeTab extends StatelessWidget {
               mainAxisSpacing: 12,
               childAspectRatio: 1,
               children: [
-                _quickBtn(
-                  context,
-                  'المكتبة',
-                  Icons.menu_book_rounded,
-                  const LinearGradient(
-                      colors: [Color(0xFF1565C0), Color(0xFF42A5F5)]),
-                  onStartLearning,
-                ),
-                _quickBtn(
-                  context,
-                  'الدورات',
-                  Icons.school_rounded,
-                  const LinearGradient(
-                      colors: [Color(0xFF00897B), Color(0xFF26A69A)]),
-                  () => showKitabiSnack(context, 'الدورات — قريباً'),
-                ),
-                _quickBtn(
-                  context,
-                  'المعلم الذكي',
-                  Icons.smart_toy_rounded,
-                  const LinearGradient(
-                      colors: [Color(0xFF7B1FA2), Color(0xFFAB47BC)]),
-                  () => showKitabiSnack(context, 'المعلم الذكي — قريباً'),
-                ),
-                _quickBtn(
-                  context,
-                  'المنتدى',
-                  Icons.forum_rounded,
-                  const LinearGradient(
-                      colors: [Color(0xFF283593), Color(0xFF3F51B5)]),
-                  () => showKitabiSnack(context, 'المنتدى — قريباً'),
-                ),
-                _quickBtn(
-                  context,
-                  'الاختبارات',
-                  Icons.assignment_rounded,
-                  const LinearGradient(
-                      colors: [Color(0xFFEF6C00), Color(0xFFFFA726)]),
-                  () => showKitabiSnack(context, 'الاختبارات — قريباً'),
-                ),
-                _quickBtn(
-                  context,
-                  'ملاحظاتي',
-                  Icons.sticky_note_2_rounded,
-                  const LinearGradient(
-                      colors: [Color(0xFF00838F), Color(0xFF00ACC1)]),
-                  () => showKitabiSnack(context, 'ملاحظاتي — قريباً'),
-                ),
-                _quickBtn(
-                  context,
-                  'فيديوهات',
-                  Icons.play_circle_fill_rounded,
-                  const LinearGradient(
-                      colors: [Color(0xFFD32F2F), Color(0xFFEF5350)]),
-                  () => showKitabiSnack(context, 'الفيديوهات — قريباً'),
-                ),
-                _quickBtn(
-                  context,
-                  'كتب محلولة',
-                  Icons.checklist_rtl_rounded,
-                  const LinearGradient(
-                      colors: [Color(0xFF00695C), Color(0xFF26A69A)]),
-                  () => showKitabiSnack(context, 'الكتب المحلولة — قريباً'),
-                ),
+                _quickBtn(context, 'المكتبة', Icons.menu_book_rounded,
+                    const LinearGradient(
+                        colors: [Color(0xFF1565C0), Color(0xFF42A5F5)]),
+                    onStartLearning),
+                _quickBtn(context, 'الدورات', Icons.school_rounded,
+                    const LinearGradient(
+                        colors: [Color(0xFF00897B), Color(0xFF26A69A)]),
+                    () => showKitabiSnack(context, 'الدورات — قريباً')),
+                _quickBtn(context, 'المعلم الذكي', Icons.smart_toy_rounded,
+                    const LinearGradient(
+                        colors: [Color(0xFF7B1FA2), Color(0xFFAB47BC)]),
+                    () => showKitabiSnack(context, 'المعلم الذكي — قريباً')),
+                _quickBtn(context, 'المنتدى', Icons.forum_rounded,
+                    const LinearGradient(
+                        colors: [Color(0xFF283593), Color(0xFF3F51B5)]),
+                    () => showKitabiSnack(context, 'المنتدى — قريباً')),
+                _quickBtn(context, 'الاختبارات', Icons.assignment_rounded,
+                    const LinearGradient(
+                        colors: [Color(0xFFEF6C00), Color(0xFFFFA726)]),
+                    () => showKitabiSnack(context, 'الاختبارات — قريباً')),
+                _quickBtn(context, 'ملاحظاتي', Icons.sticky_note_2_rounded,
+                    const LinearGradient(
+                        colors: [Color(0xFF00838F), Color(0xFF00ACC1)]),
+                    () => showKitabiSnack(context, 'ملاحظاتي — قريباً')),
+                _quickBtn(context, 'فيديوهات', Icons.play_circle_fill_rounded,
+                    const LinearGradient(
+                        colors: [Color(0xFFD32F2F), Color(0xFFEF5350)]),
+                    () => showKitabiSnack(context, 'الفيديوهات — قريباً')),
+                _quickBtn(context, 'كتب محلولة', Icons.checklist_rtl_rounded,
+                    const LinearGradient(
+                        colors: [Color(0xFF00695C), Color(0xFF26A69A)]),
+                    () => showKitabiSnack(context, 'الكتب المحلولة — قريباً')),
               ],
             ),
           ),
           const SizedBox(height: 20),
-
-          // ===== أحدث الدروس =====
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 20),
             child: Text('أحدث الدروس',
@@ -866,136 +883,20 @@ class HomeTab extends StatelessWidget {
                     color: Color(0xFF1A1A1A))),
           ),
           const SizedBox(height: 12),
-
-          // === بطاقة الدرس الأولى ===
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(22),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.06),
-                    blurRadius: 15,
-                    offset: const Offset(0, 5),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 70,
-                    height: 70,
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF1565C0), Color(0xFF42A5F5)],
-                        begin: Alignment.topRight,
-                        end: Alignment.bottomLeft,
-                      ),
-                      borderRadius: BorderRadius.circular(18),
-                    ),
-                    child: const Icon(Icons.calculate_rounded,
-                        color: Colors.white, size: 34),
-                  ),
-                  const SizedBox(width: 14),
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('الرياضيات — الفصل الأول',
-                            style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF1A1A1A))),
-                        SizedBox(height: 5),
-                        Text('الأساس والغلاف',
-                            style: TextStyle(
-                                fontSize: 12,
-                                color: Color(0xFF555555))),
-                      ],
-                    ),
-                  ),
-                  Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1565C0).withOpacity(0.08),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.play_arrow_rounded,
-                        color: Color(0xFF1565C0), size: 22),
-                  ),
-                ],
-              ),
-            ),
+            child: _lessonCard('الرياضيات — الفصل الأول', 'الأساس والغلاف',
+                Icons.calculate_rounded,
+                const LinearGradient(
+                    colors: [Color(0xFF1565C0), Color(0xFF42A5F5)])),
           ),
           const SizedBox(height: 12),
-
-          // === بطاقة الدرس الثانية ===
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(22),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.06),
-                    blurRadius: 15,
-                    offset: const Offset(0, 5),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 70,
-                    height: 70,
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF7B1FA2), Color(0xFFAB47BC)],
-                        begin: Alignment.topRight,
-                        end: Alignment.bottomLeft,
-                      ),
-                      borderRadius: BorderRadius.circular(18),
-                    ),
-                    child: const Icon(Icons.science_rounded,
-                        color: Colors.white, size: 34),
-                  ),
-                  const SizedBox(width: 14),
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('العلوم الطبيعية',
-                            style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF1A1A1A))),
-                        SizedBox(height: 5),
-                        Text('مقدمة في الأحياء',
-                            style: TextStyle(
-                                fontSize: 12,
-                                color: Color(0xFF555555))),
-                      ],
-                    ),
-                  ),
-                  Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF7B1FA2).withOpacity(0.08),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.play_arrow_rounded,
-                        color: Color(0xFF7B1FA2), size: 22),
-                  ),
-                ],
-              ),
-            ),
+            child: _lessonCard('العلوم الطبيعية', 'مقدمة في الأحياء',
+                Icons.science_rounded,
+                const LinearGradient(
+                    colors: [Color(0xFF7B1FA2), Color(0xFFAB47BC)])),
           ),
           const SizedBox(height: 25),
         ],
@@ -1027,77 +928,95 @@ class HomeTab extends StatelessWidget {
             children: [
               Icon(icon, color: Colors.white, size: 30),
               const SizedBox(height: 8),
-              Text(
-                label,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+              Text(label,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold)),
             ],
           ),
         ),
       ),
     );
   }
+
+  Widget _lessonCard(String title, String subtitle, IconData icon,
+      Gradient grad) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 70,
+            height: 70,
+            decoration: BoxDecoration(
+              gradient: grad,
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: Icon(icon, color: Colors.white, size: 34),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title,
+                    style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1A1A1A))),
+                const SizedBox(height: 5),
+                Text(subtitle,
+                    style: const TextStyle(
+                        fontSize: 12, color: Color(0xFF555555))),
+              ],
+            ),
+          ),
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: grad.colors.first.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(Icons.play_arrow_rounded,
+                color: grad.colors.first, size: 22),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
-// ============ Library Tab (Redesigned) ============
+// ============ Library Tab ============
 class LibraryTab extends StatelessWidget {
   const LibraryTab({super.key});
 
-  // المواد حسب كل صف
   static const Map<String, List<String>> _subjectsByGrade = {
-    'أول ابتدائي': [
-      'الرياضيات', 'اللغة العربية', 'اللغة الإنجليزية',
-      'التربية الإسلامية', 'الحاسوب',
-    ],
-    'ثاني ابتدائي': [
-      'الرياضيات', 'اللغة العربية', 'اللغة الإنجليزية',
-      'التربية الإسلامية', 'الحاسوب',
-    ],
-    'ثالث ابتدائي': [
-      'الرياضيات', 'اللغة العربية', 'اللغة الإنجليزية',
-      'التربية الإسلامية', 'الحاسوب', 'العلوم',
-    ],
-    'رابع ابتدائي': [
-      'الرياضيات', 'اللغة العربية', 'اللغة الإنجليزية',
-      'التربية الإسلامية', 'الحاسوب', 'العلوم', 'الاجتماعيات',
-    ],
-    'خامس ابتدائي': [
-      'الرياضيات', 'اللغة العربية', 'اللغة الإنجليزية',
-      'التربية الإسلامية', 'الحاسوب', 'العلوم', 'الاجتماعيات',
-    ],
-    'سادس ابتدائي': [
-      'الرياضيات', 'اللغة العربية', 'اللغة الإنجليزية',
-      'التربية الإسلامية', 'الحاسوب', 'العلوم', 'الاجتماعيات',
-    ],
-    'أول إعدادي': [
-      'الرياضيات', 'اللغة العربية', 'اللغة الإنجليزية',
-      'التربية الإسلامية', 'الحاسوب', 'العلوم', 'الاجتماعيات',
-    ],
-    'ثاني إعدادي': [
-      'الرياضيات', 'اللغة العربية', 'اللغة الإنجليزية',
-      'التربية الإسلامية', 'الحاسوب', 'العلوم', 'الاجتماعيات',
-    ],
-    'ثالث إعدادي': [
-      'الرياضيات', 'اللغة العربية', 'اللغة الإنجليزية',
-      'التربية الإسلامية', 'الحاسوب', 'العلوم', 'الاجتماعيات',
-    ],
-    'أولى ثانوي': [
-      'الرياضيات', 'اللغة العربية', 'اللغة الإنجليزية',
-      'التربية الإسلامية', 'الحاسوب', 'العلوم', 'الاجتماعيات',
-    ],
-    'ثانية ثانوي': [
-      'الرياضيات', 'اللغة العربية', 'اللغة الإنجليزية',
-      'التربية الإسلامية', 'الحاسوب', 'العلوم', 'الاجتماعيات',
-    ],
-    'ثالثة ثانوي': [
-      'الرياضيات', 'اللغة العربية', 'اللغة الإنجليزية',
-      'التربية الإسلامية', 'الحاسوب', 'العلوم', 'الاجتماعيات',
-    ],
+    'أول ابتدائي': ['الرياضيات', 'اللغة العربية', 'اللغة الإنجليزية', 'التربية الإسلامية', 'الحاسوب'],
+    'ثاني ابتدائي': ['الرياضيات', 'اللغة العربية', 'اللغة الإنجليزية', 'التربية الإسلامية', 'الحاسوب'],
+    'ثالث ابتدائي': ['الرياضيات', 'اللغة العربية', 'اللغة الإنجليزية', 'التربية الإسلامية', 'الحاسوب', 'العلوم'],
+    'رابع ابتدائي': ['الرياضيات', 'اللغة العربية', 'اللغة الإنجليزية', 'التربية الإسلامية', 'الحاسوب', 'العلوم', 'الاجتماعيات'],
+    'خامس ابتدائي': ['الرياضيات', 'اللغة العربية', 'اللغة الإنجليزية', 'التربية الإسلامية', 'الحاسوب', 'العلوم', 'الاجتماعيات'],
+    'سادس ابتدائي': ['الرياضيات', 'اللغة العربية', 'اللغة الإنجليزية', 'التربية الإسلامية', 'الحاسوب', 'العلوم', 'الاجتماعيات'],
+    'أول إعدادي': ['الرياضيات', 'اللغة العربية', 'اللغة الإنجليزية', 'التربية الإسلامية', 'الحاسوب', 'العلوم', 'الاجتماعيات'],
+    'ثاني إعدادي': ['الرياضيات', 'اللغة العربية', 'اللغة الإنجليزية', 'التربية الإسلامية', 'الحاسوب', 'العلوم', 'الاجتماعيات'],
+    'ثالث إعدادي': ['الرياضيات', 'اللغة العربية', 'اللغة الإنجليزية', 'التربية الإسلامية', 'الحاسوب', 'العلوم', 'الاجتماعيات'],
+    'أولى ثانوي': ['الرياضيات', 'اللغة العربية', 'اللغة الإنجليزية', 'التربية الإسلامية', 'الحاسوب', 'العلوم', 'الاجتماعيات'],
+    'ثانية ثانوي': ['الرياضيات', 'اللغة العربية', 'اللغة الإنجليزية', 'التربية الإسلامية', 'الحاسوب', 'العلوم', 'الاجتماعيات'],
+    'ثالثة ثانوي': ['الرياضيات', 'اللغة العربية', 'اللغة الإنجليزية', 'التربية الإسلامية', 'الحاسوب', 'العلوم', 'الاجتماعيات'],
   };
 
   static const Map<String, IconData> _subjectIcons = {
@@ -1172,8 +1091,7 @@ class LibraryTab extends StatelessWidget {
             separatorBuilder: (_, __) => const SizedBox(height: 14),
             itemBuilder: (context, i) {
               final g = _grades[i];
-              final subjects =
-                  _subjectsByGrade[g['name']] ?? const <String>[];
+              final subjects = _subjectsByGrade[g['name']] ?? <String>[];
               return Container(
                 height: 82,
                 decoration: BoxDecoration(
@@ -1225,22 +1143,16 @@ class LibraryTab extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Text(
-                                  g['name'],
-                                  style: const TextStyle(
-                                    fontSize: 17,
-                                    fontWeight: FontWeight.bold,
-                                    color: Color(0xFF1A1A1A),
-                                  ),
-                                ),
+                                Text(g['name'],
+                                    style: const TextStyle(
+                                        fontSize: 17,
+                                        fontWeight: FontWeight.bold,
+                                        color: Color(0xFF1A1A1A))),
                                 const SizedBox(height: 3),
-                                Text(
-                                  '${subjects.length} مواد',
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    color: Color(0xFF555555),
-                                  ),
-                                ),
+                                Text('${subjects.length} مواد',
+                                    style: const TextStyle(
+                                        fontSize: 12,
+                                        color: Color(0xFF555555))),
                               ],
                             ),
                           ),
@@ -1248,15 +1160,11 @@ class LibraryTab extends StatelessWidget {
                             width: 34,
                             height: 34,
                             decoration: BoxDecoration(
-                              color: const Color(0xFF1565C0)
-                                  .withOpacity(0.08),
+                              color: const Color(0xFF1565C0).withOpacity(0.08),
                               shape: BoxShape.circle,
                             ),
-                            child: const Icon(
-                              Icons.arrow_back_ios_new,
-                              size: 14,
-                              color: Color(0xFF1565C0),
-                            ),
+                            child: const Icon(Icons.arrow_back_ios_new,
+                                size: 14, color: Color(0xFF1565C0)),
                           ),
                         ],
                       ),
@@ -1328,9 +1236,8 @@ class GradeSubjectsScreen extends StatelessWidget {
                     color: Colors.transparent,
                     child: InkWell(
                       borderRadius: BorderRadius.circular(24),
-                      onTap: () {
-                        showKitabiSnack(context, '$s — قريباً');
-                      },
+                      onTap: () =>
+                          showKitabiSnack(context, '$s — قريباً'),
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 16, vertical: 12),
@@ -1347,14 +1254,11 @@ class GradeSubjectsScreen extends StatelessWidget {
                             ),
                             const SizedBox(width: 16),
                             Expanded(
-                              child: Text(
-                                s,
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF1A1A1A),
-                                ),
-                              ),
+                              child: Text(s,
+                                  style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF1A1A1A))),
                             ),
                             Container(
                               width: 32,
@@ -1363,11 +1267,8 @@ class GradeSubjectsScreen extends StatelessWidget {
                                 color: color.withOpacity(0.08),
                                 shape: BoxShape.circle,
                               ),
-                              child: Icon(
-                                Icons.arrow_back_ios_new,
-                                size: 13,
-                                color: color,
-                              ),
+                              child: Icon(Icons.arrow_back_ios_new,
+                                  size: 13, color: color),
                             ),
                           ],
                         ),
@@ -1381,7 +1282,7 @@ class GradeSubjectsScreen extends StatelessWidget {
   }
 }
 
-// ============ Notifications ============
+// ============ Notifications Tab ============
 class NotificationsTab extends StatefulWidget {
   const NotificationsTab({super.key});
   @override
@@ -1410,6 +1311,7 @@ class _NotificationsTabState extends State<NotificationsTab> {
           .select()
           .order('created_at', ascending: false)
           .limit(50);
+      if (!mounted) return;
       setState(() {
         _notifications = List<Map<String, dynamic>>.from(data);
         _loading = false;
@@ -1493,10 +1395,8 @@ class _NotificationsTabState extends State<NotificationsTab> {
                             itemCount: _notifications.length,
                             separatorBuilder: (_, __) =>
                                 const SizedBox(height: 12),
-                            itemBuilder: (context, i) {
-                              final n = _notifications[i];
-                              return _notifCard(n);
-                            },
+                            itemBuilder: (context, i) =>
+                                _notifCard(_notifications[i]),
                           ),
                         ),
         ),
@@ -1534,34 +1434,24 @@ class _NotificationsTabState extends State<NotificationsTab> {
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: Text(
-                  n['title'] ?? '',
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF1A1A1A),
-                  ),
-                ),
+                child: Text(n['title'] ?? '',
+                    style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1A1A1A))),
               ),
             ],
           ),
           const SizedBox(height: 10),
-          Text(
-            n['body'] ?? '',
-            style: const TextStyle(
-              fontSize: 13,
-              color: Color(0xFF333333),
-              height: 1.5,
-            ),
-          ),
+          Text(n['body'] ?? '',
+              style: const TextStyle(
+                  fontSize: 13,
+                  color: Color(0xFF333333),
+                  height: 1.5)),
           const SizedBox(height: 8),
-          Text(
-            _formatDate(n['created_at']),
-            style: const TextStyle(
-              fontSize: 11,
-              color: Color(0xFF888888),
-            ),
-          ),
+          Text(_formatDate(n['created_at']),
+              style: const TextStyle(
+                  fontSize: 11, color: Color(0xFF888888))),
         ],
       ),
     );
@@ -1579,9 +1469,7 @@ class _NotificationsTabState extends State<NotificationsTab> {
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 15,
-                ),
+                    color: Colors.black.withOpacity(0.05), blurRadius: 15),
               ],
             ),
             child: const Icon(Icons.notifications_off,
@@ -1624,7 +1512,7 @@ class _NotificationsTabState extends State<NotificationsTab> {
   }
 }
 
-// ============ Account Tab (Redesigned) ============
+// ============ Account Tab ============
 class AccountTab extends StatefulWidget {
   const AccountTab({super.key});
   @override
@@ -1648,6 +1536,7 @@ class _AccountTabState extends State<AccountTab> {
   Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();
     final stats = await UserStats.get();
+    if (!mounted) return;
     setState(() {
       _name = prefs.getString('user_name') ?? 'طالب';
       _grade = prefs.getString('user_grade') ?? '';
@@ -1661,6 +1550,7 @@ class _AccountTabState extends State<AccountTab> {
   Future<void> _logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
+    if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const RegisterScreen()),
       (route) => false,
@@ -1720,7 +1610,8 @@ class _AccountTabState extends State<AccountTab> {
                         decoration: BoxDecoration(
                           color: Colors.white,
                           shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 3),
+                          border:
+                              Border.all(color: Colors.white, width: 3),
                           boxShadow: [
                             BoxShadow(
                               color: Colors.black.withOpacity(0.15),
@@ -1751,8 +1642,8 @@ class _AccountTabState extends State<AccountTab> {
                             decoration: BoxDecoration(
                               color: Colors.amber,
                               shape: BoxShape.circle,
-                              border:
-                                  Border.all(color: Colors.white, width: 2),
+                              border: Border.all(
+                                  color: Colors.white, width: 2),
                             ),
                             child: const Icon(Icons.edit,
                                 size: 14, color: Colors.white),
@@ -1762,14 +1653,11 @@ class _AccountTabState extends State<AccountTab> {
                     ],
                   ),
                   const SizedBox(height: 15),
-                  Text(
-                    _name,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                  Text(_name,
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold)),
                   const SizedBox(height: 6),
                   Container(
                     padding: const EdgeInsets.symmetric(
@@ -1778,14 +1666,11 @@ class _AccountTabState extends State<AccountTab> {
                       color: Colors.white.withOpacity(0.2),
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    child: Text(
-                      _grade.isNotEmpty ? _grade : 'طالب',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
+                    child: Text(_grade.isNotEmpty ? _grade : 'طالب',
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600)),
                   ),
                 ],
               ),
@@ -1830,9 +1715,8 @@ class _AccountTabState extends State<AccountTab> {
                 borderRadius: BorderRadius.circular(24),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 15,
-                  ),
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 15),
                 ],
               ),
               child: Column(
@@ -1951,14 +1835,11 @@ class _AccountTabState extends State<AccountTab> {
         ),
         child: Icon(icon, color: color, size: 22),
       ),
-      title: Text(
-        title,
-        style: const TextStyle(
-          fontWeight: FontWeight.w600,
-          fontSize: 14,
-          color: Color(0xFF1A1A1A),
-        ),
-      ),
+      title: Text(title,
+          style: const TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 14,
+              color: Color(0xFF1A1A1A))),
       trailing: const Icon(Icons.arrow_back_ios,
           size: 14, color: Color(0xFF555555)),
       onTap: onTap,
@@ -1969,7 +1850,7 @@ class _AccountTabState extends State<AccountTab> {
       height: 1, indent: 70, endIndent: 15, color: Color(0xFFF0F0F0));
 }
 
-// ============ Control Room ============
+// ============ Control Room Screen ============
 class ControlRoomScreen extends StatefulWidget {
   const ControlRoomScreen({super.key});
   @override
@@ -1982,12 +1863,21 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
   bool _logged = false;
   bool _showLoginPassword = false;
 
-  // قائمة المستخدمين (مؤقتة — لاحقاً من قاعدة البيانات)
-  final List<Map<String, String>> _users = [];
+  Future<void> _login() async {
+    String storedPassword = 'العلم نور';
+    try {
+      final data = await supabase
+          .from('admin_settings')
+          .select('admin_password')
+          .eq('id', 1)
+          .single();
+      storedPassword = data['admin_password'] ?? 'العلم نور';
+    } catch (e) {
+      debugPrint('Load password error: $e');
+    }
 
-  void _login() {
     if (_idController.text.trim() == '0922251374' &&
-        _passController.text.trim() == 'العلم نور') {
+        _passController.text.trim() == storedPassword) {
       setState(() => _logged = true);
     } else {
       showKitabiSnack(context, 'بيانات خاطئة');
@@ -2009,7 +1899,6 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
     );
   }
 
-  // ============ شاشة تسجيل الدخول ============
   Widget _loginUi() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
@@ -2066,9 +1955,8 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
               labelText: 'كلمة السر',
               prefixIcon: const Icon(Icons.lock),
               suffixIcon: IconButton(
-                onPressed: () {
-                  setState(() => _showLoginPassword = !_showLoginPassword);
-                },
+                onPressed: () => setState(
+                    () => _showLoginPassword = !_showLoginPassword),
                 icon: Icon(
                   _showLoginPassword
                       ? Icons.visibility
@@ -2107,7 +1995,6 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
     );
   }
 
-  // ============ لوحة التحكم ============
   Widget _panel() {
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -2143,28 +2030,18 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
           ),
         ),
         const SizedBox(height: 18),
-
-        // ===== الشبكة: 2x3 =====
         Row(
           children: [
             Expanded(
-              child: _bigCard(
-                'المستخدمون',
-                'عرض',
-                Icons.people_alt_rounded,
-                const Color(0xFF1565C0),
-                () => _showUsers(),
-              ),
+              child: _bigCard('المستخدمون', 'عرض',
+                  Icons.people_alt_rounded, const Color(0xFF1565C0),
+                  () => _showUsersManagement()),
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: _bigCard(
-                'رفع الكتب',
-                'جديد',
-                Icons.upload_file_rounded,
-                const Color(0xFF00897B),
-                () => _showUploadBook(),
-              ),
+              child: _bigCard('رفع الكتب', 'جديد',
+                  Icons.upload_file_rounded, const Color(0xFF00897B),
+                  () => _showUploadBook()),
             ),
           ],
         ),
@@ -2172,23 +2049,15 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
         Row(
           children: [
             Expanded(
-              child: _bigCard(
-                'إرسال إشعار',
-                'لكل الطلاب',
-                Icons.send_rounded,
-                const Color(0xFF7B1FA2),
-                () => _showSendNotification(),
-              ),
+              child: _bigCard('إرسال إشعار', 'لكل الطلاب',
+                  Icons.send_rounded, const Color(0xFF7B1FA2),
+                  () => _showSendNotification()),
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: _bigCard(
-                'كلمة السر',
-                'تغيير',
-                Icons.key_rounded,
-                const Color(0xFFEF6C00),
-                () => _changePassword(),
-              ),
+              child: _bigCard('كلمة السر', 'تغيير',
+                  Icons.key_rounded, const Color(0xFFEF6C00),
+                  () => _changePassword()),
             ),
           ],
         ),
@@ -2196,38 +2065,26 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
         Row(
           children: [
             Expanded(
-              child: _bigCard(
-                'الاختبارات',
-                'إدارة',
-                Icons.assignment_rounded,
-                const Color(0xFFD32F2F),
-                () => _showQuizzes(),
-              ),
+              child: _bigCard('الاختبارات', 'إدارة',
+                  Icons.assignment_rounded, const Color(0xFFD32F2F),
+                  () => _showQuizzes()),
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: _bigCard(
-                'الإحصائيات',
-                'تحليل',
-                Icons.bar_chart_rounded,
-                const Color(0xFF283593),
-                () => _showStatistics(),
-              ),
+              child: _bigCard('الإحصائيات', 'تحليل',
+                  Icons.bar_chart_rounded, const Color(0xFF283593),
+                  () => _showStatistics()),
             ),
           ],
         ),
         const SizedBox(height: 20),
-
-        // ===== قائمة خيارات إضافية =====
         Container(
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 12,
-              ),
+                  color: Colors.black.withOpacity(0.05), blurRadius: 12),
             ],
           ),
           child: Column(
@@ -2252,7 +2109,6 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
     );
   }
 
-  // ============ بطاقة كبيرة ============
   Widget _bigCard(String title, String subtitle, IconData icon, Color color,
       VoidCallback onTap) {
     return Container(
@@ -2306,7 +2162,6 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
     );
   }
 
-  // ============ عنصر قائمة ============
   Widget _listItem(
       IconData icon, String title, Color color, VoidCallback onTap) {
     return ListTile(
@@ -2332,400 +2187,7 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
   Widget _divider() => const Divider(
       height: 1, indent: 70, endIndent: 15, color: Color(0xFFF0F0F0));
 
-  // ============ الحوارات ============
-  Future<void> _showUsers() async {
-    List<Map<String, dynamic>> usersList = [];
-    bool loading = true;
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setSt) {
-          if (loading) {
-            supabase
-                .from('users')
-                .select()
-                .order('created_at', ascending: false)
-                .then((data) {
-              setSt(() {
-                usersList = List<Map<String, dynamic>>.from(data);
-                loading = false;
-              });
-            }).catchError((e) {
-              setSt(() => loading = false);
-            });
-          }
-          return Container(
-            height: MediaQuery.of(context).size.height * 0.75,
-            padding: const EdgeInsets.all(20),
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(24),
-                topRight: Radius.circular(24),
-              ),
-            ),
-            child: Column(
-              children: [
-                Container(
-                  width: 50,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                const SizedBox(height: 15),
-                Row(
-                  children: [
-                    const Icon(Icons.people,
-                        color: Color(0xFF1565C0), size: 24),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        'المستخدمون (${usersList.length})',
-                        style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF1A1A1A)),
-                      ),
-                    ),
-                    IconButton(
-                      onPressed: () => setSt(() => loading = true),
-                      icon: const Icon(Icons.refresh,
-                          color: Color(0xFF1565C0)),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Expanded(
-                  child: loading
-                      ? const Center(
-                          child: CircularProgressIndicator(
-                              color: Color(0xFF1565C0)),
-                        )
-                      : usersList.isEmpty
-                          ? const Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(Icons.people_outline,
-                                      size: 60, color: Color(0xFF555555)),
-                                  SizedBox(height: 12),
-                                  Text('لا يوجد مستخدمون بعد',
-                                      style: TextStyle(
-                                          fontSize: 14,
-                                          color: Color(0xFF555555))),
-                                ],
-                              ),
-                            )
-                          : ListView.separated(
-                              itemCount: usersList.length,
-                              separatorBuilder: (_, __) =>
-                                  const SizedBox(height: 10),
-                              itemBuilder: (_, i) {
-                                final u = usersList[i];
-                                final banned = u['is_banned'] == true;
-                                return Container(
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    color: banned
-                                        ? Colors.red.shade50
-                                        : Colors.grey.shade50,
-                                    borderRadius: BorderRadius.circular(14),
-                                    border: Border.all(
-                                      color: banned
-                                          ? Colors.red.shade200
-                                          : Colors.grey.shade200,
-                                    ),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      CircleAvatar(
-                                        backgroundColor:
-                                            banned ? Colors.red : const Color(0xFF1565C0),
-                                        child: Text(
-                                          (u['name'] ?? '؟')
-                                              .toString()
-                                              .substring(0, 1),
-                                          style: const TextStyle(
-                                              color: Colors.white,
-                                              fontWeight: FontWeight.bold),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(u['name'] ?? '',
-                                                style: const TextStyle(
-                                                    fontWeight: FontWeight.bold,
-                                                    fontSize: 14,
-                                                    color: Color(0xFF1A1A1A))),
-                                            Text(
-                                                '${u['grade'] ?? ''} • ${u['muraqaba'] ?? ''}',
-                                                style: const TextStyle(
-                                                    fontSize: 11,
-                                                    color: Color(0xFF555555))),
-                                          ],
-                                        ),
-                                      ),
-                                      if (banned)
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 8, vertical: 4),
-                                          decoration: BoxDecoration(
-                                            color: Colors.red,
-                                            borderRadius:
-                                                BorderRadius.circular(8),
-                                          ),
-                                          child: const Text('محظور',
-                                              style: TextStyle(
-                                                  color: Colors.white,
-                                                  fontSize: 10,
-                                                  fontWeight: FontWeight.bold)),
-                                        ),
-                                    ],
-                                  ),
-                                );
-                              },
-                            ),
-                ),
-              ],
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  void _showSendNotification() {
-    final titleCtrl = TextEditingController();
-    final bodyCtrl = TextEditingController();
-    String selectedTarget = 'الجميع';
-
-    showDialog(
-      context: context,
-      builder: (dialogCtx) => StatefulBuilder(
-        builder: (ctx, setSt) => AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          title: const Row(
-            children: [
-              Icon(Icons.campaign, color: Color(0xFF7B1FA2)),
-              SizedBox(width: 10),
-              Text('إرسال إشعار',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
-            ],
-          ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: titleCtrl,
-                  decoration: InputDecoration(
-                    labelText: 'العنوان',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: bodyCtrl,
-                  maxLines: 3,
-                  decoration: InputDecoration(
-                    labelText: 'نص الإشعار',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  value: selectedTarget,
-                  decoration: InputDecoration(
-                    labelText: 'المرسل إليه',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  items: const [
-                    DropdownMenuItem(value: 'الجميع', child: Text('الجميع')),
-                    DropdownMenuItem(
-                        value: 'صف دراسي', child: Text('صف دراسي')),
-                    DropdownMenuItem(
-                        value: 'مراقبة', child: Text('مراقبة')),
-                  ],
-                  onChanged: (v) =>
-                      setSt(() => selectedTarget = v ?? 'الجميع'),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogCtx),
-              child: const Text('إلغاء'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                if (titleCtrl.text.trim().isEmpty) {
-                  showKitabiSnack(context, 'اكتب عنوان الإشعار');
-                  return;
-                }
-                if (bodyCtrl.text.trim().isEmpty) {
-                  showKitabiSnack(context, 'اكتب نص الإشعار');
-                  return;
-                }
-                Navigator.pop(dialogCtx);
-                try {
-                  await supabase.from('notifications').insert({
-                    'title': titleCtrl.text.trim(),
-                    'body': bodyCtrl.text.trim(),
-                    'target_type': selectedTarget,
-                    'sent_by': 'admin',
-                  });
-                  showKitabiSnack(
-                      context, '✅ تم إرسال الإشعار بنجاح');
-                } catch (e) {
-                  showKitabiSnack(context, '❌ فشل الإرسال');
-                  debugPrint('Send notification error: \$e');
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF7B1FA2),
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('إرسال'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _changePassword() async {
-    final oldPassCtrl = TextEditingController();
-    final newPassCtrl = TextEditingController();
-    bool showOld = false;
-    bool showNew = false;
-
-    String currentPassword = 'العلم نور';
-    try {
-      final data = await supabase
-          .from('admin_settings')
-          .select('admin_password')
-          .eq('id', 1)
-          .single();
-      currentPassword = data['admin_password'] ?? 'العلم نور';
-    } catch (e) {
-      debugPrint('Load password error: $e');
-    }
-
-    if (!mounted) return;
-
-    showDialog(
-      context: context,
-      builder: (dialogCtx) => StatefulBuilder(
-        builder: (ctx, setSt) => AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          title: const Row(
-            children: [
-              Icon(Icons.key, color: Color(0xFFEF6C00)),
-              SizedBox(width: 10),
-              Text('تغيير كلمة السر',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: oldPassCtrl,
-                obscureText: !showOld,
-                decoration: InputDecoration(
-                  labelText: 'كلمة السر الحالية',
-                  prefixIcon: const Icon(Icons.lock_outline),
-                  suffixIcon: IconButton(
-                    onPressed: () => setSt(() => showOld = !showOld),
-                    icon: Icon(
-                      showOld ? Icons.visibility : Icons.visibility_off,
-                      color: const Color(0xFF555555),
-                    ),
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: newPassCtrl,
-                obscureText: !showNew,
-                decoration: InputDecoration(
-                  labelText: 'كلمة السر الجديدة',
-                  prefixIcon: const Icon(Icons.lock_reset),
-                  suffixIcon: IconButton(
-                    onPressed: () => setSt(() => showNew = !showNew),
-                    icon: Icon(
-                      showNew ? Icons.visibility : Icons.visibility_off,
-                      color: const Color(0xFF555555),
-                    ),
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogCtx),
-              child: const Text('إلغاء'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                if (oldPassCtrl.text.trim() != currentPassword) {
-                  showKitabiSnack(context, 'كلمة السر الحالية خاطئة');
-                  return;
-                }
-                if (newPassCtrl.text.trim().length < 4) {
-                  showKitabiSnack(context, 'كلمة السر قصيرة');
-                  return;
-                }
-                Navigator.pop(dialogCtx);
-                try {
-                  await supabase.from('admin_settings').update({
-                    'admin_password': newPassCtrl.text.trim(),
-                    'updated_at': DateTime.now().toIso8601String(),
-                  }).eq('id', 1);
-                  showKitabiSnack(context, 'تم تغيير كلمة السر بنجاح');
-                } catch (e) {
-                  showKitabiSnack(context, 'فشل تغيير كلمة السر');
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFEF6C00),
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('حفظ'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
+  // ============ إدارة المستخدمين ============
   Future<void> _showUsersManagement() async {
     List<Map<String, dynamic>> usersList = [];
     bool loading = true;
@@ -2797,8 +2259,7 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
                   child: loading
                       ? const Center(
                           child: CircularProgressIndicator(
-                              color: Color(0xFF1565C0)),
-                        )
+                              color: Color(0xFF1565C0)))
                       : usersList.isEmpty
                           ? const Center(
                               child: Text('لا يوجد مستخدمون',
@@ -2873,6 +2334,7 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
                                               usersList[i]['is_banned'] =
                                                   !banned;
                                             });
+                                            if (!context.mounted) return;
                                             showKitabiSnack(
                                                 context,
                                                 !banned
@@ -2905,6 +2367,9 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
         },
       ),
     );
+  }
+
+  // ============ الإحصائيات ============
   Future<void> _showStatistics() async {
     int usersCount = 0;
     int booksCount = 0;
@@ -2933,7 +2398,7 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
       debugPrint('Stats error: $e');
     }
 
-    if (!mounted) return;
+    if (!context.mounted) return;
 
     showModalBottomSheet(
       context: context,
@@ -3036,6 +2501,233 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
     );
   }
 
+
+  // ============ إرسال إشعار ============
+  Future<void> _showSendNotification() async {
+    final titleCtrl = TextEditingController();
+    final bodyCtrl = TextEditingController();
+    String selectedTarget = 'الجميع';
+
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (ctx, setSt) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: const Row(
+            children: [
+              Icon(Icons.campaign, color: Color(0xFF7B1FA2)),
+              SizedBox(width: 10),
+              Text('إرسال إشعار',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: titleCtrl,
+                  decoration: InputDecoration(
+                    labelText: 'العنوان',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: bodyCtrl,
+                  maxLines: 3,
+                  decoration: InputDecoration(
+                    labelText: 'نص الإشعار',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: selectedTarget,
+                  decoration: InputDecoration(
+                    labelText: 'المرسل إليه',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'الجميع', child: Text('الجميع')),
+                    DropdownMenuItem(
+                        value: 'صف دراسي', child: Text('صف دراسي')),
+                    DropdownMenuItem(value: 'مراقبة', child: Text('مراقبة')),
+                  ],
+                  onChanged: (v) =>
+                      setSt(() => selectedTarget = v ?? 'الجميع'),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogCtx),
+              child: const Text('إلغاء'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (titleCtrl.text.trim().isEmpty) {
+                  showKitabiSnack(context, 'اكتب عنوان الإشعار');
+                  return;
+                }
+                if (bodyCtrl.text.trim().isEmpty) {
+                  showKitabiSnack(context, 'اكتب نص الإشعار');
+                  return;
+                }
+                Navigator.pop(dialogCtx);
+                try {
+                  await supabase.from('notifications').insert({
+                    'title': titleCtrl.text.trim(),
+                    'body': bodyCtrl.text.trim(),
+                    'target_type': selectedTarget,
+                    'sent_by': 'admin',
+                  });
+                  if (!context.mounted) return;
+                  showKitabiSnack(context, 'تم إرسال الإشعار بنجاح');
+                } catch (e) {
+                  if (!context.mounted) return;
+                  showKitabiSnack(context, 'فشل الإرسال');
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF7B1FA2),
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('إرسال'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ============ تغيير كلمة السر ============
+  Future<void> _changePassword() async {
+    final oldPassCtrl = TextEditingController();
+    final newPassCtrl = TextEditingController();
+    bool showOld = false;
+    bool showNew = false;
+
+    String currentPassword = 'العلم نور';
+    try {
+      final data = await supabase
+          .from('admin_settings')
+          .select('admin_password')
+          .eq('id', 1)
+          .single();
+      currentPassword = data['admin_password'] ?? 'العلم نور';
+    } catch (e) {
+      debugPrint('Load password error: $e');
+    }
+
+    if (!context.mounted) return;
+
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (ctx, setSt) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: const Row(
+            children: [
+              Icon(Icons.key, color: Color(0xFFEF6C00)),
+              SizedBox(width: 10),
+              Text('تغيير كلمة السر',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: oldPassCtrl,
+                obscureText: !showOld,
+                decoration: InputDecoration(
+                  labelText: 'كلمة السر الحالية',
+                  prefixIcon: const Icon(Icons.lock_outline),
+                  suffixIcon: IconButton(
+                    onPressed: () => setSt(() => showOld = !showOld),
+                    icon: Icon(
+                      showOld ? Icons.visibility : Icons.visibility_off,
+                      color: const Color(0xFF555555),
+                    ),
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: newPassCtrl,
+                obscureText: !showNew,
+                decoration: InputDecoration(
+                  labelText: 'كلمة السر الجديدة',
+                  prefixIcon: const Icon(Icons.lock_reset),
+                  suffixIcon: IconButton(
+                    onPressed: () => setSt(() => showNew = !showNew),
+                    icon: Icon(
+                      showNew ? Icons.visibility : Icons.visibility_off,
+                      color: const Color(0xFF555555),
+                    ),
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogCtx),
+              child: const Text('إلغاء'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (oldPassCtrl.text.trim() != currentPassword) {
+                  showKitabiSnack(context, 'كلمة السر الحالية خاطئة');
+                  return;
+                }
+                if (newPassCtrl.text.trim().length < 4) {
+                  showKitabiSnack(context, 'كلمة السر قصيرة');
+                  return;
+                }
+                Navigator.pop(dialogCtx);
+                try {
+                  await supabase.from('admin_settings').update({
+                    'admin_password': newPassCtrl.text.trim(),
+                    'updated_at': DateTime.now().toIso8601String(),
+                  }).eq('id', 1);
+                  if (!context.mounted) return;
+                  showKitabiSnack(context, 'تم تغيير كلمة السر بنجاح');
+                } catch (e) {
+                  if (!context.mounted) return;
+                  showKitabiSnack(context, 'فشل تغيير كلمة السر');
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFEF6C00),
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('حفظ'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   // ============ الاختبارات ============
   Future<void> _showQuizzes() async {
     List<Map<String, dynamic>> quizzes = [];
@@ -3098,7 +2790,6 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
                       onPressed: () => _addQuiz(setSt),
                       icon: const Icon(Icons.add_circle,
                           color: Color(0xFF2E7D32), size: 28),
-                      tooltip: 'إضافة اختبار',
                     ),
                   ],
                 ),
@@ -3255,9 +2946,11 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
                   'grade': gradeCtrl.text.trim(),
                   'questions': [],
                 });
+                if (!context.mounted) return;
                 showKitabiSnack(context, 'تم إضافة الاختبار');
                 setSt(() {});
               } catch (e) {
+                if (!context.mounted) return;
                 showKitabiSnack(context, 'فشل الإضافة');
               }
             },
@@ -3384,9 +3077,11 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
                     'pdf_url': pdfCtrl.text.trim(),
                     'uploaded_by': 'admin',
                   });
-                    showKitabiSnack(context, 'تم رفع الكتاب بنجاح');
+                  if (!context.mounted) return;
+                  showKitabiSnack(context, 'تم رفع الكتاب بنجاح');
                 } catch (e) {
-                    showKitabiSnack(context, 'فشل الرفع');
+                  if (!context.mounted) return;
+                  showKitabiSnack(context, 'فشل الرفع');
                 }
               },
               style: ElevatedButton.styleFrom(
@@ -3400,38 +3095,5 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
       ),
     );
   }
-}
 
-
-
-
-}
-// ============ Custom SnackBar (من اليمين، حواف من اليسار فقط) ============
-void showKitabiSnack(BuildContext context, String message) {
-  ScaffoldMessenger.of(context).clearSnackBars();
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(
-      content: Text(
-        message,
-        style: const TextStyle(
-          color: Colors.white,
-          fontWeight: FontWeight.bold,
-          fontSize: 14,
-        ),
-      ),
-      backgroundColor: const Color(0xFF2C2C2E),
-      behavior: SnackBarBehavior.floating,
-      margin: const EdgeInsets.only(left: 30, right: 0, bottom: 95),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      duration: const Duration(seconds: 2),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(20),
-          bottomLeft: Radius.circular(20),
-          topRight: Radius.zero,
-          bottomRight: Radius.zero,
-        ),
-      ),
-    ),
-  );
 }
