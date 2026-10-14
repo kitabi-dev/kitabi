@@ -676,10 +676,26 @@ class HomeTab extends StatelessWidget {
                       colors: [Color(0xFF00838F), Color(0xFF00ACC1)]),
                   () => showKitabiSnack(context, 'ملاحظاتي — قريباً'),
                 ),
+                _quickBtn(
+                  context,
+                  'فيديوهات',
+                  Icons.play_circle_fill_rounded,
+                  const LinearGradient(
+                      colors: [Color(0xFFD32F2F), Color(0xFFEF5350)]),
+                  () => showKitabiSnack(context, 'الفيديوهات — قريباً'),
+                ),
+                _quickBtn(
+                  context,
+                  'كتب محلولة',
+                  Icons.checklist_rtl_rounded,
+                  const LinearGradient(
+                      colors: [Color(0xFF00695C), Color(0xFF26A69A)]),
+                  () => showKitabiSnack(context, 'الكتب المحلولة — قريباً'),
+                ),
               ],
             ),
           ),
-          const SizedBox(height: 40),
+          const SizedBox(height: 20),
 
           // ===== أحدث الدروس =====
           const Padding(
@@ -869,9 +885,81 @@ class HomeTab extends StatelessWidget {
   }
 }
 
-// ============ Library Tab ============
+// ============ Library Tab (Redesigned) ============
 class LibraryTab extends StatelessWidget {
   const LibraryTab({super.key});
+
+  // المواد حسب كل صف
+  static const Map<String, List<String>> _subjectsByGrade = {
+    'أول ابتدائي': [
+      'الرياضيات', 'اللغة العربية', 'اللغة الإنجليزية',
+      'التربية الإسلامية', 'الحاسوب',
+    ],
+    'ثاني ابتدائي': [
+      'الرياضيات', 'اللغة العربية', 'اللغة الإنجليزية',
+      'التربية الإسلامية', 'الحاسوب',
+    ],
+    'ثالث ابتدائي': [
+      'الرياضيات', 'اللغة العربية', 'اللغة الإنجليزية',
+      'التربية الإسلامية', 'الحاسوب', 'العلوم',
+    ],
+    'رابع ابتدائي': [
+      'الرياضيات', 'اللغة العربية', 'اللغة الإنجليزية',
+      'التربية الإسلامية', 'الحاسوب', 'العلوم', 'الاجتماعيات',
+    ],
+    'خامس ابتدائي': [
+      'الرياضيات', 'اللغة العربية', 'اللغة الإنجليزية',
+      'التربية الإسلامية', 'الحاسوب', 'العلوم', 'الاجتماعيات',
+    ],
+    'سادس ابتدائي': [
+      'الرياضيات', 'اللغة العربية', 'اللغة الإنجليزية',
+      'التربية الإسلامية', 'الحاسوب', 'العلوم', 'الاجتماعيات',
+    ],
+    'أول إعدادي': [
+      'الرياضيات', 'اللغة العربية', 'اللغة الإنجليزية',
+      'التربية الإسلامية', 'الحاسوب', 'العلوم', 'الاجتماعيات',
+    ],
+    'ثاني إعدادي': [
+      'الرياضيات', 'اللغة العربية', 'اللغة الإنجليزية',
+      'التربية الإسلامية', 'الحاسوب', 'العلوم', 'الاجتماعيات',
+    ],
+    'ثالث إعدادي': [
+      'الرياضيات', 'اللغة العربية', 'اللغة الإنجليزية',
+      'التربية الإسلامية', 'الحاسوب', 'العلوم', 'الاجتماعيات',
+    ],
+    'أولى ثانوي': [
+      'الرياضيات', 'اللغة العربية', 'اللغة الإنجليزية',
+      'التربية الإسلامية', 'الحاسوب', 'العلوم', 'الاجتماعيات',
+    ],
+    'ثانية ثانوي': [
+      'الرياضيات', 'اللغة العربية', 'اللغة الإنجليزية',
+      'التربية الإسلامية', 'الحاسوب', 'العلوم', 'الاجتماعيات',
+    ],
+    'ثالثة ثانوي': [
+      'الرياضيات', 'اللغة العربية', 'اللغة الإنجليزية',
+      'التربية الإسلامية', 'الحاسوب', 'العلوم', 'الاجتماعيات',
+    ],
+  };
+
+  static const Map<String, IconData> _subjectIcons = {
+    'الرياضيات': Icons.calculate_rounded,
+    'اللغة العربية': Icons.translate_rounded,
+    'اللغة الإنجليزية': Icons.language_rounded,
+    'التربية الإسلامية': Icons.mosque_rounded,
+    'الحاسوب': Icons.computer_rounded,
+    'العلوم': Icons.science_rounded,
+    'الاجتماعيات': Icons.public_rounded,
+  };
+
+  static const Map<String, Color> _subjectColors = {
+    'الرياضيات': Color(0xFF1565C0),
+    'اللغة العربية': Color(0xFF00897B),
+    'اللغة الإنجليزية': Color(0xFF7B1FA2),
+    'التربية الإسلامية': Color(0xFF00838F),
+    'الحاسوب': Color(0xFF283593),
+    'العلوم': Color(0xFFEF6C00),
+    'الاجتماعيات': Color(0xFFD32F2F),
+  };
 
   static const List<Map<String, dynamic>> _grades = [
     {'name': 'أول ابتدائي', 'icon': Icons.looks_one, 'color': 0xFF42A5F5},
@@ -905,13 +993,15 @@ class LibraryTab extends StatelessWidget {
               SizedBox(width: 10),
               Text('المكتبة',
                   style: TextStyle(
-                      fontSize: 24, fontWeight: FontWeight.bold)),
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1A1A1A))),
             ],
           ),
         ),
         const Padding(
           padding: EdgeInsets.symmetric(horizontal: 20),
-          child: Text('اختر صفك الدراسي لعرض الكتب والمواد',
+          child: Text('اختر صفك الدراسي لعرض المواد',
               style: TextStyle(color: Color(0xFF555555), fontSize: 13)),
         ),
         const SizedBox(height: 15),
@@ -923,6 +1013,8 @@ class LibraryTab extends StatelessWidget {
             separatorBuilder: (_, __) => const SizedBox(height: 14),
             itemBuilder: (context, i) {
               final g = _grades[i];
+              final subjects =
+                  _subjectsByGrade[g['name']] ?? const <String>[];
               return Container(
                 height: 82,
                 decoration: BoxDecoration(
@@ -941,7 +1033,17 @@ class LibraryTab extends StatelessWidget {
                   child: InkWell(
                     borderRadius: BorderRadius.circular(26),
                     onTap: () {
-                      showKitabiSnack(context, g['name']);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => GradeSubjectsScreen(
+                            gradeName: g['name'],
+                            subjects: subjects,
+                            icons: _subjectIcons,
+                            colors: _subjectColors,
+                          ),
+                        ),
+                      );
                     },
                     child: Padding(
                       padding: const EdgeInsets.symmetric(
@@ -960,13 +1062,27 @@ class LibraryTab extends StatelessWidget {
                           ),
                           const SizedBox(width: 16),
                           Expanded(
-                            child: Text(
-                              g['name'],
-                              style: const TextStyle(
-                                fontSize: 17,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF1A1A1A),
-                              ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  g['name'],
+                                  style: const TextStyle(
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF1A1A1A),
+                                  ),
+                                ),
+                                const SizedBox(height: 3),
+                                Text(
+                                  '${subjects.length} مواد',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Color(0xFF555555),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                           Container(
@@ -993,6 +1109,115 @@ class LibraryTab extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+// ============ Grade Subjects Screen ============
+class GradeSubjectsScreen extends StatelessWidget {
+  final String gradeName;
+  final List<String> subjects;
+  final Map<String, IconData> icons;
+  final Map<String, Color> colors;
+
+  const GradeSubjectsScreen({
+    super.key,
+    required this.gradeName,
+    required this.subjects,
+    required this.icons,
+    required this.colors,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
+      appBar: AppBar(
+        title: Text(gradeName,
+            style: const TextStyle(fontWeight: FontWeight.bold)),
+        backgroundColor: const Color(0xFF1565C0),
+        foregroundColor: Colors.white,
+        elevation: 0,
+      ),
+      body: subjects.isEmpty
+          ? const Center(
+              child: Text('لا توجد مواد',
+                  style: TextStyle(fontSize: 16, color: Color(0xFF555555))),
+            )
+          : ListView.separated(
+              padding: const EdgeInsets.all(20),
+              itemCount: subjects.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 14),
+              itemBuilder: (context, i) {
+                final s = subjects[i];
+                final color = colors[s] ?? const Color(0xFF1565C0);
+                final icon = icons[s] ?? Icons.book_rounded;
+                return Container(
+                  height: 78,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 14,
+                        offset: const Offset(0, 5),
+                      ),
+                    ],
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(24),
+                      onTap: () {
+                        showKitabiSnack(context, '$s — قريباً');
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 12),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 52,
+                              height: 52,
+                              decoration: BoxDecoration(
+                                color: color.withOpacity(0.15),
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: Icon(icon, size: 28, color: color),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Text(
+                                s,
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF1A1A1A),
+                                ),
+                              ),
+                            ),
+                            Container(
+                              width: 32,
+                              height: 32,
+                              decoration: BoxDecoration(
+                                color: color.withOpacity(0.08),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.arrow_back_ios_new,
+                                size: 13,
+                                color: color,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
     );
   }
 }
