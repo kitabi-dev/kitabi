@@ -40,6 +40,33 @@ jobs:
             sed -i 's|<application|<application android:usesCleartextTraffic="true"|' "$MANIFEST"
           fi
 
+      - name: Add deep link intent filter
+        run: |
+          MANIFEST="android/app/src/main/AndroidManifest.xml"
+          if ! grep -q "kitabi://auth" "$MANIFEST"; then
+            # نضيف intent-filter قبل </activity>
+            python3 << 'PYEOF'
+with open('android/app/src/main/AndroidManifest.xml', 'r') as f:
+    content = f.read()
+
+intent_filter = '''
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="kitabi" android:host="auth" />
+            </intent-filter>
+        </activity>'''
+
+content = content.replace('</activity>', intent_filter, 1)
+
+with open('android/app/src/main/AndroidManifest.xml', 'w') as f:
+    f.write(content)
+PYEOF
+          fi
+          echo "--- AndroidManifest after edit ---"
+          cat "$MANIFEST" 
+
       - name: Get dependencies
         run: flutter pub get
 

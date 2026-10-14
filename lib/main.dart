@@ -12,6 +12,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:video_player/video_player.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:app_links/app_links.dart';
 
 // ============ إعدادات Supabase ============
 const String kSupabaseUrl = 'https://vlyfghfoelbbbdljbvcr.supabase.co';
@@ -81,6 +82,14 @@ Future<void> main() async {
     anonKey: kSupabaseAnonKey,
   );
 
+  // إعداد Deep Link
+  final appLinks = AppLinks();
+  appLinks.uriLinkStream.listen((uri) async {
+    await _handleDeepLink(uri);
+  }, onError: (err) {
+    debugPrint('Deep link error: $err');
+  });
+
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
     systemNavigationBarColor: Colors.transparent,
@@ -100,6 +109,7 @@ class KitabiApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Kitabi',
+      navigatorKey: kitabiNavigatorKey,
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
@@ -123,6 +133,53 @@ class KitabiApp extends StatelessWidget {
 }
 
 // ============ Splash Screen ============
+// ============ Deep Link Handler ============
+Future<void> _handleDeepLink(Uri uri) async {
+  try {
+    debugPrint('Deep link: $uri');
+
+    // نستخرج التوكن من الرابط
+    String? accessToken;
+    String? refreshToken;
+
+    // نحاول من fragment أولاً (#access_token=...)
+    if (uri.fragment.isNotEmpty) {
+      final params = Uri.splitQueryString(uri.fragment);
+      accessToken = params['access_token'];
+      refreshToken = params['refresh_token'];
+    }
+
+    // نحاول من query (لو موجود)
+    if (accessToken == null && uri.queryParameters.containsKey('access_token')) {
+      accessToken = uri.queryParameters['access_token'];
+      refreshToken = uri.queryParameters['refresh_token'];
+    }
+
+    if (accessToken == null || refreshToken == null) {
+      debugPrint('No tokens found in deep link');
+      return;
+    }
+
+    // نسجل الدخول في Supabase
+    await supabase.auth.setSession(refreshToken);
+    debugPrint('Session restored from deep link');
+
+    // نفتح HomeShell
+    if (kitabiNavigatorKey.currentState != null) {
+      kitabiNavigatorKey.currentState!.pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const HomeShell()),
+        (route) => false,
+      );
+    }
+  } catch (e) {
+    debugPrint('Deep link handler error: $e');
+  }
+}
+
+// مفتاح التنقل العام
+final GlobalKey<NavigatorState> kitabiNavigatorKey =
+    GlobalKey<NavigatorState>();
+
 // ============ Login Screen (Email) ============
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
