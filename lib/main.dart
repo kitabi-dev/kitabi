@@ -8,6 +8,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:webview_flutter/webview_flutter.dart';
+import 'package:video_player/video_player.dart';
+import 'package:chewie/chewie.dart';
 
 // ============ إعدادات Supabase ============
 const String kSupabaseUrl = 'https://vlyfghfoelbbbdljbvcr.supabase.co';
@@ -119,6 +124,420 @@ class KitabiApp extends StatelessWidget {
 }
 
 // ============ Splash Screen ============
+// ============ Login Screen (Email) ============
+class LoginScreen extends StatefulWidget {
+  const LoginScreen({super.key});
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  final _emailCtrl = TextEditingController();
+  bool _sending = false;
+
+  Future<void> _sendOtp() async {
+    final email = _emailCtrl.text.trim();
+    if (email.isEmpty) {
+      showKitabiSnack(context, 'اكتب بريدك الإلكتروني');
+      return;
+    }
+    if (!email.contains('@') || !email.contains('.')) {
+      showKitabiSnack(context, 'البريد غير صحيح');
+      return;
+    }
+
+    setState(() => _sending = true);
+    try {
+      await supabase.auth.signInWithOtp(
+        email: email,
+        shouldCreateUser: true,
+      );
+      if (!mounted) return;
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => OtpScreen(email: email),
+        ),
+      );
+    } catch (e) {
+      debugPrint('Send OTP error: $e');
+      if (!mounted) return;
+      showKitabiSnack(context, 'فشل الإرسال: تحقق من الإيميل');
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
+  }
+
+  @override
+  void dispose() {
+    _emailCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const SizedBox(height: 40),
+              // أيقونة
+              Center(
+                child: Container(
+                  width: 110,
+                  height: 110,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF1565C0), Color(0xFF42A5F5)],
+                      begin: Alignment.topRight,
+                      end: Alignment.bottomLeft,
+                    ),
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF1565C0).withOpacity(0.35),
+                        blurRadius: 25,
+                        offset: const Offset(0, 10),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(Icons.menu_book_rounded,
+                      size: 60, color: Colors.white),
+                ),
+              ),
+              const SizedBox(height: 30),
+              const Center(
+                child: Text('KITABI',
+                    style: TextStyle(
+                        fontSize: 32,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 4,
+                        color: Color(0xFF1A1A1A))),
+              ),
+              const SizedBox(height: 6),
+              const Center(
+                child: Text('كتابي — تطبيق تعليمي ليبي',
+                    style: TextStyle(
+                        fontSize: 14, color: Color(0xFF555555))),
+              ),
+              const SizedBox(height: 50),
+              const Text('تسجيل الدخول',
+                  style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1A1A1A))),
+              const SizedBox(height: 8),
+              const Text('أدخل بريدك الإلكتروني وسنرسل لك رمز التحقق',
+                  style: TextStyle(
+                      fontSize: 13, color: Color(0xFF555555))),
+              const SizedBox(height: 25),
+              TextField(
+                controller: _emailCtrl,
+                keyboardType: TextInputType.emailAddress,
+                textDirection: TextDirection.ltr,
+                decoration: InputDecoration(
+                  labelText: 'البريد الإلكتروني',
+                  hintText: 'example@gmail.com',
+                  prefixIcon: const Icon(Icons.email_outlined,
+                      color: Color(0xFF1565C0)),
+                  filled: true,
+                  fillColor: Colors.white,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide.none,
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide(color: Colors.grey.shade200),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: const BorderSide(
+                        color: Color(0xFF1565C0), width: 2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 25),
+              SizedBox(
+                height: 58,
+                child: ElevatedButton(
+                  onPressed: _sending ? null : _sendOtp,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1565C0),
+                    foregroundColor: Colors.white,
+                    elevation: 4,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  child: _sending
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                              color: Colors.white, strokeWidth: 2))
+                      : const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.send_rounded, size: 20),
+                            SizedBox(width: 10),
+                            Text('إرسال رمز التحقق',
+                                style: TextStyle(
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                ),
+              ),
+              const SizedBox(height: 25),
+              // ملاحظة
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1565C0).withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.info_outline,
+                        color: Color(0xFF1565C0), size: 20),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'سيصلك رمز مكوّن من 6 أرقام على بريدك. تحقق من مجلد Spam إذا لم تجده.',
+                        style: TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFF555555),
+                            height: 1.5),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ============ OTP Screen (Verify Code) ============
+class OtpScreen extends StatefulWidget {
+  final String email;
+  const OtpScreen({super.key, required this.email});
+
+  @override
+  State<OtpScreen> createState() => _OtpScreenState();
+}
+
+class _OtpScreenState extends State<OtpScreen> {
+  final _otpCtrl = TextEditingController();
+  bool _verifying = false;
+
+  Future<void> _verify() async {
+    final code = _otpCtrl.text.trim();
+    if (code.length != 6) {
+      showKitabiSnack(context, 'الرمز مكون من 6 أرقام');
+      return;
+    }
+
+    setState(() => _verifying = true);
+    try {
+      final response = await supabase.auth.verifyOTP(
+        email: widget.email,
+        token: code,
+        type: OtpType.email,
+      );
+
+      if (response.user == null) {
+        if (!mounted) return;
+        showKitabiSnack(context, 'الرمز غير صحيح');
+        return;
+      }
+
+      // نفحص: هل المستخدم مسجل في جدول users؟
+      final existing = await supabase
+          .from('users')
+          .select()
+          .eq('email', widget.email)
+          .limit(1);
+
+      if (!mounted) return;
+
+      if (existing.isEmpty) {
+        // مستخدم جديد → شاشة البيانات
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => RegisterScreen(userEmail: widget.email),
+          ),
+        );
+      } else {
+        // مستخدم مسجل → نحفظ بياناته
+        final prefs = await SharedPreferences.getInstance();
+        final user = existing[0];
+        await prefs.setString('user_name', user['name'] ?? '');
+        await prefs.setString('user_grade', user['grade'] ?? '');
+        await prefs.setString('user_muraqaba', user['muraqaba'] ?? '');
+        await prefs.setString('user_email', widget.email);
+
+        if (!mounted) return;
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const HomeShell()),
+        );
+      }
+    } catch (e) {
+      debugPrint('Verify error: $e');
+      if (!mounted) return;
+      showKitabiSnack(context, 'الرمز غير صحيح أو منتهي');
+    } finally {
+      if (mounted) setState(() => _verifying = false);
+    }
+  }
+
+  @override
+  void dispose() {
+    _otpCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        foregroundColor: const Color(0xFF1A1A1A),
+        elevation: 0,
+        title: const Text('تأكيد الرمز',
+            style: TextStyle(fontWeight: FontWeight.bold)),
+      ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const SizedBox(height: 20),
+              Center(
+                child: Container(
+                  padding: const EdgeInsets.all(25),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1565C0).withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.mark_email_read_outlined,
+                      size: 60, color: Color(0xFF1565C0)),
+                ),
+              ),
+              const SizedBox(height: 25),
+              const Center(
+                child: Text('تحقق من بريدك',
+                    style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1A1A1A))),
+              ),
+              const SizedBox(height: 10),
+              Center(
+                child: Text(
+                  'أرسلنا رمز مكوّن من 6 أرقام إلى:\n${widget.email}',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                      fontSize: 13,
+                      color: Color(0xFF555555),
+                      height: 1.6),
+                ),
+              ),
+              const SizedBox(height: 35),
+              TextField(
+                controller: _otpCtrl,
+                keyboardType: TextInputType.number,
+                maxLength: 6,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                    fontSize: 28,
+                    letterSpacing: 12,
+                    fontWeight: FontWeight.bold),
+                decoration: InputDecoration(
+                  counterText: '',
+                  hintText: '000000',
+                  hintStyle: TextStyle(
+                      color: Colors.grey.shade300,
+                      fontSize: 28,
+                      letterSpacing: 12),
+                  filled: true,
+                  fillColor: Colors.white,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide.none,
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide(color: Colors.grey.shade200),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: const BorderSide(
+                        color: Color(0xFF1565C0), width: 2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 25),
+              SizedBox(
+                height: 58,
+                child: ElevatedButton(
+                  onPressed: _verifying ? null : _verify,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1565C0),
+                    foregroundColor: Colors.white,
+                    elevation: 4,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  child: _verifying
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                              color: Colors.white, strokeWidth: 2))
+                      : const Text('تحقق',
+                          style: TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.bold)),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Center(
+                child: TextButton.icon(
+                  onPressed: () async {
+                    try {
+                      await supabase.auth.signInWithOtp(
+                          email: widget.email,
+                          shouldCreateUser: true);
+                      if (!mounted) return;
+                      showKitabiSnack(context, 'تم إعادة الإرسال');
+                    } catch (_) {}
+                  },
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('إعادة إرسال الرمز'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
   @override
@@ -134,32 +553,50 @@ class _SplashScreenState extends State<SplashScreen> {
 
   Future<void> _checkUser() async {
     await Future.delayed(const Duration(seconds: 2));
-    final prefs = await SharedPreferences.getInstance();
-    final name = prefs.getString('user_name');
+
     if (!mounted) return;
-    if (name == null || name.isEmpty) {
+
+    // 1) نفحص جلسة Supabase
+    final session = supabase.auth.currentSession;
+    if (session == null) {
+      // ما فيه جلسة → LoginScreen
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const RegisterScreen()),
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
       );
       return;
     }
 
+    final userEmail = session.user.email ?? '';
+    final prefs = await SharedPreferences.getInstance();
+    final name = prefs.getString('user_name');
+
+    // 2) نفحص الحظر من جدول users
     bool banned = false;
+    bool hasProfile = false;
     try {
       final data = await supabase
           .from('users')
-          .select('is_banned')
-          .eq('name', name)
+          .select('is_banned, name, grade, muraqaba')
+          .eq('email', userEmail)
           .limit(1);
-      if (data.isNotEmpty && data[0]['is_banned'] == true) {
-        banned = true;
+      if (data.isNotEmpty) {
+        hasProfile = true;
+        if (data[0]['is_banned'] == true) banned = true;
+        // نحدث SharedPreferences
+        await prefs.setString('user_name', data[0]['name'] ?? '');
+        await prefs.setString('user_grade', data[0]['grade'] ?? '');
+        await prefs.setString('user_muraqaba', data[0]['muraqaba'] ?? '');
+        await prefs.setString('user_email', userEmail);
       }
     } catch (e) {
-      debugPrint('Check banned error: $e');
+      debugPrint('Check error: $e');
     }
 
+    if (!mounted) return;
+
     if (banned) {
+      await supabase.auth.signOut();
       await prefs.clear();
       if (!mounted) return;
       Navigator.pushReplacement(
@@ -169,7 +606,18 @@ class _SplashScreenState extends State<SplashScreen> {
       return;
     }
 
-    if (!mounted) return;
+    if (!hasProfile) {
+      // مسجل بالإيميل لكن ما عبّى بياناته
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => RegisterScreen(userEmail: userEmail),
+        ),
+      );
+      return;
+    }
+
+    // مستخدم كامل → HomeShell
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(builder: (_) => const HomeShell()),
@@ -313,7 +761,8 @@ class BannedScreen extends StatelessWidget {
 
 // ============ Register Screen ============
 class RegisterScreen extends StatefulWidget {
-  const RegisterScreen({super.key});
+  final String? userEmail;
+  const RegisterScreen({super.key, this.userEmail});
   @override
   State<RegisterScreen> createState() => _RegisterScreenState();
 }
@@ -354,9 +803,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
     setState(() => _saving = true);
 
     final prefs = await SharedPreferences.getInstance();
+    final email = widget.userEmail ??
+        supabase.auth.currentUser?.email ??
+        '';
     await prefs.setString('user_name', _nameController.text.trim());
     await prefs.setString('user_grade', _selectedGrade!);
     await prefs.setString('user_muraqaba', _selectedMuraqaba!);
+    await prefs.setString('user_email', email);
 
     final currentPts = prefs.getInt('user_points') ?? 0;
     if (currentPts == 0) {
@@ -370,17 +823,24 @@ class _RegisterScreenState extends State<RegisterScreen> {
       final existing = await supabase
           .from('users')
           .select('id')
-          .eq('name', _nameController.text.trim())
+          .eq('email', email)
           .limit(1);
       if (existing.isEmpty) {
         await supabase.from('users').insert({
           'name': _nameController.text.trim(),
+          'email': email,
           'grade': _selectedGrade,
           'muraqaba': _selectedMuraqaba,
           'points': 50,
           'level': 1,
           'achievements': 0,
         });
+      } else {
+        await supabase.from('users').update({
+          'name': _nameController.text.trim(),
+          'grade': _selectedGrade,
+          'muraqaba': _selectedMuraqaba,
+        }).eq('email', email);
       }
     } catch (e) {
       debugPrint('Supabase insert error: $e');
@@ -851,7 +1311,13 @@ class HomeTab extends StatelessWidget {
                 _quickBtn(context, 'المعلم الذكي', Icons.smart_toy_rounded,
                     const LinearGradient(
                         colors: [Color(0xFF7B1FA2), Color(0xFFAB47BC)]),
-                    () => showKitabiSnack(context, 'المعلم الذكي — قريباً')),
+                    () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const TeacherAIScreen()),
+                  );
+                }),
                 _quickBtn(context, 'المنتدى', Icons.forum_rounded,
                     const LinearGradient(
                         colors: [Color(0xFF283593), Color(0xFF3F51B5)]),
@@ -867,7 +1333,13 @@ class HomeTab extends StatelessWidget {
                 _quickBtn(context, 'فيديوهات', Icons.play_circle_fill_rounded,
                     const LinearGradient(
                         colors: [Color(0xFFD32F2F), Color(0xFFEF5350)]),
-                    () => showKitabiSnack(context, 'الفيديوهات — قريباً')),
+                    () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const VideosScreen()),
+                  );
+                }),
                 _quickBtn(context, 'شيتات وأوراق', Icons.description_rounded,
                     const LinearGradient(
                         colors: [Color(0xFF00695C), Color(0xFF26A69A)]),
@@ -2016,11 +2488,44 @@ class _AccountTabState extends State<AccountTab> {
   }
 
   Future<void> _logout() async {
+    // نسأل المستخدم
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20)),
+        title: const Text('تسجيل الخروج'),
+        content: const Text('هل تريد تسجيل الخروج من الحساب؟'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white),
+            child: const Text('خروج'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    try {
+      await supabase.auth.signOut();
+    } catch (e) {
+      debugPrint('SignOut error: $e');
+    }
+
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
+
     if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const RegisterScreen()),
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
       (route) => false,
     );
   }
@@ -3172,6 +3677,1632 @@ class _ManageBooksScreenState extends State<ManageBooksScreen> {
   }
 }
 
+// ============ Teacher AI Screen ============
+// ============ Videos Screen ============
+class VideosScreen extends StatefulWidget {
+  const VideosScreen({super.key});
+  @override
+  State<VideosScreen> createState() => _VideosScreenState();
+}
+
+class _VideosScreenState extends State<VideosScreen> {
+  List<Map<String, dynamic>> _videos = [];
+  bool _loading = true;
+  String _filterGrade = 'الكل';
+  String _filterSubject = 'الكل';
+
+  final List<String> _grades = [
+    'الكل', 'أول ابتدائي', 'ثاني ابتدائي', 'ثالث ابتدائي',
+    'رابع ابتدائي', 'خامس ابتدائي', 'سادس ابتدائي',
+    'أول إعدادي', 'ثاني إعدادي', 'ثالث إعدادي',
+  ];
+
+  final List<String> _subjects = [
+    'الكل', 'الرياضيات', 'اللغة العربية', 'اللغة الإنجليزية',
+    'التربية الإسلامية', 'الحاسوب', 'العلوم', 'الاجتماعيات',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    try {
+      var query = supabase.from('videos').select();
+      if (_filterGrade != 'الكل') {
+        query = query.eq('grade', _filterGrade);
+      }
+      if (_filterSubject != 'الكل') {
+        query = query.eq('subject', _filterSubject);
+      }
+      final data = await query.order('created_at', ascending: false);
+      if (!mounted) return;
+      setState(() {
+        _videos = List<Map<String, dynamic>>.from(data);
+        _loading = false;
+      });
+    } catch (e) {
+      debugPrint('Load videos error: $e');
+      if (!mounted) return;
+      setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFFD32F2F),
+        foregroundColor: Colors.white,
+        elevation: 0,
+        title: const Row(
+          children: [
+            Icon(Icons.play_circle_fill),
+            SizedBox(width: 10),
+            Text('فيديوهات تعلمية',
+                style: TextStyle(fontWeight: FontWeight.bold)),
+          ],
+        ),
+      ),
+      body: Column(
+        children: [
+          // فلاتر
+          Container(
+            padding: const EdgeInsets.all(12),
+            color: Colors.white,
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    const Text('الصف:',
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 12)),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        value: _filterGrade,
+                        isExpanded: true,
+                        decoration: InputDecoration(
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 0),
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10)),
+                          isDense: true,
+                        ),
+                        items: _grades
+                            .map((g) => DropdownMenuItem(
+                                value: g, child: Text(g, style: const TextStyle(fontSize: 12))))
+                            .toList(),
+                        onChanged: (v) {
+                          setState(() => _filterGrade = v ?? 'الكل');
+                          _load();
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    const Text('المادة:',
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 12)),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        value: _filterSubject,
+                        isExpanded: true,
+                        decoration: InputDecoration(
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 0),
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10)),
+                          isDense: true,
+                        ),
+                        items: _subjects
+                            .map((s) => DropdownMenuItem(
+                                value: s, child: Text(s, style: const TextStyle(fontSize: 12))))
+                            .toList(),
+                        onChanged: (v) {
+                          setState(() => _filterSubject = v ?? 'الكل');
+                          _load();
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          // قائمة الفيديوهات
+          Expanded(
+            child: _loading
+                ? const Center(
+                    child: CircularProgressIndicator(color: Color(0xFFD32F2F)))
+                : _videos.isEmpty
+                    ? _buildEmpty()
+                    : RefreshIndicator(
+                        onRefresh: _load,
+                        color: const Color(0xFFD32F2F),
+                        child: ListView.separated(
+                          padding: const EdgeInsets.all(16),
+                          itemCount: _videos.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: 12),
+                          itemBuilder: (_, i) => _videoCard(_videos[i]),
+                        ),
+                      ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _videoCard(Map<String, dynamic> video) {
+    final isYouTube = video['video_type'] == 'youtube';
+    final thumbnail = video['thumbnail_url'];
+    final ytId = isYouTube ? _extractYouTubeId(video['video_url'] ?? '') : null;
+    final autoThumb = ytId != null
+        ? 'https://img.youtube.com/vi/$ytId/maxresdefault.jpg'
+        : null;
+    final coverUrl = (thumbnail != null && thumbnail.toString().isNotEmpty)
+        ? thumbnail
+        : autoThumb;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 14,
+              offset: const Offset(0, 5)),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: () async {
+            // نزيد views_count
+            try {
+              final current = video['views_count'] ?? 0;
+              await supabase
+                  .from('videos')
+                  .update({'views_count': (current as int) + 1})
+                  .eq('id', video['id']);
+            } catch (_) {}
+
+            if (!mounted) return;
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => VideoPlayerScreen(video: video),
+              ),
+            );
+          },
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // الصورة المصغرة
+              ClipRRect(
+                borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(20)),
+                child: Stack(
+                  children: [
+                    Container(
+                      height: 180,
+                      color: Colors.black12,
+                      child: coverUrl != null
+                          ? Image.network(coverUrl,
+                              fit: BoxFit.cover,
+                              width: double.infinity,
+                              errorBuilder: (_, __, ___) => Container(
+                                    color: const Color(0xFFD32F2F)
+                                        .withOpacity(0.1),
+                                    child: const Icon(
+                                        Icons.play_circle_outline,
+                                        size: 60,
+                                        color: Color(0xFFD32F2F)),
+                                  ))
+                          : Container(
+                              color: const Color(0xFFD32F2F).withOpacity(0.1),
+                              child: const Icon(Icons.play_circle_outline,
+                                  size: 60, color: Color(0xFFD32F2F))),
+                    ),
+                    // زر التشغيل
+                    Positioned.fill(
+                      child: Center(
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.9),
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                  color: Colors.black.withOpacity(0.2),
+                                  blurRadius: 10),
+                            ],
+                          ),
+                          child: const Icon(Icons.play_arrow_rounded,
+                              size: 40, color: Color(0xFFD32F2F)),
+                        ),
+                      ),
+                    ),
+                    // نوع الفيديو
+                    Positioned(
+                      top: 10,
+                      right: 10,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: isYouTube
+                              ? Colors.red
+                              : const Color(0xFF1565C0),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          isYouTube ? 'YouTube' : 'mp4',
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // التفاصيل
+              Padding(
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(video['title'] ?? '',
+                        style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF1A1A1A))),
+                    const SizedBox(height: 4),
+                    Text(
+                        '${video['grade'] ?? ''} • ${video['subject'] ?? ''}',
+                        style: const TextStyle(
+                            fontSize: 12, color: Color(0xFF555555))),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        const Icon(Icons.visibility,
+                            size: 14, color: Color(0xFF888888)),
+                        const SizedBox(width: 4),
+                        Text('${video['views_count'] ?? 0} مشاهدة',
+                            style: const TextStyle(
+                                fontSize: 11, color: Color(0xFF888888))),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String? _extractYouTubeId(String url) {
+    if (url.isEmpty) return null;
+    try {
+      if (url.contains('youtu.be/')) {
+        return url.split('youtu.be/').last.split('?').first;
+      }
+      if (url.contains('youtube.com/watch')) {
+        final uri = Uri.parse(url);
+        return uri.queryParameters['v'];
+      }
+      if (url.contains('youtube.com/embed/')) {
+        return url.split('youtube.com/embed/').last.split('?').first;
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  Widget _buildEmpty() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(28),
+            decoration: BoxDecoration(
+              color: const Color(0xFFD32F2F).withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.play_circle_outline,
+                size: 60, color: Color(0xFFD32F2F)),
+          ),
+          const SizedBox(height: 20),
+          const Text('لا توجد فيديوهات بعد',
+              style: TextStyle(fontSize: 16, color: Color(0xFF555555))),
+        ],
+      ),
+    );
+  }
+}
+
+// ============ Video Player Screen ============
+class VideoPlayerScreen extends StatefulWidget {
+  final Map<String, dynamic> video;
+  const VideoPlayerScreen({super.key, required this.video});
+
+  @override
+  State<VideoPlayerScreen> createState() => _VideoPlayerScreenState();
+}
+
+class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
+  VideoPlayerController? _videoCtrl;
+  ChewieController? _chewieCtrl;
+  WebViewController? _webCtrl;
+  bool _initializing = true;
+  String _error = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _setup();
+  }
+
+  Future<void> _setup() async {
+    final type = widget.video['video_type'] ?? 'youtube';
+    final url = widget.video['video_url'] ?? '';
+
+    if (url.isEmpty) {
+      setState(() {
+        _error = 'رابط الفيديو مفقود';
+        _initializing = false;
+      });
+      return;
+    }
+
+    try {
+      if (type == 'youtube') {
+        final ytId = _extractId(url);
+        if (ytId == null) {
+          setState(() {
+            _error = 'رابط يوتيوب غير صحيح';
+            _initializing = false;
+          });
+          return;
+        }
+        final embedUrl =
+            'https://www.youtube.com/embed/$ytId?autoplay=1&rel=0';
+        _webCtrl = WebViewController()
+          ..setJavaScriptMode(JavaScriptMode.unrestricted)
+          ..setBackgroundColor(Colors.black)
+          ..loadRequest(Uri.parse(embedUrl));
+        setState(() => _initializing = false);
+      } else {
+        // mp4
+        _videoCtrl = VideoPlayerController.networkUrl(Uri.parse(url));
+        await _videoCtrl!.initialize();
+        _chewieCtrl = ChewieController(
+          videoPlayerController: _videoCtrl!,
+          autoPlay: true,
+          looping: false,
+          aspectRatio: _videoCtrl!.value.aspectRatio,
+          errorBuilder: (context, msg) => Center(
+            child: Text('خطأ: $msg',
+                style: const TextStyle(color: Colors.white)),
+          ),
+        );
+        setState(() => _initializing = false);
+      }
+    } catch (e) {
+      setState(() {
+        _error = 'فشل تحميل الفيديو';
+        _initializing = false;
+      });
+      debugPrint('Video error: $e');
+    }
+  }
+
+  String? _extractId(String url) {
+    try {
+      if (url.contains('youtu.be/')) {
+        return url.split('youtu.be/').last.split('?').first;
+      }
+      if (url.contains('youtube.com/watch')) {
+        return Uri.parse(url).queryParameters['v'];
+      }
+      if (url.contains('youtube.com/embed/')) {
+        return url.split('youtube.com/embed/').last.split('?').first;
+      }
+      // إذا كان المعرف فقط
+      if (!url.contains('/') && url.length >= 10) return url;
+    } catch (_) {}
+    return null;
+  }
+
+  @override
+  void dispose() {
+    _videoCtrl?.dispose();
+    _chewieCtrl?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF1A1A1A),
+        foregroundColor: Colors.white,
+        elevation: 0,
+        title: Text(
+          widget.video['title'] ?? 'فيديو',
+          style: const TextStyle(fontSize: 15),
+        ),
+      ),
+      body: Column(
+        children: [
+          // منطقة الفيديو
+          AspectRatio(
+            aspectRatio: 16 / 9,
+            child: _initializing
+                ? const Center(
+                    child: CircularProgressIndicator(color: Colors.white))
+                : _error.isNotEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.error_outline,
+                                color: Colors.white, size: 50),
+                            const SizedBox(height: 10),
+                            Text(_error,
+                                style: const TextStyle(
+                                    color: Colors.white, fontSize: 14)),
+                          ],
+                        ),
+                      )
+                    : widget.video['video_type'] == 'youtube'
+                        ? WebViewWidget(controller: _webCtrl!)
+                        : Chewie(controller: _chewieCtrl!),
+          ),
+          // معلومات
+          Expanded(
+            child: Container(
+              color: const Color(0xFF1A1A1A),
+              padding: const EdgeInsets.all(16),
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.video['title'] ?? '',
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFD32F2F),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            widget.video['grade'] ?? '',
+                            style: const TextStyle(
+                                color: Colors.white, fontSize: 11),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF1565C0),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            widget.video['subject'] ?? '',
+                            style: const TextStyle(
+                                color: Colors.white, fontSize: 11),
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (widget.video['description'] != null &&
+                        widget.video['description'].toString().isNotEmpty) ...[
+                      const SizedBox(height: 15),
+                      Text(
+                        widget.video['description'],
+                        style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 13,
+                            height: 1.5),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class TeacherAIScreen extends StatefulWidget {
+  const TeacherAIScreen({super.key});
+  @override
+  State<TeacherAIScreen> createState() => _TeacherAIScreenState();
+}
+
+class _TeacherAIScreenState extends State<TeacherAIScreen> {
+  final TextEditingController _messageCtrl = TextEditingController();
+  final ScrollController _scrollCtrl = ScrollController();
+  final List<Map<String, dynamic>> _messages = [];
+  final List<XFile> _pickedImages = [];
+  bool _sending = false;
+  bool _loading = true;
+  String _userName = '';
+  String _userGrade = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _init();
+  }
+
+  Future<void> _init() async {
+    final prefs = await SharedPreferences.getInstance();
+    _userName = prefs.getString('user_name') ?? 'طالب';
+    _userGrade = prefs.getString('user_grade') ?? '';
+    await _loadHistory();
+    if (!mounted) return;
+    setState(() => _loading = false);
+  }
+
+  Future<void> _loadHistory() async {
+    try {
+      final data = await supabase
+          .from('chats')
+          .select()
+          .eq('user_name', _userName)
+          .order('created_at', ascending: true)
+          .limit(100);
+      if (!mounted) return;
+      setState(() {
+        _messages.clear();
+        for (var m in data) {
+          _messages.add(Map<String, dynamic>.from(m));
+        }
+      });
+      _scrollToBottom();
+    } catch (e) {
+      debugPrint('Load chats error: $e');
+    }
+  }
+
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollCtrl.hasClients) {
+        _scrollCtrl.animateTo(
+          _scrollCtrl.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
+
+  Future<void> _pickImage() async {
+    if (_pickedImages.length >= 3) {
+      showKitabiSnack(context, 'الحد الأقصى 3 صور');
+      return;
+    }
+    try {
+      final picker = ImagePicker();
+      final img = await picker.pickImage(
+          source: ImageSource.gallery, imageQuality: 70);
+      if (img != null) {
+        setState(() => _pickedImages.add(img));
+      }
+    } catch (e) {
+      showKitabiSnack(context, 'فشل اختيار الصورة');
+    }
+  }
+
+  Future<void> _sendMessage() async {
+    final text = _messageCtrl.text.trim();
+    if (text.isEmpty && _pickedImages.isEmpty) return;
+    if (_sending) return;
+
+    setState(() => _sending = true);
+
+    final userMsg = {
+      'user_name': _userName,
+      'role': 'user',
+      'content': text.isEmpty ? '(صورة)' : text,
+    };
+    setState(() {
+      _messages.add(userMsg);
+      _messageCtrl.clear();
+      _pickedImages.clear();
+    });
+    _scrollToBottom();
+
+    try {
+      await supabase.from('chats').insert({
+        'user_name': _userName,
+        'role': 'user',
+        'content': text.isEmpty ? '(صورة)' : text,
+        'image_urls': [],
+      });
+    } catch (e) {
+      debugPrint('Save user msg error: $e');
+    }
+
+    final aiResponse = await _callGemini(text);
+
+    final aiMsg = {
+      'user_name': _userName,
+      'role': 'assistant',
+      'content': aiResponse,
+    };
+    setState(() {
+      _messages.add(aiMsg);
+      _sending = false;
+    });
+    _scrollToBottom();
+
+    try {
+      await supabase.from('chats').insert({
+        'user_name': _userName,
+        'role': 'assistant',
+        'content': aiResponse,
+        'image_urls': [],
+      });
+    } catch (e) {
+      debugPrint('Save ai msg error: $e');
+    }
+  }
+
+  Future<String> _getGeminiKey() async {
+    try {
+      final data = await supabase
+          .from('admin_settings')
+          .select('gemini_api_key')
+          .eq('id', 1)
+          .single();
+      return data['gemini_api_key'] ?? '';
+    } catch (e) {
+      debugPrint('Get Gemini key error: $e');
+      return '';
+    }
+  }
+
+  Future<String> _callGemini(String question) async {
+    if (question.isEmpty) {
+      return 'أرسل سؤالك وسأجيبك بإذن الله.';
+    }
+    try {
+      final apiKey = await _getGeminiKey();
+      const model = 'gemini-3.7-flash';
+
+      final sys = 'أنت معلم ذكي اسمك معلم كتابي، تعمل في تطبيق كتابي التعليمي الليبي. '
+          'الطالب اسمه: ' + _userName + '. صفه: ' + _userGrade + '. '
+          'رد بالعربية الفصحى مع لمسة ليبية بسيطة. اشرح بلطف ووضوح.';
+
+      final response = await http.post(
+        Uri.parse('https://generativelanguage.googleapis.com/v1beta/interactions'),
+        headers: {
+          'x-goog-api-key': apiKey,
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'model': model,
+          'input': sys + '\n\nسؤال الطالب: ' + question,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(utf8.decode(response.bodyBytes));
+        if (data['steps'] != null && data['steps'] is List) {
+          for (var step in data['steps']) {
+            if (step['type'] == 'model_output' && step['content'] is List) {
+              for (var c in step['content']) {
+                if (c['type'] == 'text') {
+                  return c['text'] ?? '';
+                }
+              }
+            }
+          }
+        }
+        if (data['output_text'] != null) {
+          return data['output_text'].toString();
+        }
+        return 'لم أفهم الرد. جرب مرة أخرى.';
+      } else if (response.statusCode == 503) {
+        return 'الخادم مشغول حالياً، جرب بعد قليل.';
+      } else if (response.statusCode == 429) {
+        return 'الخدمة مزدحمة، جرب بعد دقيقة.';
+      } else {
+        return 'حدث خطأ. جرب لاحقاً.';
+      }
+    } catch (e) {
+      debugPrint('Gemini error: $e');
+      return 'تعذر الاتصال. تحقق من الإنترنت.';
+    }
+  }
+
+  Future<void> _clearChat() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('مسح المحادثة'),
+        content: const Text('هل تريد مسح كل المحادثة؟'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red, foregroundColor: Colors.white),
+            child: const Text('مسح'),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+    try {
+      await supabase.from('chats').delete().eq('user_name', _userName);
+      if (!mounted) return;
+      setState(() => _messages.clear());
+      showKitabiSnack(context, 'تم مسح المحادثة');
+    } catch (e) {
+      showKitabiSnack(context, 'فشل المسح');
+    }
+  }
+
+  @override
+  void dispose() {
+    _messageCtrl.dispose();
+    _scrollCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF7B1FA2),
+        foregroundColor: Colors.white,
+        elevation: 0,
+        title: const Row(
+          children: [
+            CircleAvatar(
+              radius: 18,
+              backgroundColor: Colors.white,
+              child: Icon(Icons.smart_toy, color: Color(0xFF7B1FA2), size: 22),
+            ),
+            SizedBox(width: 10),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('معلم كتابي', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                Text('AI مساعد', style: TextStyle(fontSize: 11, color: Colors.white70)),
+              ],
+            ),
+          ],
+        ),
+        actions: [
+          IconButton(
+            onPressed: _clearChat,
+            icon: const Icon(Icons.delete_outline),
+          ),
+        ],
+      ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator(color: Color(0xFF7B1FA2)))
+          : Column(
+              children: [
+                Expanded(
+                  child: _messages.isEmpty
+                      ? _buildWelcome()
+                      : ListView.builder(
+                          controller: _scrollCtrl,
+                          padding: const EdgeInsets.all(16),
+                          itemCount: _messages.length,
+                          itemBuilder: (_, i) => _ChatBubble(msg: _messages[i]),
+                        ),
+                ),
+                if (_sending)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                    alignment: Alignment.centerRight,
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Color(0xFF7B1FA2)),
+                        ),
+                        SizedBox(width: 8),
+                        Text('يكتب...',
+                            style: TextStyle(
+                                fontSize: 12,
+                                color: Color(0xFF7B1FA2),
+                                fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                  ),
+                _buildInputBar(),
+              ],
+            ),
+    );
+  }
+
+  Widget _buildWelcome() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(30),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(28),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                    colors: [Color(0xFF7B1FA2), Color(0xFFAB47BC)]),
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF7B1FA2).withOpacity(0.3),
+                    blurRadius: 20,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: const Icon(Icons.smart_toy, size: 70, color: Colors.white),
+            ),
+            const SizedBox(height: 25),
+            const Text('مرحباً بك في معلم كتابي',
+                style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1A1A1A))),
+            const SizedBox(height: 10),
+            const Text(
+              'اسألني أي سؤال دراسي وسأساعدك\nمن المنهج الليبي بإذن الله',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 14, color: Color(0xFF555555), height: 1.6),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInputBar() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 15,
+              offset: const Offset(0, -5)),
+        ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (_pickedImages.isNotEmpty)
+              SizedBox(
+                height: 70,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _pickedImages.length,
+                  itemBuilder: (_, i) => Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: Stack(
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: Image.file(
+                            File(_pickedImages[i].path),
+                            width: 60,
+                            height: 60,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                        Positioned(
+                          top: -4,
+                          right: -4,
+                          child: GestureDetector(
+                            onTap: () => setState(() => _pickedImages.removeAt(i)),
+                            child: Container(
+                              padding: const EdgeInsets.all(2),
+                              decoration: const BoxDecoration(
+                                  color: Colors.red, shape: BoxShape.circle),
+                              child: const Icon(Icons.close,
+                                  color: Colors.white, size: 12),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                IconButton(
+                  onPressed: _pickImage,
+                  icon: const Icon(Icons.image_outlined, color: Color(0xFF7B1FA2)),
+                ),
+                Expanded(
+                  child: TextField(
+                    controller: _messageCtrl,
+                    maxLines: null,
+                    decoration: InputDecoration(
+                      hintText: 'اكتب سؤالك...',
+                      filled: true,
+                      fillColor: const Color(0xFFF5F7FA),
+                      contentPadding:
+                          const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(24),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF7B1FA2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: IconButton(
+                    onPressed: _sending ? null : _sendMessage,
+                    icon: const Icon(Icons.send_rounded, color: Colors.white),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ============ Chat Bubble ============
+class _ChatBubble extends StatelessWidget {
+  final Map<String, dynamic> msg;
+  const _ChatBubble({required this.msg});
+
+  @override
+  Widget build(BuildContext context) {
+    final isUser = msg['role'] == 'user';
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        mainAxisAlignment:
+            isUser ? MainAxisAlignment.start : MainAxisAlignment.end,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (!isUser)
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: const BoxDecoration(
+                color: Color(0xFF7B1FA2),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.smart_toy, color: Colors.white, size: 16),
+            ),
+          if (!isUser) const SizedBox(width: 6),
+          Flexible(
+            child: Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: isUser ? const Color(0xFF1565C0) : Colors.white,
+                borderRadius: BorderRadius.only(
+                  topLeft: const Radius.circular(18),
+                  topRight: const Radius.circular(18),
+                  bottomLeft: Radius.circular(isUser ? 18 : 4),
+                  bottomRight: Radius.circular(isUser ? 4 : 18),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3)),
+                ],
+              ),
+              child: SelectableText(
+                msg['content'] ?? '',
+                style: TextStyle(
+                  fontSize: 14,
+                  height: 1.5,
+                  color: isUser ? Colors.white : const Color(0xFF1A1A1A),
+                ),
+              ),
+            ),
+          ),
+          if (isUser) const SizedBox(width: 6),
+          if (isUser)
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: const BoxDecoration(
+                color: Color(0xFF1565C0),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.person, color: Colors.white, size: 16),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+// ============ Manage Videos Screen ============
+class ManageVideosScreen extends StatefulWidget {
+  const ManageVideosScreen({super.key});
+  @override
+  State<ManageVideosScreen> createState() => _ManageVideosScreenState();
+}
+
+class _ManageVideosScreenState extends State<ManageVideosScreen> {
+  List<Map<String, dynamic>> _videos = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    try {
+      final data = await supabase
+          .from('videos')
+          .select()
+          .order('created_at', ascending: false);
+      if (!mounted) return;
+      setState(() {
+        _videos = List<Map<String, dynamic>>.from(data);
+        _loading = false;
+      });
+    } catch (e) {
+      debugPrint('Load videos error: $e');
+      if (!mounted) return;
+      setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _deleteVideo(Map<String, dynamic> video) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.red),
+            SizedBox(width: 10),
+            Text('تأكيد الحذف',
+                style: TextStyle(fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: Text(
+          'هل تريد حذف الفيديو "${video['title']}"؟',
+          style: const TextStyle(fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red, foregroundColor: Colors.white),
+            child: const Text('حذف'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    try {
+      // نحذف الملف إذا كان mp4
+      if (video['video_type'] == 'mp4' && video['video_url'] != null) {
+        try {
+          final url = video['video_url'].toString();
+          final fileName = url.split('/').last;
+          await supabase.storage.from('books').remove([fileName]);
+        } catch (_) {}
+      }
+      await supabase.from('videos').delete().eq('id', video['id']);
+      if (!mounted) return;
+      showKitabiSnack(context, 'تم حذف الفيديو');
+      _load();
+    } catch (e) {
+      if (!mounted) return;
+      showKitabiSnack(context, 'فشل الحذف');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFFD32F2F),
+        foregroundColor: Colors.white,
+        elevation: 0,
+        title: const Text('إدارة الفيديوهات',
+            style: TextStyle(fontWeight: FontWeight.bold)),
+        actions: [
+          IconButton(
+            onPressed: () => _showAddVideo(),
+            icon: const Icon(Icons.add_circle, size: 28),
+            tooltip: 'إضافة فيديو',
+          ),
+        ],
+      ),
+      body: _loading
+          ? const Center(
+              child: CircularProgressIndicator(color: Color(0xFFD32F2F)))
+          : _videos.isEmpty
+              ? _buildEmpty()
+              : RefreshIndicator(
+                  onRefresh: _load,
+                  color: const Color(0xFFD32F2F),
+                  child: ListView.separated(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: _videos.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 10),
+                    itemBuilder: (_, i) => _videoCard(_videos[i]),
+                  ),
+                ),
+    );
+  }
+
+  Widget _videoCard(Map<String, dynamic> video) {
+    final isYT = video['video_type'] == 'youtube';
+    final ytId = isYT ? _extractYT(video['video_url'] ?? '') : null;
+    final thumb = ytId != null
+        ? 'https://img.youtube.com/vi/$ytId/default.jpg'
+        : null;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4)),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          children: [
+            // صورة مصغرة
+            Container(
+              width: 80,
+              height: 60,
+              decoration: BoxDecoration(
+                color: const Color(0xFFD32F2F).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: thumb != null
+                  ? Image.network(thumb, fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => const Icon(
+                          Icons.play_circle_outline,
+                          color: Color(0xFFD32F2F)))
+                  : const Icon(Icons.play_circle_outline,
+                      color: Color(0xFFD32F2F)),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(video['title'] ?? '',
+                      style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF1A1A1A)),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis),
+                  const SizedBox(height: 4),
+                  Text('${video['grade']} • ${video['subject']}',
+                      style: const TextStyle(
+                          fontSize: 11, color: Color(0xFF555555)),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: isYT ? Colors.red : const Color(0xFF1565C0),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(isYT ? 'YT' : 'mp4',
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold)),
+                      ),
+                      const SizedBox(width: 6),
+                      Text('👁 ${video['views_count'] ?? 0}',
+                          style: const TextStyle(
+                              fontSize: 10, color: Color(0xFF888888))),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              onPressed: () => _deleteVideo(video),
+              icon: const Icon(Icons.delete_outline,
+                  color: Colors.red, size: 22),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String? _extractYT(String url) {
+    try {
+      if (url.contains('youtu.be/')) {
+        return url.split('youtu.be/').last.split('?').first;
+      }
+      if (url.contains('youtube.com/watch')) {
+        return Uri.parse(url).queryParameters['v'];
+      }
+      if (url.contains('youtube.com/embed/')) {
+        return url.split('youtube.com/embed/').last.split('?').first;
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  Future<void> _showAddVideo() async {
+    final titleCtrl = TextEditingController();
+    final descCtrl = TextEditingController();
+    final urlCtrl = TextEditingController();
+    String videoType = 'youtube';
+    String selectedGrade = 'أول ابتدائي';
+    String selectedSubject = 'الرياضيات';
+    bool uploading = false;
+
+    final List<String> grades = [
+      'أول ابتدائي', 'ثاني ابتدائي', 'ثالث ابتدائي',
+      'رابع ابتدائي', 'خامس ابتدائي', 'سادس ابتدائي',
+      'أول إعدادي', 'ثاني إعدادي', 'ثالث إعدادي',
+      'أولى ثانوي', 'ثانية ثانوي', 'ثالثة ثانوي',
+    ];
+
+    final List<String> subjects = [
+      'الرياضيات', 'اللغة العربية', 'اللغة الإنجليزية',
+      'التربية الإسلامية', 'الحاسوب', 'العلوم', 'الاجتماعيات',
+    ];
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (ctx, setSt) => AlertDialog(
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20)),
+          title: const Row(
+            children: [
+              Icon(Icons.video_call, color: Color(0xFFD32F2F)),
+              SizedBox(width: 10),
+              Text('إضافة فيديو',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+            ],
+          ),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: titleCtrl,
+                    decoration: InputDecoration(
+                      labelText: 'عنوان الفيديو',
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    value: selectedGrade,
+                    decoration: InputDecoration(
+                      labelText: 'الصف',
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                    items: grades
+                        .map((g) =>
+                            DropdownMenuItem(value: g, child: Text(g)))
+                        .toList(),
+                    onChanged: uploading
+                        ? null
+                        : (v) => setSt(
+                            () => selectedGrade = v ?? selectedGrade),
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    value: selectedSubject,
+                    decoration: InputDecoration(
+                      labelText: 'المادة',
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                    items: subjects
+                        .map((s) =>
+                            DropdownMenuItem(value: s, child: Text(s)))
+                        .toList(),
+                    onChanged: uploading
+                        ? null
+                        : (v) => setSt(
+                            () => selectedSubject = v ?? selectedSubject),
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        const Text('النوع:',
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 13)),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: RadioListTile<String>(
+                            title: const Text('YouTube',
+                                style: TextStyle(fontSize: 12)),
+                            value: 'youtube',
+                            groupValue: videoType,
+                            contentPadding: EdgeInsets.zero,
+                            dense: true,
+                            onChanged: uploading
+                                ? null
+                                : (v) =>
+                                    setSt(() => videoType = v ?? 'youtube'),
+                          ),
+                        ),
+                        Expanded(
+                          child: RadioListTile<String>(
+                            title: const Text('mp4',
+                                style: TextStyle(fontSize: 12)),
+                            value: 'mp4',
+                            groupValue: videoType,
+                            contentPadding: EdgeInsets.zero,
+                            dense: true,
+                            onChanged: uploading
+                                ? null
+                                : (v) => setSt(() => videoType = v ?? 'mp4'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  if (videoType == 'youtube')
+                    TextField(
+                      controller: urlCtrl,
+                      decoration: InputDecoration(
+                        labelText: 'رابط يوتيوب',
+                        hintText: 'https://youtube.com/watch?v=...',
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                      ),
+                    )
+                  else
+                    SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: ElevatedButton.icon(
+                        onPressed: uploading
+                            ? null
+                            : () async {
+                                try {
+                                  final picker = ImagePicker();
+                                  // نستخدم file_picker بدلاً منه لكن هنا نستخدم pickVideo
+                                  final video = await picker.pickVideo(
+                                      source: ImageSource.gallery);
+                                  if (video != null) {
+                                    setSt(() {
+                                      urlCtrl.text = video.path;
+                                    });
+                                  }
+                                } catch (e) {
+                                  showKitabiSnack(context, 'فشل اختيار الفيديو');
+                                }
+                              },
+                        icon: const Icon(Icons.video_file),
+                        label: Text(urlCtrl.text.isEmpty
+                            ? 'اختر فيديو من الجهاز'
+                            : 'تم اختيار الفيديو'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFD32F2F),
+                          foregroundColor: Colors.white,
+                        ),
+                      ),
+                    ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: descCtrl,
+                    maxLines: 2,
+                    decoration: InputDecoration(
+                      labelText: 'الوصف (اختياري)',
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: uploading ? null : () => Navigator.pop(dialogCtx),
+              child: const Text('إلغاء'),
+            ),
+            ElevatedButton(
+              onPressed: uploading
+                  ? null
+                  : () async {
+                      if (titleCtrl.text.trim().isEmpty) {
+                        showKitabiSnack(context, 'اكتب عنوان الفيديو');
+                        return;
+                      }
+                      if (urlCtrl.text.trim().isEmpty) {
+                        showKitabiSnack(context,
+                            videoType == 'youtube'
+                                ? 'الصق رابط يوتيوب'
+                                : 'اختر فيديو من الجهاز');
+                        return;
+                      }
+
+                      setSt(() => uploading = true);
+
+                      try {
+                        String finalUrl = urlCtrl.text.trim();
+
+                        // إذا كان mp4، نرفعه إلى Storage
+                        if (videoType == 'mp4') {
+                          final videoFile = XFile(finalUrl);
+                          final bytes = await videoFile.readAsBytes();
+                          final ext = finalUrl.split('.').last;
+                          final fileName =
+                              'video_${DateTime.now().millisecondsSinceEpoch}.$ext';
+
+                          await supabase.storage
+                              .from('books')
+                              .uploadBinary(fileName, bytes);
+
+                          finalUrl = supabase.storage
+                              .from('books')
+                              .getPublicUrl(fileName);
+                        }
+
+                        await supabase.from('videos').insert({
+                          'title': titleCtrl.text.trim(),
+                          'description': descCtrl.text.trim(),
+                          'grade': selectedGrade,
+                          'subject': selectedSubject,
+                          'video_type': videoType,
+                          'video_url': finalUrl,
+                          'uploaded_by': 'admin',
+                        });
+
+                        if (!context.mounted) return;
+                        Navigator.pop(dialogCtx);
+                        showKitabiSnack(context, 'تم إضافة الفيديو');
+                        _load();
+                      } catch (e) {
+                        setSt(() => uploading = false);
+                        showKitabiSnack(context, 'فشل: $e');
+                      }
+                    },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFD32F2F),
+                foregroundColor: Colors.white,
+              ),
+              child: uploading
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                          color: Colors.white, strokeWidth: 2))
+                  : const Text('إضافة'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmpty() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(28),
+            decoration: BoxDecoration(
+              color: const Color(0xFFD32F2F).withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.video_library_outlined,
+                size: 60, color: Color(0xFFD32F2F)),
+          ),
+          const SizedBox(height: 20),
+          const Text('لا توجد فيديوهات بعد',
+              style: TextStyle(fontSize: 16, color: Color(0xFF555555))),
+          const SizedBox(height: 10),
+          ElevatedButton.icon(
+            onPressed: _showAddVideo,
+            icon: const Icon(Icons.add),
+            label: const Text('إضافة فيديو'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFD32F2F),
+              foregroundColor: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class ControlRoomScreen extends StatefulWidget {
   const ControlRoomScreen({super.key});
   @override
@@ -3425,6 +5556,15 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
                   context,
                   MaterialPageRoute(
                       builder: (_) => const ManageBooksScreen()),
+                );
+              }),
+              _divider(),
+              _listItem(Icons.video_library_rounded, 'إدارة الفيديوهات',
+                  const Color(0xFFD32F2F), () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const ManageVideosScreen()),
                 );
               }),
               _divider(),

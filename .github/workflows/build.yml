@@ -30,14 +30,15 @@ jobs:
         run: |
           flutter create . --platforms android --org com.kitabi --project-name kitabi
 
-      - name: Add permissions to AndroidManifest
+      - name: Add permissions and cleartext to AndroidManifest
         run: |
           MANIFEST="android/app/src/main/AndroidManifest.xml"
           if ! grep -q "READ_MEDIA_IMAGES" "$MANIFEST"; then
-            sed -i 's|<application|<uses-permission android:name="android.permission.INTERNET"/>\n    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>\n    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>\n    <uses-permission android:name="android.permission.CAMERA"/>\n    <application|' "$MANIFEST"
+            sed -i 's|<application|<uses-permission android:name="android.permission.INTERNET"/>\n    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>\n    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>\n    <uses-permission android:name="android.permission.CAMERA"/>\n    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO"/>\n    <application|' "$MANIFEST"
           fi
-          echo "--- AndroidManifest after edit ---"
-          cat "$MANIFEST"
+          if ! grep -q "usesCleartextTraffic" "$MANIFEST"; then
+            sed -i 's|<application|<application android:usesCleartextTraffic="true"|' "$MANIFEST"
+          fi
 
       - name: Get dependencies
         run: flutter pub get
@@ -48,5 +49,5 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: kitabi-apk-v0.2
+          name: kitabi-apk-v0.3
           path: build/app/outputs/flutter-apk/app-release.apk
