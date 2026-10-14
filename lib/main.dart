@@ -224,6 +224,28 @@ class _RegisterScreenState extends State<RegisterScreen> {
       await prefs.setInt('user_level', 1);
       await prefs.setInt('user_achievements', 0);
     }
+
+    // حفظ المستخدم في Supabase
+    try {
+      final existing = await supabase
+          .from('users')
+          .select('id')
+          .eq('name', _nameController.text.trim())
+          .limit(1);
+      if (existing.isEmpty) {
+        await supabase.from('users').insert({
+          'name': _nameController.text.trim(),
+          'grade': _selectedGrade,
+          'muraqaba': _selectedMuraqaba,
+          'points': 50,
+          'level': 1,
+          'achievements': 0,
+        });
+      }
+    } catch (e) {
+      debugPrint('Supabase insert error: \$e');
+    }
+
     if (!mounted) return;
     Navigator.pushReplacement(
       context,
@@ -1238,8 +1260,64 @@ class GradeSubjectsScreen extends StatelessWidget {
 }
 
 // ============ Notifications ============
-class NotificationsTab extends StatelessWidget {
+class NotificationsTab extends StatefulWidget {
   const NotificationsTab({super.key});
+  @override
+  State<NotificationsTab> createState() => _NotificationsTabState();
+}
+
+class _NotificationsTabState extends State<NotificationsTab> {
+  List<Map<String, dynamic>> _notifications = [];
+  bool _loading = true;
+  String _error = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadNotifications();
+  }
+
+  Future<void> _loadNotifications() async {
+    setState(() {
+      _loading = true;
+      _error = '';
+    });
+    try {
+      final data = await supabase
+          .from('notifications')
+          .select()
+          .order('created_at', ascending: false)
+          .limit(50);
+      if (!mounted) return;
+      setState(() {
+        _notifications = List<Map<String, dynamic>>.from(data);
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = 'تعذر تحميل الإشعارات';
+        _loading = false;
+      });
+      debugPrint('Load notifications error: $e');
+    }
+  }
+
+  String _formatDate(String? iso) {
+    if (iso == null) return '';
+    try {
+      final d = DateTime.parse(iso).toLocal();
+      final now = DateTime.now();
+      final diff = now.difference(d);
+      if (diff.inMinutes < 1) return 'الآن';
+      if (diff.inMinutes < 60) return 'منذ ${diff.inMinutes} دقيقة';
+      if (diff.inHours < 24) return 'منذ ${diff.inHours} ساعة';
+      if (diff.inDays < 30) return 'منذ ${diff.inDays} يوم';
+      return '${d.year}/${d.month}/${d.day}';
+    } catch (_) {
+      return '';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1252,47 +1330,175 @@ class NotificationsTab extends StatelessWidget {
             right: 20,
             bottom: 10,
           ),
-          child: const Row(
+          child: Row(
             children: [
-              Icon(Icons.notifications, color: Color(0xFF1565C0), size: 28),
-              SizedBox(width: 10),
-              Text('الإشعارات',
-                  style: TextStyle(
-                      fontSize: 24, fontWeight: FontWeight.bold)),
+              const Icon(Icons.notifications,
+                  color: Color(0xFF1565C0), size: 28),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Text('الإشعارات',
+                    style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1A1A1A))),
+              ),
+              IconButton(
+                onPressed: _loadNotifications,
+                icon: const Icon(Icons.refresh,
+                    color: Color(0xFF1565C0), size: 24),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              ),
             ],
           ),
         ),
         Expanded(
-          child: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(30),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 15,
-                      ),
-                    ],
-                  ),
-                  child: const Icon(Icons.notifications_off,
-                      size: 60, color: Color(0xFF555555)),
-                ),
-                const SizedBox(height: 20),
-                const Text('لا توجد إشعارات حالياً',
-                    style: TextStyle(fontSize: 18, color: Color(0xFF555555))),
-                const SizedBox(height: 8),
-                const Text('ستظهر هنا الإشعارات الجديدة',
-                    style: TextStyle(fontSize: 13, color: Color(0xFF555555))),
-              ],
-            ),
-          ),
+          child: _loading
+              ? const Center(
+                  child: CircularProgressIndicator(
+                      color: Color(0xFF1565C0)),
+                )
+              : _error.isNotEmpty
+                  ? _buildError()
+                  : _notifications.isEmpty
+                      ? _buildEmpty()
+                      : RefreshIndicator(
+                          onRefresh: _loadNotifications,
+                          color: const Color(0xFF1565C0),
+                          child: ListView.separated(
+                            padding: EdgeInsets.fromLTRB(
+                                20, 8, 20,
+                                MediaQuery.of(context).padding.bottom + 110),
+                            itemCount: _notifications.length,
+                            separatorBuilder: (_, __) =>
+                                const SizedBox(height: 12),
+                            itemBuilder: (context, i) {
+                              final n = _notifications[i];
+                              return _notifCard(n);
+                            },
+                          ),
+                        ),
         ),
       ],
+    );
+  }
+
+  Widget _notifCard(Map<String, dynamic> n) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 14,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1565C0).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.campaign,
+                    color: Color(0xFF1565C0), size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  n['title'] ?? '',
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1A1A1A),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            n['body'] ?? '',
+            style: const TextStyle(
+              fontSize: 13,
+              color: Color(0xFF333333),
+              height: 1.5,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            _formatDate(n['created_at']),
+            style: const TextStyle(
+              fontSize: 11,
+              color: Color(0xFF888888),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmpty() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(30),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 15,
+                ),
+              ],
+            ),
+            child: const Icon(Icons.notifications_off,
+                size: 60, color: Color(0xFF555555)),
+          ),
+          const SizedBox(height: 20),
+          const Text('لا توجد إشعارات حالياً',
+              style: TextStyle(fontSize: 18, color: Color(0xFF555555))),
+          const SizedBox(height: 8),
+          const Text('ستظهر هنا الإشعارات الجديدة',
+              style: TextStyle(fontSize: 13, color: Color(0xFF888888))),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildError() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.error_outline, size: 60, color: Colors.red),
+          const SizedBox(height: 15),
+          Text(_error,
+              style: const TextStyle(
+                  fontSize: 16, color: Color(0xFF555555))),
+          const SizedBox(height: 15),
+          ElevatedButton.icon(
+            onPressed: _loadNotifications,
+            icon: const Icon(Icons.refresh),
+            label: const Text('إعادة المحاولة'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF1565C0),
+              foregroundColor: Colors.white,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -2124,14 +2330,31 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
               child: const Text('إلغاء'),
             ),
             ElevatedButton(
-              onPressed: () {
-                Navigator.pop(dialogCtx);
+              onPressed: () async {
                 if (titleCtrl.text.trim().isEmpty) {
                   showKitabiSnack(context, 'اكتب عنوان الإشعار');
                   return;
                 }
-                showKitabiSnack(context,
-                    'تم إرسال الإشعار: ${titleCtrl.text.trim()}');
+                if (bodyCtrl.text.trim().isEmpty) {
+                  showKitabiSnack(context, 'اكتب نص الإشعار');
+                  return;
+                }
+                Navigator.pop(dialogCtx);
+                try {
+                  await supabase.from('notifications').insert({
+                    'title': titleCtrl.text.trim(),
+                    'body': bodyCtrl.text.trim(),
+                    'target_type': selectedTarget,
+                    'sent_by': 'admin',
+                  });
+                  if (!mounted) return;
+                  showKitabiSnack(
+                      context, '✅ تم إرسال الإشعار بنجاح');
+                } catch (e) {
+                  if (!mounted) return;
+                  showKitabiSnack(context, '❌ فشل الإرسال');
+                  debugPrint('Send notification error: \$e');
+                }
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF7B1FA2),
