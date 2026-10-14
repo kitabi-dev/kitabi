@@ -30,9 +30,14 @@ jobs:
         run: |
           flutter create . --platforms android --org com.kitabi --project-name kitabi
 
-      - name: Add INTERNET permission
+      - name: Add permissions to AndroidManifest
         run: |
-          sed -i 's|<application|<uses-permission android:name="android.permission.INTERNET"/>\n    <application|' android/app/src/main/AndroidManifest.xml
+          MANIFEST="android/app/src/main/AndroidManifest.xml"
+          if ! grep -q "READ_MEDIA_IMAGES" "$MANIFEST"; then
+            sed -i 's|<application|<uses-permission android:name="android.permission.INTERNET"/>\n    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>\n    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>\n    <uses-permission android:name="android.permission.CAMERA"/>\n    <application|' "$MANIFEST"
+          fi
+          echo "--- AndroidManifest after edit ---"
+          cat "$MANIFEST"
 
       - name: Get dependencies
         run: flutter pub get
@@ -43,5 +48,5 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: kitabi-apk-v0.1
+          name: kitabi-apk-v0.2
           path: build/app/outputs/flutter-apk/app-release.apk

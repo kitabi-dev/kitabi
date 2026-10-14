@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 
 // ============ إعدادات Supabase ============
 const String kSupabaseUrl = 'https://vlyfghfoelbbbdljbvcr.supabase.co';
@@ -1040,18 +1042,18 @@ class LibraryTab extends StatelessWidget {
   };
 
   static const List<Map<String, dynamic>> _grades = [
-    {'name': 'أول ابتدائي', 'icon': Icons.looks_one, 'color': 0xFF42A5F5},
-    {'name': 'ثاني ابتدائي', 'icon': Icons.looks_two, 'color': 0xFF42A5F5},
-    {'name': 'ثالث ابتدائي', 'icon': Icons.looks_3, 'color': 0xFF26A69A},
-    {'name': 'رابع ابتدائي', 'icon': Icons.looks_4, 'color': 0xFF26A69A},
-    {'name': 'خامس ابتدائي', 'icon': Icons.looks_5, 'color': 0xFF66BB6A},
-    {'name': 'سادس ابتدائي', 'icon': Icons.looks_6, 'color': 0xFF66BB6A},
-    {'name': 'أول إعدادي', 'icon': Icons.school, 'color': 0xFFFFA726},
-    {'name': 'ثاني إعدادي', 'icon': Icons.school, 'color': 0xFFFFA726},
-    {'name': 'ثالث إعدادي', 'icon': Icons.school, 'color': 0xFFEF6C00},
-    {'name': 'أولى ثانوي', 'icon': Icons.workspace_premium, 'color': 0xFF7E57C2},
-    {'name': 'ثانية ثانوي', 'icon': Icons.workspace_premium, 'color': 0xFF5E35B1},
-    {'name': 'ثالثة ثانوي', 'icon': Icons.workspace_premium, 'color': 0xFF4527A0},
+    {'name': 'أول ابتدائي', 'icon': Icons.looks_one, 'color': 0xFF42A5F5, 'locked': false},
+    {'name': 'ثاني ابتدائي', 'icon': Icons.looks_two, 'color': 0xFF42A5F5, 'locked': false},
+    {'name': 'ثالث ابتدائي', 'icon': Icons.looks_3, 'color': 0xFF26A69A, 'locked': false},
+    {'name': 'رابع ابتدائي', 'icon': Icons.looks_4, 'color': 0xFF26A69A, 'locked': false},
+    {'name': 'خامس ابتدائي', 'icon': Icons.looks_5, 'color': 0xFF66BB6A, 'locked': false},
+    {'name': 'سادس ابتدائي', 'icon': Icons.looks_6, 'color': 0xFF66BB6A, 'locked': false},
+    {'name': 'أول إعدادي', 'icon': Icons.school, 'color': 0xFFFFA726, 'locked': false},
+    {'name': 'ثاني إعدادي', 'icon': Icons.school, 'color': 0xFFFFA726, 'locked': false},
+    {'name': 'ثالث إعدادي', 'icon': Icons.school, 'color': 0xFFEF6C00, 'locked': true},
+    {'name': 'أولى ثانوي', 'icon': Icons.workspace_premium, 'color': 0xFF7E57C2, 'locked': true},
+    {'name': 'ثانية ثانوي', 'icon': Icons.workspace_premium, 'color': 0xFF5E35B1, 'locked': true},
+    {'name': 'ثالثة ثانوي', 'icon': Icons.workspace_premium, 'color': 0xFF4527A0, 'locked': true},
   ];
 
   @override
@@ -1092,14 +1094,17 @@ class LibraryTab extends StatelessWidget {
             itemBuilder: (context, i) {
               final g = _grades[i];
               final subjects = _subjectsByGrade[g['name']] ?? <String>[];
-              return Container(
+              final locked = g['locked'] == true;
+              return Opacity(
+                opacity: locked ? 0.55 : 1.0,
+                child: Container(
                 height: 82,
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: locked ? Colors.grey.shade100 : Colors.white,
                   borderRadius: BorderRadius.circular(26),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.06),
+                      color: Colors.black.withOpacity(locked ? 0.03 : 0.06),
                       blurRadius: 16,
                       offset: const Offset(0, 6),
                     ),
@@ -1110,6 +1115,11 @@ class LibraryTab extends StatelessWidget {
                   child: InkWell(
                     borderRadius: BorderRadius.circular(26),
                     onTap: () {
+                      if (locked) {
+                        showKitabiSnack(context,
+                            'هذا الصف سيُفتح في الإصدار 0.5');
+                        return;
+                      }
                       Navigator.push(
                         context,
                         MaterialPageRoute(
@@ -2971,12 +2981,15 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
     final pdfCtrl = TextEditingController();
     String selectedGrade = 'أول ابتدائي';
     String selectedSubject = 'الرياضيات';
+    String bookType = 'images';
+    List<XFile> pickedImages = [];
+    bool uploading = false;
+    double progress = 0;
 
     final List<String> grades = [
       'أول ابتدائي', 'ثاني ابتدائي', 'ثالث ابتدائي',
       'رابع ابتدائي', 'خامس ابتدائي', 'سادس ابتدائي',
-      'أول إعدادي', 'ثاني إعدادي', 'ثالث إعدادي',
-      'أولى ثانوي', 'ثانية ثانوي', 'ثالثة ثانوي',
+      'أول إعدادي', 'ثاني إعدادي',
     ];
 
     final List<String> subjects = [
@@ -2986,6 +2999,7 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
 
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (dialogCtx) => StatefulBuilder(
         builder: (ctx, setSt) => AlertDialog(
           shape: RoundedRectangleBorder(
@@ -2998,92 +3012,286 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
                   style: TextStyle(fontWeight: FontWeight.bold)),
             ],
           ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: titleCtrl,
-                  decoration: InputDecoration(
-                    labelText: 'عنوان الكتاب',
-                    border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12)),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: titleCtrl,
+                    decoration: InputDecoration(
+                      labelText: 'عنوان الكتاب',
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  value: selectedGrade,
-                  decoration: InputDecoration(
-                    labelText: 'الصف',
-                    border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12)),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    value: selectedGrade,
+                    decoration: InputDecoration(
+                      labelText: 'الصف',
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                    items: grades
+                        .map((g) =>
+                            DropdownMenuItem(value: g, child: Text(g)))
+                        .toList(),
+                    onChanged: uploading
+                        ? null
+                        : (v) =>
+                            setSt(() => selectedGrade = v ?? selectedGrade),
                   ),
-                  items: grades
-                      .map((g) =>
-                          DropdownMenuItem(value: g, child: Text(g)))
-                      .toList(),
-                  onChanged: (v) =>
-                      setSt(() => selectedGrade = v ?? selectedGrade),
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  value: selectedSubject,
-                  decoration: InputDecoration(
-                    labelText: 'المادة',
-                    border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12)),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    value: selectedSubject,
+                    decoration: InputDecoration(
+                      labelText: 'المادة',
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                    items: subjects
+                        .map((s) =>
+                            DropdownMenuItem(value: s, child: Text(s)))
+                        .toList(),
+                    onChanged: uploading
+                        ? null
+                        : (v) => setSt(
+                            () => selectedSubject = v ?? selectedSubject),
                   ),
-                  items: subjects
-                      .map((s) =>
-                          DropdownMenuItem(value: s, child: Text(s)))
-                      .toList(),
-                  onChanged: (v) =>
-                      setSt(() => selectedSubject = v ?? selectedSubject),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: pdfCtrl,
-                  decoration: InputDecoration(
-                    labelText: 'رابط PDF',
-                    hintText: 'https://example.com/book.pdf',
-                    border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12)),
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        const Text('النوع:',
+                            style: TextStyle(fontWeight: FontWeight.bold)),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: RadioListTile<String>(
+                            title: const Text('صور',
+                                style: TextStyle(fontSize: 13)),
+                            value: 'images',
+                            groupValue: bookType,
+                            contentPadding: EdgeInsets.zero,
+                            dense: true,
+                            onChanged: uploading
+                                ? null
+                                : (v) => setSt(
+                                    () => bookType = v ?? 'images'),
+                          ),
+                        ),
+                        Expanded(
+                          child: RadioListTile<String>(
+                            title: const Text('PDF',
+                                style: TextStyle(fontSize: 13)),
+                            value: 'pdf',
+                            groupValue: bookType,
+                            contentPadding: EdgeInsets.zero,
+                            dense: true,
+                            onChanged: uploading
+                                ? null
+                                : (v) => setSt(
+                                    () => bookType = v ?? 'pdf'),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 12),
+                  if (bookType == 'images') ...[
+                    SizedBox(
+                      width: double.infinity,
+                      height: 45,
+                      child: ElevatedButton.icon(
+                        onPressed: uploading
+                            ? null
+                            : () async {
+                                try {
+                                  final picker = ImagePicker();
+                                  final images = await picker
+                                      .pickMultiImage(imageQuality: 85);
+                                  if (images.isNotEmpty) {
+                                    setSt(() {
+                                      pickedImages = images;
+                                    });
+                                  }
+                                } catch (e) {
+                                  showKitabiSnack(
+                                      context, 'فشل اختيار الصور');
+                                }
+                              },
+                        icon: const Icon(Icons.photo_library),
+                        label: Text(
+                            'اختيار صور (${pickedImages.length})'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF1565C0),
+                          foregroundColor: Colors.white,
+                        ),
+                      ),
+                    ),
+                    if (pickedImages.isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      Container(
+                        height: 120,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: GridView.builder(
+                          padding: const EdgeInsets.all(6),
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 4,
+                            crossAxisSpacing: 4,
+                            mainAxisSpacing: 4,
+                          ),
+                          itemCount: pickedImages.length,
+                          itemBuilder: (_, i) => Stack(
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(6),
+                                child: Image.file(
+                                  File(pickedImages[i].path),
+                                  fit: BoxFit.cover,
+                                  width: double.infinity,
+                                  height: double.infinity,
+                                ),
+                              ),
+                              Positioned(
+                                top: 0,
+                                right: 0,
+                                child: GestureDetector(
+                                  onTap: uploading
+                                      ? null
+                                      : () => setSt(
+                                          () => pickedImages.removeAt(i)),
+                                  child: Container(
+                                    padding:
+                                        const EdgeInsets.all(2),
+                                    decoration: const BoxDecoration(
+                                      color: Colors.red,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(Icons.close,
+                                        color: Colors.white, size: 12),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ] else
+                    TextField(
+                      controller: pdfCtrl,
+                      decoration: InputDecoration(
+                        labelText: 'رابط PDF',
+                        hintText: 'https://example.com/book.pdf',
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+                  if (uploading) ...[
+                    const SizedBox(height: 15),
+                    LinearProgressIndicator(
+                        value: progress,
+                        color: const Color(0xFF1565C0)),
+                    const SizedBox(height: 8),
+                    Text(
+                      'جاري الرفع ${(progress * 100).toStringAsFixed(0)}%',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ],
+                ],
+              ),
             ),
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(dialogCtx),
+              onPressed: uploading ? null : () => Navigator.pop(dialogCtx),
               child: const Text('إلغاء'),
             ),
             ElevatedButton(
-              onPressed: () async {
-                if (titleCtrl.text.trim().isEmpty) {
-                  showKitabiSnack(context, 'اكتب عنوان الكتاب');
-                  return;
-                }
-                if (pdfCtrl.text.trim().isEmpty) {
-                  showKitabiSnack(context, 'اكتب رابط PDF');
-                  return;
-                }
-                Navigator.pop(dialogCtx);
-                try {
-                  await supabase.from('books').insert({
-                    'title': titleCtrl.text.trim(),
-                    'grade': selectedGrade,
-                    'subject': selectedSubject,
-                    'pdf_url': pdfCtrl.text.trim(),
-                    'uploaded_by': 'admin',
-                  });
-                  if (!context.mounted) return;
-                  showKitabiSnack(context, 'تم رفع الكتاب بنجاح');
-                } catch (e) {
-                  if (!context.mounted) return;
-                  showKitabiSnack(context, 'فشل الرفع');
-                }
-              },
+              onPressed: uploading
+                  ? null
+                  : () async {
+                      if (titleCtrl.text.trim().isEmpty) {
+                        showKitabiSnack(context, 'اكتب عنوان الكتاب');
+                        return;
+                      }
+                      if (bookType == 'images' &&
+                          pickedImages.isEmpty) {
+                        showKitabiSnack(
+                            context, 'اختر صور الكتاب أولاً');
+                        return;
+                      }
+                      if (bookType == 'pdf' &&
+                          pdfCtrl.text.trim().isEmpty) {
+                        showKitabiSnack(context, 'اكتب رابط PDF');
+                        return;
+                      }
+
+                      setSt(() => uploading = true);
+                      List<String> uploadedUrls = [];
+
+                      try {
+                        if (bookType == 'images') {
+                          int idx = 0;
+                          for (var img in pickedImages) {
+                            idx++;
+                            setSt(() => progress = idx / pickedImages.length);
+
+                            final bytes = await img.readAsBytes();
+                            final ext = img.path.split('.').last;
+                            final fileName =
+                                'book_${DateTime.now().millisecondsSinceEpoch}_${idx}.$ext';
+
+                            await supabase.storage
+                                .from('books')
+                                .uploadBinary(fileName, bytes);
+
+                            final url = supabase.storage
+                                .from('books')
+                                .getPublicUrl(fileName);
+                            uploadedUrls.add(url);
+                          }
+
+                          await supabase.from('books').insert({
+                            'title': titleCtrl.text.trim(),
+                            'grade': selectedGrade,
+                            'subject': selectedSubject,
+                            'book_type': 'images',
+                            'image_urls': uploadedUrls,
+                            'uploaded_by': 'admin',
+                          });
+                        } else {
+                          await supabase.from('books').insert({
+                            'title': titleCtrl.text.trim(),
+                            'grade': selectedGrade,
+                            'subject': selectedSubject,
+                            'book_type': 'pdf',
+                            'pdf_url': pdfCtrl.text.trim(),
+                            'uploaded_by': 'admin',
+                          });
+                        }
+
+                        if (!context.mounted) return;
+                        Navigator.pop(dialogCtx);
+                        showKitabiSnack(
+                            context, 'تم رفع الكتاب بنجاح');
+                      } catch (e) {
+                        setSt(() => uploading = false);
+                        showKitabiSnack(context, 'فشل الرفع: $e');
+                      }
+                    },
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF00897B),
                 foregroundColor: Colors.white,
@@ -3095,5 +3303,6 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
       ),
     );
   }
+
 
 }
