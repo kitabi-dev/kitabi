@@ -1181,7 +1181,7 @@ class LibraryTab extends StatelessWidget {
                     ),
                   ),
                 ),
-              );
+              ));
             },
           ),
         ),
