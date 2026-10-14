@@ -907,34 +907,167 @@ class HomeTab extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 25),
+          // ===== الصفوف الدراسية الليبية =====
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 20),
-            child: Text('أحدث الدروس',
+            child: Text('الصفوف الدراسية الليبية',
                 style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
                     color: Color(0xFF1A1A1A))),
           ),
           const SizedBox(height: 12),
+
+          // المرحلة الابتدائية
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: _lessonCard('الرياضيات — الفصل الأول', 'الأساس والغلاف',
-                Icons.calculate_rounded,
-                const LinearGradient(
-                    colors: [Color(0xFF1565C0), Color(0xFF42A5F5)])),
+            child: _stageHeader('المرحلة الابتدائية', Color(0xFF42A5F5),
+                Icons.emoji_nature),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: _gradesGrid(context, const [
+              'أول ابتدائي', 'ثاني ابتدائي', 'ثالث ابتدائي',
+              'رابع ابتدائي', 'خامس ابتدائي', 'سادس ابتدائي',
+            ], Color(0xFF42A5F5)),
+          ),
+          const SizedBox(height: 18),
+
+          // المرحلة الإعدادية
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: _lessonCard('العلوم الطبيعية', 'مقدمة في الأحياء',
-                Icons.science_rounded,
-                const LinearGradient(
-                    colors: [Color(0xFF7B1FA2), Color(0xFFAB47BC)])),
+            child: _stageHeader('المرحلة الإعدادية', Color(0xFFFFA726),
+                Icons.school),
+          ),
+          const SizedBox(height: 10),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: _gradesGrid(context, const [
+              'أول إعدادي', 'ثاني إعدادي', 'ثالث إعدادي',
+            ], Color(0xFFFFA726)),
+          ),
+          const SizedBox(height: 18),
+
+          // المرحلة الثانوية
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: _stageHeader('المرحلة الثانوية', Color(0xFF7E57C2),
+                Icons.workspace_premium),
+          ),
+          const SizedBox(height: 10),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: _gradesGrid(context, const [
+              'أولى ثانوي', 'ثانية ثانوي', 'ثالثة ثانوي',
+            ], Color(0xFF7E57C2)),
           ),
           const SizedBox(height: 25),
         ],
       ),
+    );
+  }
+
+  Widget _stageHeader(String title, Color color, IconData icon) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.15),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, color: color, size: 20),
+        ),
+        const SizedBox(width: 10),
+        Text(title,
+            style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: color)),
+      ],
+    );
+  }
+
+  Widget _gradesGrid(
+      BuildContext context, List<String> grades, Color color) {
+    return GridView.count(
+      crossAxisCount: 3,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisSpacing: 10,
+      mainAxisSpacing: 10,
+      childAspectRatio: 1.4,
+      children: grades.map((grade) {
+        return Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: () {
+              // ننتقل للمكتبة
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => GradeSubjectsScreen(
+                    gradeName: grade,
+                    subjects: const [
+                      'الرياضيات', 'اللغة العربية', 'اللغة الإنجليزية',
+                      'التربية الإسلامية', 'الحاسوب', 'العلوم', 'الاجتماعيات',
+                    ],
+                    icons: const {
+                      'الرياضيات': Icons.calculate_rounded,
+                      'اللغة العربية': Icons.translate_rounded,
+                      'اللغة الإنجليزية': Icons.language_rounded,
+                      'التربية الإسلامية': Icons.mosque_rounded,
+                      'الحاسوب': Icons.computer_rounded,
+                      'العلوم': Icons.science_rounded,
+                      'الاجتماعيات': Icons.public_rounded,
+                    },
+                    colors: const {
+                      'الرياضيات': Color(0xFF1565C0),
+                      'اللغة العربية': Color(0xFF00897B),
+                      'اللغة الإنجليزية': Color(0xFF7B1FA2),
+                      'التربية الإسلامية': Color(0xFF00838F),
+                      'الحاسوب': Color(0xFF283593),
+                      'العلوم': Color(0xFFEF6C00),
+                      'الاجتماعيات': Color(0xFFD32F2F),
+                    },
+                  ),
+                ),
+              );
+            },
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: color.withOpacity(0.25), width: 1.5),
+                boxShadow: [
+                  BoxShadow(
+                    color: color.withOpacity(0.1),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  child: Text(
+                    grade,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1A1A1A),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      }).toList(),
     );
   }
 
