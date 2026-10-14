@@ -365,7 +365,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     await prefs.setString('user_name', _nameController.text.trim());
     await prefs.setString('user_grade', _selectedGrade!);
     await prefs.setString('user_muraqaba', _selectedMuraqaba!);
-    await prefs.setString('user_email', email);
 
     final currentPts = prefs.getInt('user_points') ?? 0;
     if (currentPts == 0) {
@@ -379,12 +378,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
       final existing = await supabase
           .from('users')
           .select('id')
-          .eq('email', email)
+          .eq('name', _nameController.text.trim())
           .limit(1);
       if (existing.isEmpty) {
         await supabase.from('users').insert({
           'name': _nameController.text.trim(),
-          'email': email,
           'grade': _selectedGrade,
           'muraqaba': _selectedMuraqaba,
           'points': 50,
@@ -396,7 +394,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           'name': _nameController.text.trim(),
           'grade': _selectedGrade,
           'muraqaba': _selectedMuraqaba,
-        }).eq('email', email);
+        }).eq('name', _nameController.text.trim());
       }
     } catch (e) {
       debugPrint('Supabase insert error: $e');
