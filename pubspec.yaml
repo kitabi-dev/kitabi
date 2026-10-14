@@ -1,7 +1,7 @@
 name: kitabi
 description: تطبيق تعليمي للطلاب الليبيين
 publish_to: 'none'
-version: 0.1.0+2
+version: 0.1.0+3
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -11,6 +11,7 @@ dependencies:
     sdk: flutter
   cupertino_icons: ^1.0.6
   shared_preferences: ^2.2.2
+  supabase_flutter: ^2.5.0
 
 dev_dependencies:
   flutter_test:

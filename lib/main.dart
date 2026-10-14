@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 // ============ نموذج إحصائيات المستخدم ============
 class UserStats {
@@ -37,8 +38,19 @@ class UserStats {
   }
 }
 
-void main() {
+// ============ إعدادات Supabase ============
+const String kSupabaseUrl = 'https://vlyfghfoelbbbdljbvcr.supabase.co';
+const String kSupabaseAnonKey = 'sb_publishable_d4ZrC9cHXb8YvzyvlRkeCA_GOMtyzgt';
+
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // تهيئة Supabase
+  await Supabase.initialize(
+    url: kSupabaseUrl,
+    anonKey: kSupabaseAnonKey,
+  );
+
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
     systemNavigationBarColor: Colors.transparent,
@@ -49,6 +61,9 @@ void main() {
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   runApp(const KitabiApp());
 }
+
+// وصول سريع لـ Supabase
+final supabase = Supabase.instance.client;
 
 class KitabiApp extends StatelessWidget {
   const KitabiApp({super.key});
