@@ -1246,8 +1246,19 @@ class GradeSubjectsScreen extends StatelessWidget {
                     color: Colors.transparent,
                     child: InkWell(
                       borderRadius: BorderRadius.circular(24),
-                      onTap: () =>
-                          showKitabiSnack(context, '$s — قريباً'),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => SubjectBooksScreen(
+                              gradeName: gradeName,
+                              subjectName: s,
+                              subjectColor: color,
+                              subjectIcon: icon,
+                            ),
+                          ),
+                        );
+                      },
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 16, vertical: 12),
@@ -1291,6 +1302,358 @@ class GradeSubjectsScreen extends StatelessWidget {
     );
   }
 }
+
+// ============ Subject Books Screen ============
+class SubjectBooksScreen extends StatefulWidget {
+  final String gradeName;
+  final String subjectName;
+  final Color subjectColor;
+  final IconData subjectIcon;
+
+  const SubjectBooksScreen({
+    super.key,
+    required this.gradeName,
+    required this.subjectName,
+    required this.subjectColor,
+    required this.subjectIcon,
+  });
+
+  @override
+  State<SubjectBooksScreen> createState() => _SubjectBooksScreenState();
+}
+
+class _SubjectBooksScreenState extends State<SubjectBooksScreen> {
+  List<Map<String, dynamic>> _books = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBooks();
+  }
+
+  Future<void> _loadBooks() async {
+    setState(() => _loading = true);
+    try {
+      final data = await supabase
+          .from('books')
+          .select()
+          .eq('grade', widget.gradeName)
+          .eq('subject', widget.subjectName)
+          .order('created_at', ascending: false);
+      if (!mounted) return;
+      setState(() {
+        _books = List<Map<String, dynamic>>.from(data);
+        _loading = false;
+      });
+    } catch (e) {
+      debugPrint('Load books error: $e');
+      if (!mounted) return;
+      setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
+      appBar: AppBar(
+        title: Text(widget.subjectName,
+            style: const TextStyle(fontWeight: FontWeight.bold)),
+        backgroundColor: widget.subjectColor,
+        foregroundColor: Colors.white,
+        elevation: 0,
+      ),
+      body: _loading
+          ? const Center(
+              child: CircularProgressIndicator(
+                  color: Color(0xFF1565C0)))
+          : _books.isEmpty
+              ? _buildEmpty()
+              : RefreshIndicator(
+                  onRefresh: _loadBooks,
+                  color: widget.subjectColor,
+                  child: ListView.separated(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: _books.length,
+                    separatorBuilder: (_, __) =>
+                        const SizedBox(height: 12),
+                    itemBuilder: (context, i) =>
+                        _bookCard(_books[i]),
+                  ),
+                ),
+    );
+  }
+
+  Widget _bookCard(Map<String, dynamic> book) {
+    final isImages = book['book_type'] == 'images';
+    final imagesCount = isImages
+        ? (book['image_urls'] as List?)?.length ?? 0
+        : 0;
+    final coverUrl = isImages && imagesCount > 0
+        ? (book['image_urls'] as List)[0] as String
+        : null;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => BookReaderScreen(book: book),
+              ),
+            );
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Row(
+              children: [
+                // صورة الغلاف
+                Container(
+                  width: 70,
+                  height: 90,
+                  decoration: BoxDecoration(
+                    color: widget.subjectColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: coverUrl != null
+                      ? Image.network(
+                          coverUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Icon(
+                              widget.subjectIcon,
+                              color: widget.subjectColor,
+                              size: 32),
+                        )
+                      : Icon(widget.subjectIcon,
+                          color: widget.subjectColor, size: 32),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        book['title'] ?? '',
+                        style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF1A1A1A)),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        widget.gradeName,
+                        style: const TextStyle(
+                            fontSize: 12, color: Color(0xFF555555)),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: widget.subjectColor.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          isImages
+                              ? '📸 $imagesCount صورة'
+                              : '📄 PDF',
+                          style: TextStyle(
+                              fontSize: 11,
+                              color: widget.subjectColor,
+                              fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: widget.subjectColor.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.arrow_back_ios_new,
+                      size: 14, color: widget.subjectColor),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmpty() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(28),
+            decoration: BoxDecoration(
+              color: widget.subjectColor.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(Icons.menu_book_outlined,
+                size: 60, color: widget.subjectColor),
+          ),
+          const SizedBox(height: 20),
+          const Text('لا توجد كتب لهذه المادة بعد',
+              style: TextStyle(fontSize: 16, color: Color(0xFF555555))),
+          const SizedBox(height: 8),
+          const Text('سيتم إضافة الكتب قريباً',
+              style: TextStyle(fontSize: 13, color: Color(0xFF888888))),
+        ],
+      ),
+    );
+  }
+}
+
+// ============ Book Reader Screen ============
+class BookReaderScreen extends StatefulWidget {
+  final Map<String, dynamic> book;
+  const BookReaderScreen({super.key, required this.book});
+
+  @override
+  State<BookReaderScreen> createState() => _BookReaderScreenState();
+}
+
+class _BookReaderScreenState extends State<BookReaderScreen> {
+  int _currentPage = 0;
+  List<String> _imageUrls = [];
+  final PageController _pageController = PageController();
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.book['book_type'] == 'images') {
+      _imageUrls = List<String>.from(widget.book['image_urls'] ?? []);
+    }
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_imageUrls.isEmpty) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text(widget.book['title'] ?? ''),
+          backgroundColor: const Color(0xFF1565C0),
+          foregroundColor: Colors.white,
+        ),
+        body: const Center(child: Text('لا توجد صفحات')),
+      );
+    }
+
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        title: Text(
+          widget.book['title'] ?? '',
+          style: const TextStyle(fontSize: 15),
+        ),
+        backgroundColor: const Color(0xFF1A1A1A),
+        foregroundColor: Colors.white,
+        actions: [
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.only(right: 16),
+              child: Text(
+                '${_currentPage + 1} / ${_imageUrls.length}',
+                style: const TextStyle(fontSize: 13),
+              ),
+            ),
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: PageView.builder(
+              controller: _pageController,
+              itemCount: _imageUrls.length,
+              onPageChanged: (i) => setState(() => _currentPage = i),
+              itemBuilder: (context, i) => InteractiveViewer(
+                minScale: 0.5,
+                maxScale: 4.0,
+                child: Center(
+                  child: Image.network(
+                    _imageUrls[i],
+                    fit: BoxFit.contain,
+                    loadingBuilder: (c, child, p) => p == null
+                        ? child
+                        : const Center(
+                            child: CircularProgressIndicator(
+                                color: Colors.white)),
+                    errorBuilder: (_, __, ___) => const Center(
+                      child: Icon(Icons.broken_image,
+                          size: 80, color: Colors.white54),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          // شريط التنقل
+          Container(
+            color: const Color(0xFF1A1A1A),
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                IconButton(
+                  onPressed: _currentPage > 0
+                      ? () => _pageController.previousPage(
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeOut)
+                      : null,
+                  icon: const Icon(Icons.arrow_forward,
+                      color: Colors.white),
+                ),
+                Text(
+                  'الصفحة ${_currentPage + 1}',
+                  style: const TextStyle(
+                      color: Colors.white, fontSize: 14),
+                ),
+                IconButton(
+                  onPressed: _currentPage < _imageUrls.length - 1
+                      ? () => _pageController.nextPage(
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeOut)
+                      : null,
+                  icon: const Icon(Icons.arrow_back, color: Colors.white),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 
 // ============ Notifications Tab ============
 class NotificationsTab extends StatefulWidget {
