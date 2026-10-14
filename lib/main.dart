@@ -2758,3 +2758,33 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
     );
 }
 }
+
+// ============ Custom SnackBar (من اليمين، حواف من اليسار فقط) ============
+void showKitabiSnack(BuildContext context, String message) {
+  ScaffoldMessenger.of(context).clearSnackBars();
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text(
+        message,
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.bold,
+          fontSize: 14,
+        ),
+      ),
+      backgroundColor: const Color(0xFF2C2C2E),
+      behavior: SnackBarBehavior.floating,
+      margin: const EdgeInsets.only(left: 30, right: 0, bottom: 95),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      duration: const Duration(seconds: 2),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(20),
+          bottomLeft: Radius.circular(20),
+          topRight: Radius.zero,
+          bottomRight: Radius.zero,
+        ),
+      ),
+    ),
+  );
+}
