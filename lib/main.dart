@@ -868,10 +868,16 @@ class HomeTab extends StatelessWidget {
                     const LinearGradient(
                         colors: [Color(0xFFD32F2F), Color(0xFFEF5350)]),
                     () => showKitabiSnack(context, 'الفيديوهات — قريباً')),
-                _quickBtn(context, 'كتب محلولة', Icons.checklist_rtl_rounded,
+                _quickBtn(context, 'شيتات وأوراق', Icons.description_rounded,
                     const LinearGradient(
                         colors: [Color(0xFF00695C), Color(0xFF26A69A)]),
-                    () => showKitabiSnack(context, 'الكتب المحلولة — قريباً')),
+                    () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const SheetsScreen()),
+                  );
+                }),
               ],
             ),
           ),
@@ -1085,6 +1091,53 @@ class LibraryTab extends StatelessWidget {
               style: TextStyle(color: Color(0xFF555555), fontSize: 13)),
         ),
         const SizedBox(height: 15),
+        // تبويبين: كتب / شيتات
+        Container(
+          margin: const EdgeInsets.symmetric(horizontal: 20),
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1565C0),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Text('الكتب',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold)),
+                ),
+              ),
+              Expanded(
+                child: GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const SheetsScreen()),
+                    );
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    child: const Text('الشيتات',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                            color: Color(0xFF555555),
+                            fontWeight: FontWeight.w600)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 10),
         Expanded(
           child: ListView.separated(
             padding: EdgeInsets.fromLTRB(20, 4, 20,
@@ -1390,9 +1443,12 @@ class _SubjectBooksScreenState extends State<SubjectBooksScreen> {
     final imagesCount = isImages
         ? (book['image_urls'] as List?)?.length ?? 0
         : 0;
-    final coverUrl = isImages && imagesCount > 0
-        ? (book['image_urls'] as List)[0] as String
-        : null;
+    final customCover = book['cover_url'] as String?;
+    final coverUrl = customCover != null && customCover.isNotEmpty
+        ? customCover
+        : (isImages && imagesCount > 0
+            ? (book['image_urls'] as List)[0] as String
+            : null);
 
     return Container(
       decoration: BoxDecoration(
@@ -1545,6 +1601,45 @@ class _BookReaderScreenState extends State<BookReaderScreen> {
     super.initState();
     if (widget.book['book_type'] == 'images') {
       _imageUrls = List<String>.from(widget.book['image_urls'] ?? []);
+    }
+    _logRead();
+  }
+
+  Future<void> _logRead() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userName = prefs.getString('user_name') ?? 'unknown';
+      final bookId = widget.book['id'];
+
+      if (bookId == null) return;
+
+      // نتحقق: هل سبق قرأ هذا الكتاب؟
+      final existing = await supabase
+          .from('book_reads')
+          .select('id')
+          .eq('book_id', bookId)
+          .eq('user_name', userName)
+          .limit(1);
+
+      if (existing.isNotEmpty) {
+        // سبق قرأه → لا نسجل
+        return;
+      }
+
+      // نسجل القراءة الجديدة
+      await supabase.from('book_reads').insert({
+        'book_id': bookId,
+        'user_name': userName,
+      });
+
+      // نزيد read_count في books
+      final current = widget.book['read_count'] ?? 0;
+      await supabase
+          .from('books')
+          .update({'read_count': (current as int) + 1})
+          .eq('id', bookId);
+    } catch (e) {
+      debugPrint('Log read error: $e');
     }
   }
 
@@ -2224,6 +2319,862 @@ class _AccountTabState extends State<AccountTab> {
 }
 
 // ============ Control Room Screen ============
+// ============ Sheets Screen (شيتات وأوراق تعلمية) ============
+class SheetsScreen extends StatefulWidget {
+  const SheetsScreen({super.key});
+  @override
+  State<SheetsScreen> createState() => _SheetsScreenState();
+}
+
+class _SheetsScreenState extends State<SheetsScreen> {
+  static const List<Map<String, dynamic>> _grades = [
+    {'name': 'أول ابتدائي', 'icon': Icons.looks_one},
+    {'name': 'ثاني ابتدائي', 'icon': Icons.looks_two},
+    {'name': 'ثالث ابتدائي', 'icon': Icons.looks_3},
+    {'name': 'رابع ابتدائي', 'icon': Icons.looks_4},
+    {'name': 'خامس ابتدائي', 'icon': Icons.looks_5},
+    {'name': 'سادس ابتدائي', 'icon': Icons.looks_6},
+    {'name': 'أول إعدادي', 'icon': Icons.school},
+    {'name': 'ثاني إعدادي', 'icon': Icons.school},
+  ];
+
+  static const List<Map<String, dynamic>> _subjects = [
+    {'name': 'الرياضيات', 'icon': Icons.calculate_rounded, 'color': 0xFF1565C0},
+    {'name': 'اللغة العربية', 'icon': Icons.translate_rounded, 'color': 0xFF00897B},
+    {'name': 'اللغة الإنجليزية', 'icon': Icons.language_rounded, 'color': 0xFF7B1FA2},
+    {'name': 'التربية الإسلامية', 'icon': Icons.mosque_rounded, 'color': 0xFF00838F},
+    {'name': 'الحاسوب', 'icon': Icons.computer_rounded, 'color': 0xFF283593},
+    {'name': 'العلوم', 'icon': Icons.science_rounded, 'color': 0xFFEF6C00},
+    {'name': 'الاجتماعيات', 'icon': Icons.public_rounded, 'color': 0xFFD32F2F},
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF5F7FA),
+        appBar: AppBar(
+          title: const Text('شيتات وأوراق تعلمية',
+              style: TextStyle(fontWeight: FontWeight.bold)),
+          backgroundColor: const Color(0xFF00695C),
+          foregroundColor: Colors.white,
+          elevation: 0,
+          bottom: const TabBar(
+            indicatorColor: Colors.white,
+            labelColor: Colors.white,
+            unselectedLabelColor: Colors.white70,
+            tabs: [
+              Tab(text: 'حسب الصف', icon: Icon(Icons.school, size: 18)),
+              Tab(text: 'حسب المادة', icon: Icon(Icons.book, size: 18)),
+            ],
+          ),
+        ),
+        body: TabBarView(
+          children: [
+            _buildByGrade(),
+            _buildBySubject(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildByGrade() {
+    return ListView.separated(
+      padding: const EdgeInsets.all(16),
+      itemCount: _grades.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      itemBuilder: (_, i) {
+        final g = _grades[i];
+        return Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4)),
+            ],
+          ),
+          child: ListTile(
+            contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16, vertical: 8),
+            leading: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFF00695C).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Icon(g['icon'],
+                  color: const Color(0xFF00695C), size: 28),
+            ),
+            title: Text(g['name'],
+                style: const TextStyle(
+                    fontSize: 16, fontWeight: FontWeight.bold)),
+            trailing: const Icon(Icons.arrow_back_ios,
+                size: 14, color: Color(0xFF555555)),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => SheetsListScreen(
+                    grade: g['name'],
+                    subject: null,
+                  ),
+                ),
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildBySubject() {
+    return GridView.builder(
+      padding: const EdgeInsets.all(16),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+        childAspectRatio: 1.1,
+      ),
+      itemCount: _subjects.length,
+      itemBuilder: (_, i) {
+        final s = _subjects[i];
+        return Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4)),
+            ],
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(20),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => SheetsListScreen(
+                      grade: null,
+                      subject: s['name'],
+                    ),
+                  ),
+                );
+              },
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: Color(s['color']).withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Icon(s['icon'],
+                          color: Color(s['color']), size: 34),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(s['name'],
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                            fontSize: 14, fontWeight: FontWeight.bold)),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+// ============ Sheets List Screen ============
+class SheetsListScreen extends StatefulWidget {
+  final String? grade;
+  final String? subject;
+
+  const SheetsListScreen({super.key, this.grade, this.subject});
+
+  @override
+  State<SheetsListScreen> createState() => _SheetsListScreenState();
+}
+
+class _SheetsListScreenState extends State<SheetsListScreen> {
+  List<Map<String, dynamic>> _sheets = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSheets();
+  }
+
+  Future<void> _loadSheets() async {
+    setState(() => _loading = true);
+    try {
+      var query = supabase
+          .from('books')
+          .select()
+          .eq('category', 'sheets');
+
+      if (widget.grade != null) {
+        query = query.eq('grade', widget.grade!);
+      }
+      if (widget.subject != null) {
+        query = query.eq('subject', widget.subject!);
+      }
+
+      final data = await query.order('created_at', ascending: false);
+      if (!mounted) return;
+      setState(() {
+        _sheets = List<Map<String, dynamic>>.from(data);
+        _loading = false;
+      });
+    } catch (e) {
+      debugPrint('Load sheets error: $e');
+      if (!mounted) return;
+      setState(() => _loading = false);
+    }
+  }
+
+  String get _title {
+    if (widget.grade != null && widget.subject != null) {
+      return '${widget.grade} - ${widget.subject}';
+    }
+    if (widget.grade != null) return widget.grade!;
+    if (widget.subject != null) return widget.subject!;
+    return 'شيتات';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
+      appBar: AppBar(
+        title: Text(_title,
+            style: const TextStyle(fontWeight: FontWeight.bold)),
+        backgroundColor: const Color(0xFF00695C),
+        foregroundColor: Colors.white,
+        elevation: 0,
+      ),
+      body: _loading
+          ? const Center(
+              child: CircularProgressIndicator(color: Color(0xFF00695C)))
+          : _sheets.isEmpty
+              ? _buildEmpty()
+              : RefreshIndicator(
+                  onRefresh: _loadSheets,
+                  color: const Color(0xFF00695C),
+                  child: ListView.separated(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: _sheets.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 12),
+                    itemBuilder: (_, i) => _sheetCard(_sheets[i]),
+                  ),
+                ),
+    );
+  }
+
+  Widget _sheetCard(Map<String, dynamic> sheet) {
+    final count = (sheet['image_urls'] as List?)?.length ?? 0;
+    final customCover = sheet['cover_url'] as String?;
+    final cover = customCover != null && customCover.isNotEmpty
+        ? customCover
+        : (count > 0 ? (sheet['image_urls'] as List)[0] as String : null);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withOpacity(0.06),
+              blurRadius: 14,
+              offset: const Offset(0, 5)),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => BookReaderScreen(book: sheet),
+              ),
+            );
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Row(
+              children: [
+                Container(
+                  width: 70,
+                  height: 90,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF00695C).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: cover != null
+                      ? Image.network(cover,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => const Icon(
+                              Icons.description,
+                              color: Color(0xFF00695C),
+                              size: 32))
+                      : const Icon(Icons.description,
+                          color: Color(0xFF00695C), size: 32),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(sheet['title'] ?? '',
+                          style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF1A1A1A))),
+                      const SizedBox(height: 4),
+                      Text('${sheet['grade'] ?? ''} • ${sheet['subject'] ?? ''}',
+                          style: const TextStyle(
+                              fontSize: 12, color: Color(0xFF555555))),
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF00695C).withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text('📄 $count ورقة',
+                            style: const TextStyle(
+                                fontSize: 11,
+                                color: Color(0xFF00695C),
+                                fontWeight: FontWeight.bold)),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF00695C).withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.arrow_back_ios_new,
+                      size: 14, color: Color(0xFF00695C)),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmpty() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(28),
+            decoration: BoxDecoration(
+              color: const Color(0xFF00695C).withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.description_outlined,
+                size: 60, color: Color(0xFF00695C)),
+          ),
+          const SizedBox(height: 20),
+          const Text('لا توجد شيتات بعد',
+              style: TextStyle(fontSize: 16, color: Color(0xFF555555))),
+          const SizedBox(height: 8),
+          const Text('سيتم إضافة الشيتات قريباً',
+              style: TextStyle(fontSize: 13, color: Color(0xFF888888))),
+        ],
+      ),
+    );
+  }
+}
+
+// ============ Manage Books Screen ============
+class ManageBooksScreen extends StatefulWidget {
+  const ManageBooksScreen({super.key});
+  @override
+  State<ManageBooksScreen> createState() => _ManageBooksScreenState();
+}
+
+class _ManageBooksScreenState extends State<ManageBooksScreen> {
+  List<Map<String, dynamic>> _books = [];
+  bool _loading = true;
+  String _filter = 'all'; // all / book / sheets
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBooks();
+  }
+
+  Future<void> _loadBooks() async {
+    setState(() => _loading = true);
+    try {
+      var query = supabase
+          .from('books')
+          .select()
+          .order('created_at', ascending: false);
+      if (_filter != 'all') {
+        query = query.eq('category', _filter);
+      }
+      final data = await query;
+      if (!mounted) return;
+      setState(() {
+        _books = List<Map<String, dynamic>>.from(data);
+        _loading = false;
+      });
+    } catch (e) {
+      debugPrint('Load books error: $e');
+      if (!mounted) return;
+      setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _deleteBook(Map<String, dynamic> book) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.red),
+            SizedBox(width: 10),
+            Text('تأكيد الحذف',
+                style: TextStyle(fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: Text(
+          'هل أنت متأكد من حذف كتاب "${book['title']}"؟\n\nسيتم حذف كل الصور نهائياً.',
+          style: const TextStyle(fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('حذف'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(
+        child: CircularProgressIndicator(color: Colors.white),
+      ),
+    );
+
+    try {
+      // 1) نحذف الصور من Storage
+      final imageUrls = book['image_urls'] as List? ?? [];
+      for (var url in imageUrls) {
+        try {
+          final uri = Uri.parse(url.toString());
+          final pathParts = uri.path.split('/');
+          final fileName = pathParts.last;
+          await supabase.storage.from('books').remove([fileName]);
+        } catch (e) {
+          debugPrint('Delete image error: $e');
+        }
+      }
+
+      // 2) نحذف الكتاب من الجدول
+      await supabase.from('books').delete().eq('id', book['id']);
+
+      if (!mounted) return;
+      Navigator.pop(context); // نقفل الـ loading
+      showKitabiSnack(context, 'تم حذف الكتاب بنجاح');
+      _loadBooks();
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.pop(context);
+      showKitabiSnack(context, 'فشل الحذف');
+      debugPrint('Delete error: $e');
+    }
+  }
+
+  Future<void> _replaceBook(Map<String, dynamic> book) async {
+    try {
+      final picker = ImagePicker();
+      final images = await picker.pickMultiImage(imageQuality: 85);
+      if (images.isEmpty) return;
+      if (!mounted) return;
+
+      // نسأل: تبي غلاف جديد؟
+      XFile? newCover;
+      // نستخدم الحالي إن موجود
+      final currentCover = book['cover_url'] as String?;
+
+      // تأكيد
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20)),
+          title: const Row(
+            children: [
+              Icon(Icons.swap_horiz, color: Color(0xFF1565C0)),
+              SizedBox(width: 10),
+              Text('استبدال الصور',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+            ],
+          ),
+          content: Text(
+            'هل تريد استبدال صور "${book['title']}"؟\n\n'
+            'الصور القديمة (${(book['image_urls'] as List?)?.length ?? 0} صورة) ستُحذف، '
+            'وسيتم رفع ${images.length} صورة جديدة.',
+            style: const TextStyle(fontSize: 13),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('إلغاء'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1565C0),
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('استبدال'),
+            ),
+          ],
+        ),
+      );
+
+      if (confirm != true) return;
+
+      // مؤشر تحميل
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const Center(
+          child: CircularProgressIndicator(color: Colors.white),
+        ),
+      );
+
+      // 1) نحذف الصور القديمة
+      final oldUrls = book['image_urls'] as List? ?? [];
+      for (var url in oldUrls) {
+        try {
+          final uri = Uri.parse(url.toString());
+          final fileName = uri.path.split('/').last;
+          await supabase.storage.from('books').remove([fileName]);
+        } catch (e) {
+          debugPrint('Delete old image error: $e');
+        }
+      }
+
+      // 2) نحذف الغلاف القديم إن كان مخصصاً
+      if (currentCover != null && currentCover.isNotEmpty) {
+        try {
+          final uri = Uri.parse(currentCover);
+          final fileName = uri.path.split('/').last;
+          if (fileName.startsWith('cover_')) {
+            await supabase.storage.from('books').remove([fileName]);
+          }
+        } catch (e) {
+          debugPrint('Delete old cover error: $e');
+        }
+      }
+
+      // 3) نرفع الصور الجديدة
+      List<String> newUrls = [];
+      int idx = 0;
+      for (var img in images) {
+        idx++;
+        final bytes = await img.readAsBytes();
+        final ext = img.path.split('.').last;
+        final fileName =
+            'book_${DateTime.now().millisecondsSinceEpoch}_${idx}.$ext';
+
+        await supabase.storage.from('books').uploadBinary(fileName, bytes);
+        final url =
+            supabase.storage.from('books').getPublicUrl(fileName);
+        newUrls.add(url);
+      }
+
+      // 4) نحدث الجدول
+      await supabase.from('books').update({
+        'image_urls': newUrls,
+        'cover_url': newUrls.first,
+        'read_count': 0,
+      }).eq('id', book['id']);
+
+      // نحذف قراءات الكتاب القديمة (لأنه كتاب جديد الآن)
+      await supabase.from('book_reads').delete().eq('book_id', book['id']);
+
+      if (!mounted) return;
+      Navigator.pop(context);
+      showKitabiSnack(context, 'تم استبدال الصور بنجاح');
+      _loadBooks();
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.pop(context);
+      showKitabiSnack(context, 'فشل الاستبدال');
+      debugPrint('Replace error: $e');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
+      appBar: AppBar(
+        title: const Text('إدارة الكتب',
+            style: TextStyle(fontWeight: FontWeight.bold)),
+        backgroundColor: const Color(0xFF00897B),
+        foregroundColor: Colors.white,
+        elevation: 0,
+      ),
+      body: Column(
+        children: [
+          // فلاتر
+          Container(
+            padding: const EdgeInsets.all(12),
+            color: Colors.white,
+            child: Row(
+              children: [
+                Expanded(
+                  child: _filterBtn('الكل', 'all'),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _filterBtn('كتب', 'book'),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _filterBtn('شيتات', 'sheets'),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: _loading
+                ? const Center(
+                    child: CircularProgressIndicator(
+                        color: Color(0xFF00897B)))
+                : _books.isEmpty
+                    ? const Center(child: Text('لا توجد كتب'))
+                    : RefreshIndicator(
+                        onRefresh: _loadBooks,
+                        color: const Color(0xFF00897B),
+                        child: ListView.separated(
+                          padding: const EdgeInsets.all(16),
+                          itemCount: _books.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: 12),
+                          itemBuilder: (_, i) => _bookCard(_books[i]),
+                        ),
+                      ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _filterBtn(String label, String value) {
+    final active = _filter == value;
+    return GestureDetector(
+      onTap: () {
+        setState(() => _filter = value);
+        _loadBooks();
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          color: active
+              ? const Color(0xFF00897B)
+              : const Color(0xFFF0F0F0),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Text(label,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: active ? Colors.white : const Color(0xFF555555),
+              fontWeight: FontWeight.bold,
+              fontSize: 13,
+            )),
+      ),
+    );
+  }
+
+  Widget _bookCard(Map<String, dynamic> book) {
+    final count = (book['image_urls'] as List?)?.length ?? 0;
+    final cover = count > 0
+        ? (book['image_urls'] as List)[0] as String
+        : null;
+    final isSheets = book['category'] == 'sheets';
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 12,
+              offset: const Offset(0, 4)),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          children: [
+            // الغلاف
+            Container(
+              width: 60,
+              height: 80,
+              decoration: BoxDecoration(
+                color: (isSheets
+                        ? const Color(0xFF00695C)
+                        : const Color(0xFF1565C0))
+                    .withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: cover != null
+                  ? Image.network(cover,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Icon(
+                          isSheets ? Icons.description : Icons.menu_book,
+                          color: isSheets
+                              ? const Color(0xFF00695C)
+                              : const Color(0xFF1565C0),
+                          size: 28))
+                  : Icon(
+                      isSheets ? Icons.description : Icons.menu_book,
+                      color: isSheets
+                          ? const Color(0xFF00695C)
+                          : const Color(0xFF1565C0),
+                      size: 28),
+            ),
+            const SizedBox(width: 12),
+            // معلومات
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(book['title'] ?? '',
+                      style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF1A1A1A))),
+                  const SizedBox(height: 4),
+                  Text('${book['grade']} • ${book['subject']}',
+                      style: const TextStyle(
+                          fontSize: 11, color: Color(0xFF555555))),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: (isSheets
+                                  ? const Color(0xFF00695C)
+                                  : const Color(0xFF1565C0))
+                              .withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                            isSheets ? 'شيتات' : 'كتاب',
+                            style: TextStyle(
+                                fontSize: 10,
+                                color: isSheets
+                                    ? const Color(0xFF00695C)
+                                    : const Color(0xFF1565C0),
+                                fontWeight: FontWeight.bold)),
+                      ),
+                      const SizedBox(width: 6),
+                      Text('$count صورة',
+                          style: const TextStyle(
+                              fontSize: 10, color: Color(0xFF888888))),
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                            '📖 ${book['read_count'] ?? 0}',
+                            style: const TextStyle(
+                                fontSize: 10,
+                                color: Colors.orange,
+                                fontWeight: FontWeight.bold)),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            // أزرار
+            Column(
+              children: [
+                IconButton(
+                  onPressed: () => _replaceBook(book),
+                  icon: const Icon(Icons.swap_horiz,
+                      color: Color(0xFF1565C0), size: 22),
+                  tooltip: 'استبدال',
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+                const SizedBox(height: 8),
+                IconButton(
+                  onPressed: () => _deleteBook(book),
+                  icon: const Icon(Icons.delete_outline,
+                      color: Colors.red, size: 22),
+                  tooltip: 'حذف',
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class ControlRoomScreen extends StatefulWidget {
   const ControlRoomScreen({super.key});
   @override
@@ -2470,6 +3421,15 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
               _divider(),
               _listItem(Icons.lock_reset_rounded, 'تغيير كلمة السر',
                   const Color(0xFFEF6C00), _changePassword),
+              _divider(),
+              _listItem(Icons.library_books_rounded, 'إدارة الكتب',
+                  const Color(0xFF00897B), () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const ManageBooksScreen()),
+                );
+              }),
               _divider(),
               _listItem(Icons.settings_rounded, 'إعدادات متقدمة',
                   const Color(0xFF283593), () {
@@ -3345,6 +4305,7 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
     String selectedSubject = 'الرياضيات';
     String selectedCategory = 'book';
     List<XFile> pickedImages = [];
+    XFile? coverImage;
     bool uploading = false;
     double progress = 0;
 
@@ -3550,6 +4511,93 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
                           ),
                         ),
                       ),
+                      const SizedBox(height: 12),
+                      // === زر اختيار الغلاف ===
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.amber.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                              color: Colors.amber.withOpacity(0.3)),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 50,
+                              height: 65,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                    color: Colors.grey.shade300),
+                              ),
+                              clipBehavior: Clip.antiAlias,
+                              child: coverImage != null
+                                  ? Image.file(
+                                      File(coverImage!.path),
+                                      fit: BoxFit.cover)
+                                  : const Icon(Icons.image_outlined,
+                                      color: Colors.grey, size: 28),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment:
+                                    CrossAxisAlignment.start,
+                                children: [
+                                  const Text('الغلاف (اختياري)',
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 13)),
+                                  const SizedBox(height: 3),
+                                  Text(
+                                    coverImage == null
+                                        ? 'بدون غلاف: سيُستخدم أول صورة'
+                                        : 'تم اختيار الغلاف',
+                                    style: const TextStyle(
+                                        fontSize: 11,
+                                        color: Color(0xFF555555)),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            if (coverImage == null)
+                              IconButton(
+                                onPressed: uploading
+                                    ? null
+                                    : () async {
+                                        final picker = ImagePicker();
+                                        final img =
+                                            await picker.pickImage(
+                                                source:
+                                                    ImageSource.gallery,
+                                                imageQuality: 85);
+                                        if (img != null) {
+                                          setSt(
+                                              () => coverImage = img);
+                                        }
+                                      },
+                                icon: const Icon(
+                                    Icons.add_photo_alternate,
+                                    color: Colors.amber, size: 28),
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                              )
+                            else
+                              IconButton(
+                                onPressed: uploading
+                                    ? null
+                                    : () => setSt(
+                                        () => coverImage = null),
+                                icon: const Icon(Icons.close,
+                                    color: Colors.red, size: 22),
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                              ),
+                          ],
+                        ),
+                      ),
                     ],
                   ],
                   if (uploading) ...[
@@ -3590,6 +4638,24 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
                       List<String> uploadedUrls = [];
 
                       try {
+                        // 1) نرفع الغلاف إن وُجد
+                        String? coverUrl;
+                        if (coverImage != null) {
+                          final coverBytes =
+                              await coverImage!.readAsBytes();
+                          final coverExt =
+                              coverImage!.path.split('.').last;
+                          final coverName =
+                              'cover_${DateTime.now().millisecondsSinceEpoch}.$coverExt';
+                          await supabase.storage
+                              .from('books')
+                              .uploadBinary(coverName, coverBytes);
+                          coverUrl = supabase.storage
+                              .from('books')
+                              .getPublicUrl(coverName);
+                        }
+
+                        // 2) نرفع صور المحتوى
                         int idx = 0;
                         for (var img in pickedImages) {
                           idx++;
@@ -3610,6 +4676,7 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
                           uploadedUrls.add(url);
                         }
 
+                        // 3) نحفظ في الجدول
                         await supabase.from('books').insert({
                           'title': titleCtrl.text.trim(),
                           'grade': selectedGrade,
@@ -3617,6 +4684,8 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
                           'book_type': 'images',
                           'category': selectedCategory,
                           'image_urls': uploadedUrls,
+                          'cover_url':
+                              coverUrl ?? uploadedUrls.first,
                           'uploaded_by': 'admin',
                         });
 
