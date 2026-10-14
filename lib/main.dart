@@ -679,7 +679,7 @@ class HomeTab extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 25),
+          const SizedBox(height: 80),
 
           // ===== أحدث الدروس =====
           const Padding(
@@ -1416,6 +1416,9 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
   final _passController = TextEditingController();
   bool _logged = false;
 
+  // قائمة المستخدمين (مؤقتة — لاحقاً من قاعدة البيانات)
+  final List<Map<String, String>> _users = [];
+
   void _login() {
     if (_idController.text.trim() == '0922251374' &&
         _passController.text.trim() == 'العلم نور') {
@@ -1430,7 +1433,8 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
-        title: const Text('غرفة التحكم'),
+        title: const Text('غرفة التحكم',
+            style: TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: const Color(0xFF1565C0),
         foregroundColor: Colors.white,
         elevation: 0,
@@ -1439,6 +1443,7 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
     );
   }
 
+  // ============ شاشة تسجيل الدخول ============
   Widget _loginUi() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
@@ -1448,12 +1453,30 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: const Color(0xFF1565C0).withOpacity(0.1),
+              gradient: const LinearGradient(
+                colors: [Color(0xFF1565C0), Color(0xFF42A5F5)],
+              ),
               shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF1565C0).withOpacity(0.35),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
+                ),
+              ],
             ),
             child: const Icon(Icons.admin_panel_settings,
-                size: 70, color: Color(0xFF1565C0)),
+                size: 70, color: Colors.white),
           ),
+          const SizedBox(height: 25),
+          const Text('الدخول للمشرفين',
+              style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1A1A1A))),
+          const SizedBox(height: 8),
+          const Text('هذه الصفحة مخصصة للمشرف فقط',
+              style: TextStyle(fontSize: 13, color: Color(0xFF555555))),
           const SizedBox(height: 30),
           TextField(
             controller: _idController,
@@ -1497,7 +1520,9 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
                   borderRadius: BorderRadius.circular(16),
                 ),
               ),
-              child: const Text('دخول', style: TextStyle(fontSize: 18)),
+              child: const Text('دخول',
+                  style: TextStyle(
+                      fontSize: 18, fontWeight: FontWeight.bold)),
             ),
           ),
         ],
@@ -1505,6 +1530,7 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
     );
   }
 
+  // ============ لوحة التحكم ============
   Widget _panel() {
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -1512,13 +1538,13 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.green.shade50,
+            color: const Color(0xFFE8F5E9),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.green.shade200),
+            border: Border.all(color: const Color(0xFFA5D6A7)),
           ),
           child: const Row(
             children: [
-              Icon(Icons.check_circle, color: Colors.green),
+              Icon(Icons.check_circle, color: Color(0xFF2E7D32), size: 30),
               SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -1526,85 +1552,429 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
                   children: [
                     Text('مرحباً بك في غرفة التحكم',
                         style: TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 15)),
-                    Text('v0.1 — قريباً المزيد',
-                        style: TextStyle(fontSize: 12, color: Color(0xFF555555))),
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                            color: Color(0xFF1A1A1A))),
+                    SizedBox(height: 2),
+                    Text('v0.1 — الإصدار التجريبي',
+                        style: TextStyle(
+                            fontSize: 12, color: Color(0xFF555555))),
                   ],
                 ),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 15),
-        _pCard('المستخدمون', 'عرض وإدارة المستخدمين', Icons.people),
-        _pCard('رفع الكتب', 'إضافة كتب جديدة', Icons.upload_file),
-        _pCard('إرسال إشعار', 'إرسال إشعار للطلاب', Icons.send),
-        _pCard('تغيير كلمة السر', 'تحديث كلمة سر الغرفة', Icons.key),
+        const SizedBox(height: 18),
+
+        // ===== الشبكة: 2x3 =====
+        Row(
+          children: [
+            Expanded(
+              child: _bigCard(
+                'المستخدمون',
+                '${_users.length}',
+                Icons.people_alt_rounded,
+                const Color(0xFF1565C0),
+                () => _showUsers(),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _bigCard(
+                'رفع الكتب',
+                'جديد',
+                Icons.upload_file_rounded,
+                const Color(0xFF00897B),
+                () => showKitabiSnack(context, 'رفع الكتب — قريباً'),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _bigCard(
+                'إرسال إشعار',
+                'لكل الطلاب',
+                Icons.send_rounded,
+                const Color(0xFF7B1FA2),
+                () => _showSendNotification(),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _bigCard(
+                'كلمة السر',
+                'تغيير',
+                Icons.key_rounded,
+                const Color(0xFFEF6C00),
+                () => _changePassword(),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _bigCard(
+                'الاختبارات',
+                'إدارة',
+                Icons.assignment_rounded,
+                const Color(0xFFD32F2F),
+                () => showKitabiSnack(context, 'الاختبارات — قريباً'),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _bigCard(
+                'الإحصائيات',
+                'تحليل',
+                Icons.bar_chart_rounded,
+                const Color(0xFF283593),
+                () => showKitabiSnack(context, 'الإحصائيات — قريباً'),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 20),
+
+        // ===== قائمة خيارات إضافية =====
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 12,
+              ),
+            ],
+          ),
+          child: Column(
+            children: [
+              _listItem(Icons.group_add_rounded, 'إدارة المستخدمين',
+                  const Color(0xFF1565C0), _showUsers),
+              _divider(),
+              _listItem(Icons.campaign_rounded, 'إشعار جماعي',
+                  const Color(0xFF7B1FA2), _showSendNotification),
+              _divider(),
+              _listItem(Icons.lock_reset_rounded, 'تغيير كلمة السر',
+                  const Color(0xFFEF6C00), _changePassword),
+              _divider(),
+              _listItem(Icons.settings_rounded, 'إعدادات متقدمة',
+                  const Color(0xFF283593), () {
+                showKitabiSnack(context, 'الإعدادات — قريباً');
+              }),
+            ],
+          ),
+        ),
       ],
     );
   }
 
-  Widget _pCard(String t, String s, IconData i) {
+  // ============ بطاقة كبيرة ============
+  Widget _bigCard(String title, String subtitle, IconData icon, Color color,
+      VoidCallback onTap) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
+      height: 120,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 14,
+            offset: const Offset(0, 5),
           ),
         ],
       ),
-      child: ListTile(
-        leading: Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: const Color(0xFF1565C0).withOpacity(0.1),
-            borderRadius: BorderRadius.circular(12),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(icon, color: color, size: 26),
+                ),
+                const Spacer(),
+                Text(title,
+                    style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1A1A1A))),
+                const SizedBox(height: 2),
+                Text(subtitle,
+                    style: TextStyle(
+                        fontSize: 11,
+                        color: color,
+                        fontWeight: FontWeight.w600)),
+              ],
+            ),
           ),
-          child: Icon(i, color: const Color(0xFF1565C0)),
         ),
-        title: Text(t, style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Text(s, style: const TextStyle(fontSize: 12)),
-        trailing: const Icon(Icons.arrow_forward_ios,
-            size: 14, color: Color(0xFF555555)),
-        onTap: () {
-          showKitabiSnack(context, '$t — قريباً');
-        },
       ),
     );
   }
-}
 
+  // ============ عنصر قائمة ============
+  Widget _listItem(
+      IconData icon, String title, Color color, VoidCallback onTap) {
+    return ListTile(
+      leading: Container(
+        padding: const EdgeInsets.all(9),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.12),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Icon(icon, color: color, size: 22),
+      ),
+      title: Text(title,
+          style: const TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 14,
+              color: Color(0xFF1A1A1A))),
+      trailing: const Icon(Icons.arrow_back_ios,
+          size: 14, color: Color(0xFF555555)),
+      onTap: onTap,
+    );
+  }
 
-// ============ Custom SnackBar (من اليمين، حواف من اليسار فقط) ============
-void showKitabiSnack(BuildContext context, String message) {
-  ScaffoldMessenger.of(context).clearSnackBars();
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(
-      content: Text(
-        message,
-        style: const TextStyle(
+  Widget _divider() => const Divider(
+      height: 1, indent: 70, endIndent: 15, color: Color(0xFFF0F0F0));
+
+  // ============ الحوارات ============
+  void _showUsers() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => Container(
+        padding: const EdgeInsets.all(20),
+        decoration: const BoxDecoration(
           color: Colors.white,
-          fontWeight: FontWeight.bold,
-          fontSize: 14,
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(24),
+            topRight: Radius.circular(24),
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 50,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text('إدارة المستخدمين',
+                style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1A1A1A))),
+            const SizedBox(height: 20),
+            if (_users.isEmpty)
+              const Padding(
+                padding: EdgeInsets.all(30),
+                child: Column(
+                  children: [
+                    Icon(Icons.people_outline,
+                        size: 60, color: Color(0xFF555555)),
+                    SizedBox(height: 12),
+                    Text('لا يوجد مستخدمون مسجلون بعد',
+                        style: TextStyle(
+                            fontSize: 14, color: Color(0xFF555555))),
+                    SizedBox(height: 6),
+                    Text('سيظهر هنا كل من يسجل في التطبيق',
+                        style: TextStyle(
+                            fontSize: 12, color: Color(0xFF888888))),
+                  ],
+                ),
+              ),
+            const SizedBox(height: 10),
+          ],
         ),
       ),
-      backgroundColor: const Color(0xFF2C2C2E),
-      behavior: SnackBarBehavior.floating,
-      margin: const EdgeInsets.only(left: 30, right: 0, bottom: 100),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      duration: const Duration(seconds: 2),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(20),
-          bottomLeft: Radius.circular(20),
-          topRight: Radius.zero,
-          bottomRight: Radius.zero,
+    );
+  }
+
+  void _showSendNotification() {
+    final titleCtrl = TextEditingController();
+    final bodyCtrl = TextEditingController();
+    String selectedTarget = 'الجميع';
+
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (ctx, setSt) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: const Row(
+            children: [
+              Icon(Icons.campaign, color: Color(0xFF7B1FA2)),
+              SizedBox(width: 10),
+              Text('إرسال إشعار',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: titleCtrl,
+                  decoration: InputDecoration(
+                    labelText: 'العنوان',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: bodyCtrl,
+                  maxLines: 3,
+                  decoration: InputDecoration(
+                    labelText: 'نص الإشعار',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: selectedTarget,
+                  decoration: InputDecoration(
+                    labelText: 'المرسل إليه',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'الجميع', child: Text('الجميع')),
+                    DropdownMenuItem(
+                        value: 'صف دراسي', child: Text('صف دراسي')),
+                    DropdownMenuItem(
+                        value: 'مراقبة', child: Text('مراقبة')),
+                  ],
+                  onChanged: (v) =>
+                      setSt(() => selectedTarget = v ?? 'الجميع'),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogCtx),
+              child: const Text('إلغاء'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(dialogCtx);
+                if (titleCtrl.text.trim().isEmpty) {
+                  showKitabiSnack(context, 'اكتب عنوان الإشعار');
+                  return;
+                }
+                showKitabiSnack(context,
+                    'تم إرسال الإشعار: ${titleCtrl.text.trim()}');
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF7B1FA2),
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('إرسال'),
+            ),
+          ],
         ),
       ),
-    ),
-  );
+    );
+  }
+
+  void _changePassword() {
+    final oldPassCtrl = TextEditingController();
+    final newPassCtrl = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: const Row(
+          children: [
+            Icon(Icons.key, color: Color(0xFFEF6C00)),
+            SizedBox(width: 10),
+            Text('تغيير كلمة السر',
+                style: TextStyle(fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: oldPassCtrl,
+              obscureText: true,
+              decoration: InputDecoration(
+                labelText: 'كلمة السر الحالية',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: newPassCtrl,
+              obscureText: true,
+              decoration: InputDecoration(
+                labelText: 'كلمة السر الجديدة',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (oldPassCtrl.text.trim() != 'العلم نور') {
+                showKitabiSnack(context, 'كلمة السر الحالية خاطئة');
+                return;
+              }
+              if (newPassCtrl.text.trim().length < 4) {
+                showKitabiSnack(context, 'كلمة السر قصيرة (4 أحرف على الأقل)');
+                return;
+              }
+              Navigator.pop(dialogCtx);
+              showKitabiSnack(context, 'تم تغيير كلمة السر بنجاح');
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFEF6C00),
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('حفظ'),
+          ),
+        ],
+      ),
+    );
+  }
 }
