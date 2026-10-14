@@ -65,6 +65,103 @@ Future<void> main() async {
 // وصول سريع لـ Supabase
 final supabase = Supabase.instance.client;
 
+// ============ شاشة المحظور ============
+class BannedScreen extends StatelessWidget {
+  const BannedScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(28),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.red.shade200, width: 3),
+                ),
+                child: const Icon(Icons.block,
+                    size: 80, color: Colors.red),
+              ),
+              const SizedBox(height: 30),
+              const Text(
+                'تم حظر حسابك',
+                style: TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1A1A1A),
+                ),
+              ),
+              const SizedBox(height: 15),
+              const Text(
+                'تم إيقاف حسابك من قبل إدارة التطبيق\nلأسباب تتعلق بمخالفة السياسات',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 15,
+                  color: Color(0xFF555555),
+                  height: 1.6,
+                ),
+              ),
+              const SizedBox(height: 40),
+              Container(
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 14,
+                    ),
+                  ],
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.info_outline, color: Color(0xFF1565C0)),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'للتواصل مع الإدارة: support@kitabi.ly',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Color(0xFF555555),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 30),
+              SizedBox(
+                width: double.infinity,
+                height: 55,
+                child: OutlinedButton.icon(
+                  onPressed: null,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('إعادة المحاولة لاحقاً'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF555555),
+                    side: const BorderSide(color: Color(0xFFE5E5E5)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class KitabiApp extends StatelessWidget {
   const KitabiApp({super.key});
 
@@ -118,12 +215,39 @@ class _SplashScreenState extends State<SplashScreen> {
         context,
         MaterialPageRoute(builder: (_) => const RegisterScreen()),
       );
-    } else {
+      return;
+    }
+
+    // التحقق من الحظر من Supabase
+    bool banned = false;
+    try {
+      final data = await supabase
+          .from('users')
+          .select('is_banned')
+          .eq('name', name)
+          .limit(1);
+      if (data.isNotEmpty && data[0]['is_banned'] == true) {
+        banned = true;
+      }
+    } catch (e) {
+      debugPrint('Check banned error: \$e');
+    }
+
+    if (banned) {
+      await prefs.clear();
+      if (!mounted) return;
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const HomeShell()),
+        MaterialPageRoute(builder: (_) => const BannedScreen()),
       );
+      return;
     }
+
+    if (!mounted) return;
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => const HomeShell()),
+    );
   }
 
   @override
@@ -1861,6 +1985,7 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
   final _idController = TextEditingController();
   final _passController = TextEditingController();
   bool _logged = false;
+  bool _showLoginPassword = false;
 
   // قائمة المستخدمين (مؤقتة — لاحقاً من قاعدة البيانات)
   final List<Map<String, String>> _users = [];
@@ -1941,10 +2066,21 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
           const SizedBox(height: 18),
           TextField(
             controller: _passController,
-            obscureText: true,
+            obscureText: !_showLoginPassword,
             decoration: InputDecoration(
               labelText: 'كلمة السر',
               prefixIcon: const Icon(Icons.lock),
+              suffixIcon: IconButton(
+                onPressed: () {
+                  setState(() => _showLoginPassword = !_showLoginPassword);
+                },
+                icon: Icon(
+                  _showLoginPassword
+                      ? Icons.visibility
+                      : Icons.visibility_off,
+                  color: const Color(0xFF555555),
+                ),
+              ),
               filled: true,
               fillColor: Colors.white,
               border: OutlineInputBorder(
@@ -2485,6 +2621,9 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
   Future<void> _changePassword() async {
     final oldPassCtrl = TextEditingController();
     final newPassCtrl = TextEditingController();
+    bool showOld = false;
+    bool showNew = false;
+
     String currentPassword = 'العلم نور';
     try {
       final data = await supabase
@@ -2494,84 +2633,104 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
           .single();
       currentPassword = data['admin_password'] ?? 'العلم نور';
     } catch (e) {
-      debugPrint('Load password error: \$e');
+      debugPrint('Load password error: $e');
     }
+
     if (!mounted) return;
+
     showDialog(
       context: context,
-      builder: (dialogCtx) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        title: const Row(
-          children: [
-            Icon(Icons.key, color: Color(0xFFEF6C00)),
-            SizedBox(width: 10),
-            Text('تغيير كلمة السر',
-                style: TextStyle(fontWeight: FontWeight.bold)),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: oldPassCtrl,
-              obscureText: true,
-              decoration: InputDecoration(
-                labelText: 'كلمة السر الحالية',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (ctx, setSt) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: const Row(
+            children: [
+              Icon(Icons.key, color: Color(0xFFEF6C00)),
+              SizedBox(width: 10),
+              Text('تغيير كلمة السر',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: oldPassCtrl,
+                obscureText: !showOld,
+                decoration: InputDecoration(
+                  labelText: 'كلمة السر الحالية',
+                  prefixIcon: const Icon(Icons.lock_outline),
+                  suffixIcon: IconButton(
+                    onPressed: () => setSt(() => showOld = !showOld),
+                    icon: Icon(
+                      showOld ? Icons.visibility : Icons.visibility_off,
+                      color: const Color(0xFF555555),
+                    ),
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: newPassCtrl,
-              obscureText: true,
-              decoration: InputDecoration(
-                labelText: 'كلمة السر الجديدة',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+              const SizedBox(height: 12),
+              TextField(
+                controller: newPassCtrl,
+                obscureText: !showNew,
+                decoration: InputDecoration(
+                  labelText: 'كلمة السر الجديدة',
+                  prefixIcon: const Icon(Icons.lock_reset),
+                  suffixIcon: IconButton(
+                    onPressed: () => setSt(() => showNew = !showNew),
+                    icon: Icon(
+                      showNew ? Icons.visibility : Icons.visibility_off,
+                      color: const Color(0xFF555555),
+                    ),
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogCtx),
+              child: const Text('إلغاء'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (oldPassCtrl.text.trim() != currentPassword) {
+                  showKitabiSnack(context, 'كلمة السر الحالية خاطئة');
+                  return;
+                }
+                if (newPassCtrl.text.trim().length < 4) {
+                  showKitabiSnack(context, 'كلمة السر قصيرة');
+                  return;
+                }
+                Navigator.pop(dialogCtx);
+                try {
+                  await supabase.from('admin_settings').update({
+                    'admin_password': newPassCtrl.text.trim(),
+                    'updated_at': DateTime.now().toIso8601String(),
+                  }).eq('id', 1);
+                  if (!mounted) return;
+                  showKitabiSnack(context, 'تم تغيير كلمة السر بنجاح');
+                } catch (e) {
+                  if (!mounted) return;
+                  showKitabiSnack(context, 'فشل تغيير كلمة السر');
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFEF6C00),
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('حفظ'),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogCtx),
-            child: const Text('إلغاء'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (oldPassCtrl.text.trim() != currentPassword) {
-                showKitabiSnack(context, 'كلمة السر الحالية خاطئة');
-                return;
-              }
-              if (newPassCtrl.text.trim().length < 4) {
-                showKitabiSnack(context, 'كلمة السر قصيرة');
-                return;
-              }
-              Navigator.pop(dialogCtx);
-              try {
-                await supabase.from('admin_settings').update({
-                  'admin_password': newPassCtrl.text.trim(),
-                  'updated_at': DateTime.now().toIso8601String(),
-                }).eq('id', 1);
-                if (!mounted) return;
-                showKitabiSnack(context, 'تم تغيير كلمة السر بنجاح');
-              } catch (e) {
-                if (!mounted) return;
-                showKitabiSnack(context, 'فشل تغيير كلمة السر');
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFEF6C00),
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('حفظ'),
-          ),
-        ],
       ),
     );
   }
