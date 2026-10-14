@@ -12,7 +12,6 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:video_player/video_player.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:app_links/app_links.dart';
 
 // ============ إعدادات Supabase ============
 const String kSupabaseUrl = 'https://vlyfghfoelbbbdljbvcr.supabase.co';
@@ -82,14 +81,6 @@ Future<void> main() async {
     anonKey: kSupabaseAnonKey,
   );
 
-  // إعداد Deep Link
-  final appLinks = AppLinks();
-  appLinks.uriLinkStream.listen((uri) async {
-    await _handleDeepLink(uri);
-  }, onError: (err) {
-    debugPrint('Deep link error: $err');
-  });
-
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
     systemNavigationBarColor: Colors.transparent,
@@ -109,7 +100,6 @@ class KitabiApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Kitabi',
-      navigatorKey: kitabiNavigatorKey,
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
@@ -133,466 +123,8 @@ class KitabiApp extends StatelessWidget {
 }
 
 // ============ Splash Screen ============
-// ============ Deep Link Handler ============
-Future<void> _handleDeepLink(Uri uri) async {
-  try {
-    debugPrint('Deep link: $uri');
 
-    // نستخرج التوكن من الرابط
-    String? accessToken;
-    String? refreshToken;
 
-    // نحاول من fragment أولاً (#access_token=...)
-    if (uri.fragment.isNotEmpty) {
-      final params = Uri.splitQueryString(uri.fragment);
-      accessToken = params['access_token'];
-      refreshToken = params['refresh_token'];
-    }
-
-    // نحاول من query (لو موجود)
-    if (accessToken == null && uri.queryParameters.containsKey('access_token')) {
-      accessToken = uri.queryParameters['access_token'];
-      refreshToken = uri.queryParameters['refresh_token'];
-    }
-
-    if (accessToken == null || refreshToken == null) {
-      debugPrint('No tokens found in deep link');
-      return;
-    }
-
-    // نسجل الدخول في Supabase
-    await supabase.auth.setSession(refreshToken);
-    debugPrint('Session restored from deep link');
-
-    // نفتح HomeShell
-    if (kitabiNavigatorKey.currentState != null) {
-      kitabiNavigatorKey.currentState!.pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const HomeShell()),
-        (route) => false,
-      );
-    }
-  } catch (e) {
-    debugPrint('Deep link handler error: $e');
-  }
-}
-
-// مفتاح التنقل العام
-final GlobalKey<NavigatorState> kitabiNavigatorKey =
-    GlobalKey<NavigatorState>();
-
-// ============ Login Screen (Email) ============
-class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
-  @override
-  State<LoginScreen> createState() => _LoginScreenState();
-}
-
-class _LoginScreenState extends State<LoginScreen> {
-  final _emailCtrl = TextEditingController();
-  bool _sending = false;
-
-  Future<void> _sendOtp() async {
-    final email = _emailCtrl.text.trim();
-    if (email.isEmpty) {
-      showKitabiSnack(context, 'اكتب بريدك الإلكتروني');
-      return;
-    }
-    if (!email.contains('@') || !email.contains('.')) {
-      showKitabiSnack(context, 'البريد غير صحيح');
-      return;
-    }
-
-    setState(() => _sending = true);
-    try {
-      await supabase.auth.signInWithOtp(
-        email: email,
-        shouldCreateUser: true,
-      );
-      if (!mounted) return;
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => OtpScreen(email: email),
-        ),
-      );
-    } catch (e) {
-      debugPrint('Send OTP error: $e');
-      if (!mounted) return;
-      showKitabiSnack(context, 'فشل الإرسال: تحقق من الإيميل');
-    } finally {
-      if (mounted) setState(() => _sending = false);
-    }
-  }
-
-  @override
-  void dispose() {
-    _emailCtrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: 40),
-              // أيقونة
-              Center(
-                child: Container(
-                  width: 110,
-                  height: 110,
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF1565C0), Color(0xFF42A5F5)],
-                      begin: Alignment.topRight,
-                      end: Alignment.bottomLeft,
-                    ),
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFF1565C0).withOpacity(0.35),
-                        blurRadius: 25,
-                        offset: const Offset(0, 10),
-                      ),
-                    ],
-                  ),
-                  child: const Icon(Icons.menu_book_rounded,
-                      size: 60, color: Colors.white),
-                ),
-              ),
-              const SizedBox(height: 30),
-              const Center(
-                child: Text('KITABI',
-                    style: TextStyle(
-                        fontSize: 32,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 4,
-                        color: Color(0xFF1A1A1A))),
-              ),
-              const SizedBox(height: 6),
-              const Center(
-                child: Text('كتابي — تطبيق تعليمي ليبي',
-                    style: TextStyle(
-                        fontSize: 14, color: Color(0xFF555555))),
-              ),
-              const SizedBox(height: 50),
-              const Text('تسجيل الدخول',
-                  style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF1A1A1A))),
-              const SizedBox(height: 8),
-              const Text('أدخل بريدك الإلكتروني وسنرسل لك رمز التحقق',
-                  style: TextStyle(
-                      fontSize: 13, color: Color(0xFF555555))),
-              const SizedBox(height: 25),
-              TextField(
-                controller: _emailCtrl,
-                keyboardType: TextInputType.emailAddress,
-                textDirection: TextDirection.ltr,
-                decoration: InputDecoration(
-                  labelText: 'البريد الإلكتروني',
-                  hintText: 'example@gmail.com',
-                  prefixIcon: const Icon(Icons.email_outlined,
-                      color: Color(0xFF1565C0)),
-                  filled: true,
-                  fillColor: Colors.white,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide.none,
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide(color: Colors.grey.shade200),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: const BorderSide(
-                        color: Color(0xFF1565C0), width: 2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 25),
-              SizedBox(
-                height: 58,
-                child: ElevatedButton(
-                  onPressed: _sending ? null : _sendOtp,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1565C0),
-                    foregroundColor: Colors.white,
-                    elevation: 4,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                  child: _sending
-                      ? const SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(
-                              color: Colors.white, strokeWidth: 2))
-                      : const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.send_rounded, size: 20),
-                            SizedBox(width: 10),
-                            Text('إرسال رمز التحقق',
-                                style: TextStyle(
-                                    fontSize: 17,
-                                    fontWeight: FontWeight.bold)),
-                          ],
-                        ),
-                ),
-              ),
-              const SizedBox(height: 25),
-              // ملاحظة
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1565C0).withOpacity(0.08),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: const Row(
-                  children: [
-                    Icon(Icons.info_outline,
-                        color: Color(0xFF1565C0), size: 20),
-                    SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        'سيصلك رمز مكوّن من 6 أرقام على بريدك. تحقق من مجلد Spam إذا لم تجده.',
-                        style: TextStyle(
-                            fontSize: 12,
-                            color: Color(0xFF555555),
-                            height: 1.5),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ============ OTP Screen (Verify Code) ============
-class OtpScreen extends StatefulWidget {
-  final String email;
-  const OtpScreen({super.key, required this.email});
-
-  @override
-  State<OtpScreen> createState() => _OtpScreenState();
-}
-
-class _OtpScreenState extends State<OtpScreen> {
-  final _otpCtrl = TextEditingController();
-  bool _verifying = false;
-
-  Future<void> _verify() async {
-    final code = _otpCtrl.text.trim();
-    if (code.length != 6) {
-      showKitabiSnack(context, 'الرمز مكون من 6 أرقام');
-      return;
-    }
-
-    setState(() => _verifying = true);
-    try {
-      final response = await supabase.auth.verifyOTP(
-        email: widget.email,
-        token: code,
-        type: OtpType.email,
-      );
-
-      if (response.user == null) {
-        if (!mounted) return;
-        showKitabiSnack(context, 'الرمز غير صحيح');
-        return;
-      }
-
-      // نفحص: هل المستخدم مسجل في جدول users؟
-      final existing = await supabase
-          .from('users')
-          .select()
-          .eq('email', widget.email)
-          .limit(1);
-
-      if (!mounted) return;
-
-      if (existing.isEmpty) {
-        // مستخدم جديد → شاشة البيانات
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) => RegisterScreen(userEmail: widget.email),
-          ),
-        );
-      } else {
-        // مستخدم مسجل → نحفظ بياناته
-        final prefs = await SharedPreferences.getInstance();
-        final user = existing[0];
-        await prefs.setString('user_name', user['name'] ?? '');
-        await prefs.setString('user_grade', user['grade'] ?? '');
-        await prefs.setString('user_muraqaba', user['muraqaba'] ?? '');
-        await prefs.setString('user_email', widget.email);
-
-        if (!mounted) return;
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const HomeShell()),
-        );
-      }
-    } catch (e) {
-      debugPrint('Verify error: $e');
-      if (!mounted) return;
-      showKitabiSnack(context, 'الرمز غير صحيح أو منتهي');
-    } finally {
-      if (mounted) setState(() => _verifying = false);
-    }
-  }
-
-  @override
-  void dispose() {
-    _otpCtrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        foregroundColor: const Color(0xFF1A1A1A),
-        elevation: 0,
-        title: const Text('تأكيد الرمز',
-            style: TextStyle(fontWeight: FontWeight.bold)),
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: 20),
-              Center(
-                child: Container(
-                  padding: const EdgeInsets.all(25),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF1565C0).withOpacity(0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.mark_email_read_outlined,
-                      size: 60, color: Color(0xFF1565C0)),
-                ),
-              ),
-              const SizedBox(height: 25),
-              const Center(
-                child: Text('تحقق من بريدك',
-                    style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF1A1A1A))),
-              ),
-              const SizedBox(height: 10),
-              Center(
-                child: Text(
-                  'أرسلنا رمز مكوّن من 6 أرقام إلى:\n${widget.email}',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                      fontSize: 13,
-                      color: Color(0xFF555555),
-                      height: 1.6),
-                ),
-              ),
-              const SizedBox(height: 35),
-              TextField(
-                controller: _otpCtrl,
-                keyboardType: TextInputType.number,
-                maxLength: 6,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                    fontSize: 28,
-                    letterSpacing: 12,
-                    fontWeight: FontWeight.bold),
-                decoration: InputDecoration(
-                  counterText: '',
-                  hintText: '000000',
-                  hintStyle: TextStyle(
-                      color: Colors.grey.shade300,
-                      fontSize: 28,
-                      letterSpacing: 12),
-                  filled: true,
-                  fillColor: Colors.white,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide.none,
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide(color: Colors.grey.shade200),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: const BorderSide(
-                        color: Color(0xFF1565C0), width: 2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 25),
-              SizedBox(
-                height: 58,
-                child: ElevatedButton(
-                  onPressed: _verifying ? null : _verify,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1565C0),
-                    foregroundColor: Colors.white,
-                    elevation: 4,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                  child: _verifying
-                      ? const SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(
-                              color: Colors.white, strokeWidth: 2))
-                      : const Text('تحقق',
-                          style: TextStyle(
-                              fontSize: 17,
-                              fontWeight: FontWeight.bold)),
-                ),
-              ),
-              const SizedBox(height: 20),
-              Center(
-                child: TextButton.icon(
-                  onPressed: () async {
-                    try {
-                      await supabase.auth.signInWithOtp(
-                          email: widget.email,
-                          shouldCreateUser: true);
-                      if (!mounted) return;
-                      showKitabiSnack(context, 'تم إعادة الإرسال');
-                    } catch (_) {}
-                  },
-                  icon: const Icon(Icons.refresh),
-                  label: const Text('إعادة إرسال الرمز'),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -609,50 +141,33 @@ class _SplashScreenState extends State<SplashScreen> {
 
   Future<void> _checkUser() async {
     await Future.delayed(const Duration(seconds: 2));
-
+    final prefs = await SharedPreferences.getInstance();
+    final name = prefs.getString('user_name');
     if (!mounted) return;
-
-    // 1) نفحص جلسة Supabase
-    final session = supabase.auth.currentSession;
-    if (session == null) {
-      // ما فيه جلسة → LoginScreen
+    if (name == null || name.isEmpty) {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        MaterialPageRoute(builder: (_) => const RegisterScreen()),
       );
       return;
     }
 
-    final userEmail = session.user.email ?? '';
-    final prefs = await SharedPreferences.getInstance();
-    final name = prefs.getString('user_name');
-
-    // 2) نفحص الحظر من جدول users
+    // نفحص الحظر
     bool banned = false;
-    bool hasProfile = false;
     try {
       final data = await supabase
           .from('users')
-          .select('is_banned, name, grade, muraqaba')
-          .eq('email', userEmail)
+          .select('is_banned')
+          .eq('name', name)
           .limit(1);
-      if (data.isNotEmpty) {
-        hasProfile = true;
-        if (data[0]['is_banned'] == true) banned = true;
-        // نحدث SharedPreferences
-        await prefs.setString('user_name', data[0]['name'] ?? '');
-        await prefs.setString('user_grade', data[0]['grade'] ?? '');
-        await prefs.setString('user_muraqaba', data[0]['muraqaba'] ?? '');
-        await prefs.setString('user_email', userEmail);
+      if (data.isNotEmpty && data[0]['is_banned'] == true) {
+        banned = true;
       }
     } catch (e) {
-      debugPrint('Check error: $e');
+      debugPrint('Check banned error: $e');
     }
 
-    if (!mounted) return;
-
     if (banned) {
-      await supabase.auth.signOut();
       await prefs.clear();
       if (!mounted) return;
       Navigator.pushReplacement(
@@ -662,18 +177,7 @@ class _SplashScreenState extends State<SplashScreen> {
       return;
     }
 
-    if (!hasProfile) {
-      // مسجل بالإيميل لكن ما عبّى بياناته
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => RegisterScreen(userEmail: userEmail),
-        ),
-      );
-      return;
-    }
-
-    // مستخدم كامل → HomeShell
+    if (!mounted) return;
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(builder: (_) => const HomeShell()),
@@ -817,8 +321,7 @@ class BannedScreen extends StatelessWidget {
 
 // ============ Register Screen ============
 class RegisterScreen extends StatefulWidget {
-  final String? userEmail;
-  const RegisterScreen({super.key, this.userEmail});
+  const RegisterScreen({super.key});
   @override
   State<RegisterScreen> createState() => _RegisterScreenState();
 }
@@ -859,9 +362,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     setState(() => _saving = true);
 
     final prefs = await SharedPreferences.getInstance();
-    final email = widget.userEmail ??
-        supabase.auth.currentUser?.email ??
-        '';
     await prefs.setString('user_name', _nameController.text.trim());
     await prefs.setString('user_grade', _selectedGrade!);
     await prefs.setString('user_muraqaba', _selectedMuraqaba!);
@@ -2544,7 +2044,6 @@ class _AccountTabState extends State<AccountTab> {
   }
 
   Future<void> _logout() async {
-    // نسأل المستخدم
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -2570,18 +2069,12 @@ class _AccountTabState extends State<AccountTab> {
 
     if (confirm != true) return;
 
-    try {
-      await supabase.auth.signOut();
-    } catch (e) {
-      debugPrint('SignOut error: $e');
-    }
-
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
 
     if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      MaterialPageRoute(builder: (_) => const RegisterScreen()),
       (route) => false,
     );
   }
@@ -4443,53 +3936,61 @@ class _TeacherAIScreenState extends State<TeacherAIScreen> {
     if (question.isEmpty) {
       return 'أرسل سؤالك وسأجيبك بإذن الله.';
     }
+
     try {
       final apiKey = await _getGeminiKey();
-      const model = 'gemini-3.7-flash';
+      if (apiKey.isEmpty) {
+        return 'خدمة المعلم غير مفعّلة. تواصل مع الإدارة.';
+      }
+
+      final model = 'google/gemini-2.0-flash-exp:free';
 
       final sys = 'أنت معلم ذكي اسمك معلم كتابي، تعمل في تطبيق كتابي التعليمي الليبي. '
-          'الطالب اسمه: ' + _userName + '. صفه: ' + _userGrade + '. '
+          'الطالب اسمه: $_userName. صفه: $_userGrade. '
           'رد بالعربية الفصحى مع لمسة ليبية بسيطة. اشرح بلطف ووضوح.';
 
       final response = await http.post(
-        Uri.parse('https://generativelanguage.googleapis.com/v1beta/interactions'),
+        Uri.parse('https://openrouter.ai/api/v1/chat/completions'),
         headers: {
-          'x-goog-api-key': apiKey,
+          'Authorization': 'Bearer $apiKey',
           'Content-Type': 'application/json',
+          'HTTP-Referer': 'https://kitabi.app',
+          'X-Title': 'Kitabi',
         },
         body: jsonEncode({
           'model': model,
-          'input': sys + '\n\nسؤال الطالب: ' + question,
+          'messages': [
+            {'role': 'system', 'content': sys},
+            {'role': 'user', 'content': question},
+          ],
+          'temperature': 0.7,
+          'max_tokens': 1000,
         }),
       );
 
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
-        if (data['steps'] != null && data['steps'] is List) {
-          for (var step in data['steps']) {
-            if (step['type'] == 'model_output' && step['content'] is List) {
-              for (var c in step['content']) {
-                if (c['type'] == 'text') {
-                  return c['text'] ?? '';
-                }
-              }
-            }
+        if (data['choices'] != null &&
+            data['choices'] is List &&
+            data['choices'].isNotEmpty) {
+          final msg = data['choices'][0]['message'];
+          if (msg != null && msg['content'] != null) {
+            return msg['content'].toString();
           }
         }
-        if (data['output_text'] != null) {
-          return data['output_text'].toString();
-        }
         return 'لم أفهم الرد. جرب مرة أخرى.';
-      } else if (response.statusCode == 503) {
-        return 'الخادم مشغول حالياً، جرب بعد قليل.';
       } else if (response.statusCode == 429) {
-        return 'الخدمة مزدحمة، جرب بعد دقيقة.';
+        return 'المعلم مشغول حالياً. جرب بعد دقيقة.';
+      } else if (response.statusCode == 401) {
+        return 'مفتاح المعلم غير صحيح.';
+      } else if (response.statusCode == 503) {
+        return 'الخدمة غير متاحة مؤقتاً.';
       } else {
-        return 'حدث خطأ. جرب لاحقاً.';
+        return 'حدث خطأ (${response.statusCode}). جرب لاحقاً.';
       }
     } catch (e) {
-      debugPrint('Gemini error: $e');
-      return 'تعذر الاتصال. تحقق من الإنترنت.';
+      debugPrint('OpenRouter error: $e');
+      return 'تعذر الاتصال بالمعلم. تحقق من الإنترنت.';
     }
   }
 
