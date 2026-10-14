@@ -399,7 +399,7 @@ class _HomeShellState extends State<HomeShell> {
   }
 }
 
-// ============ Home Tab ============
+// ============ Home Tab (Redesigned) ============
 class HomeTab extends StatelessWidget {
   final VoidCallback onStartLearning;
   const HomeTab({super.key, required this.onStartLearning});
@@ -414,6 +414,7 @@ class HomeTab extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          // ===== Header =====
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Row(
@@ -459,7 +460,7 @@ class HomeTab extends StatelessWidget {
                 ),
                 IconButton(
                   onPressed: () {},
-                  icon: const Icon(Icons.search_rounded,
+                  icon: const Icon(Icons.notifications_none_rounded,
                       color: Color(0xFF1565C0), size: 26),
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
@@ -467,7 +468,7 @@ class HomeTab extends StatelessWidget {
                 const SizedBox(width: 18),
                 IconButton(
                   onPressed: () {},
-                  icon: const Icon(Icons.tune_rounded,
+                  icon: const Icon(Icons.settings_outlined,
                       color: Color(0xFF1565C0), size: 26),
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
@@ -475,11 +476,13 @@ class HomeTab extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 22),
+          const SizedBox(height: 20),
+
+          // ===== Hero Banner =====
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Container(
-              height: 240,
+              height: 200,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(28),
                 boxShadow: [
@@ -524,36 +527,23 @@ class HomeTab extends StatelessWidget {
                           begin: Alignment.topCenter,
                           end: Alignment.bottomCenter,
                           colors: [
-                            Colors.black.withOpacity(0.15),
-                            Colors.black.withOpacity(0.78),
+                            Colors.black.withOpacity(0.2),
+                            Colors.black.withOpacity(0.75),
                           ],
                         ),
                       ),
                     ),
                     Padding(
-                      padding: const EdgeInsets.all(22),
+                      padding: const EdgeInsets.all(20),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.end,
                         children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: Colors.amber.shade600,
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: const Text('الإصدار 0.1 تجريبي',
-                                style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold)),
-                          ),
-                          const Spacer(),
                           const Text(
-                            'منصة "كتابي" التعليمية',
+                            'التعلم هو مفتاح النجاح',
                             style: TextStyle(
                               color: Colors.white,
-                              fontSize: 24,
+                              fontSize: 26,
                               fontWeight: FontWeight.bold,
                               shadows: [
                                 Shadow(
@@ -565,39 +555,14 @@ class HomeTab extends StatelessWidget {
                           ),
                           const SizedBox(height: 6),
                           const Text(
-                            'دليلك الشامل للمناهج الليبية\nمن الابتدائي إلى الثانوي',
+                            'كل أبواب النجاح',
                             style: TextStyle(
                               color: Colors.white,
-                              fontSize: 13,
-                              height: 1.5,
+                              fontSize: 14,
                               shadows: [
                                 Shadow(
                                     color: Colors.black54, blurRadius: 6),
                               ],
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          SizedBox(
-                            height: 48,
-                            child: ElevatedButton.icon(
-                              onPressed: onStartLearning,
-                              icon: const Icon(Icons.play_arrow_rounded,
-                                  size: 24),
-                              label: const Text('ابدأ التعلم',
-                                  style: TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.bold)),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.white,
-                                foregroundColor: const Color(0xFF1565C0),
-                                elevation: 6,
-                                shadowColor: Colors.black45,
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 22),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(30),
-                                ),
-                              ),
                             ),
                           ),
                         ],
@@ -609,230 +574,254 @@ class HomeTab extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 22),
+
+          // ===== 6 مربعات ملوّنة =====
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: GridView.count(
+              crossAxisCount: 3,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+              childAspectRatio: 1,
               children: [
-                _statCard('12', 'سنة دراسية', Icons.calendar_month,
-                    const Color(0xFFFFA726)),
-                const SizedBox(width: 10),
-                _statCard('3', 'مراحل', Icons.school,
-                    const Color(0xFF66BB6A)),
-                const SizedBox(width: 10),
-                _statCard('100%', 'مجاني', Icons.card_giftcard,
-                    const Color(0xFF7E57C2)),
+                _quickBtn(
+                  context,
+                  'المكتبة',
+                  Icons.menu_book_rounded,
+                  const LinearGradient(
+                      colors: [Color(0xFF1565C0), Color(0xFF42A5F5)]),
+                  onStartLearning,
+                ),
+                _quickBtn(
+                  context,
+                  'الدورات',
+                  Icons.school_rounded,
+                  const LinearGradient(
+                      colors: [Color(0xFF00897B), Color(0xFF26A69A)]),
+                  () => showKitabiSnack(context, 'الدورات — قريباً'),
+                ),
+                _quickBtn(
+                  context,
+                  'المعلم الذكي',
+                  Icons.smart_toy_rounded,
+                  const LinearGradient(
+                      colors: [Color(0xFF7B1FA2), Color(0xFFAB47BC)]),
+                  () => showKitabiSnack(context, 'المعلم الذكي — قريباً'),
+                ),
+                _quickBtn(
+                  context,
+                  'المنتدى',
+                  Icons.forum_rounded,
+                  const LinearGradient(
+                      colors: [Color(0xFF283593), Color(0xFF3F51B5)]),
+                  () => showKitabiSnack(context, 'المنتدى — قريباً'),
+                ),
+                _quickBtn(
+                  context,
+                  'الاختبارات',
+                  Icons.assignment_rounded,
+                  const LinearGradient(
+                      colors: [Color(0xFFEF6C00), Color(0xFFFFA726)]),
+                  () => showKitabiSnack(context, 'الاختبارات — قريباً'),
+                ),
+                _quickBtn(
+                  context,
+                  'ملاحظاتي',
+                  Icons.sticky_note_2_rounded,
+                  const LinearGradient(
+                      colors: [Color(0xFF00838F), Color(0xFF00ACC1)]),
+                  () => showKitabiSnack(context, 'ملاحظاتي — قريباً'),
+                ),
               ],
             ),
           ),
           const SizedBox(height: 25),
+
+          // ===== أحدث الدروس =====
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 20),
+            child: Text('أحدث الدروس',
+                style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1A1A1A))),
+          ),
+          const SizedBox(height: 12),
+
+          // === بطاقة الدرس الأولى ===
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Container(
-              padding: const EdgeInsets.all(18),
+              padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    const Color(0xFF7B1FA2).withOpacity(0.1),
-                    const Color(0xFFAB47BC).withOpacity(0.05),
-                  ],
-                ),
+                color: Colors.white,
                 borderRadius: BorderRadius.circular(22),
-                border: Border.all(
-                    color: const Color(0xFF7B1FA2).withOpacity(0.3),
-                    width: 1.5),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.06),
+                    blurRadius: 15,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
               ),
               child: Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(14),
+                    width: 70,
+                    height: 70,
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
-                        colors: [Color(0xFF7B1FA2), Color(0xFFAB47BC)],
+                        colors: [Color(0xFF1565C0), Color(0xFF42A5F5)],
+                        begin: Alignment.topRight,
+                        end: Alignment.bottomLeft,
                       ),
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFF7B1FA2).withOpacity(0.4),
-                          blurRadius: 12,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
+                      borderRadius: BorderRadius.circular(18),
                     ),
-                    child: const Icon(Icons.auto_awesome,
-                        color: Colors.white, size: 30),
+                    child: const Icon(Icons.calculate_rounded,
+                        color: Colors.white, size: 34),
                   ),
-                  const SizedBox(width: 15),
+                  const SizedBox(width: 14),
                   const Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('تعلّم مع معلمك AI',
+                        Text('الرياضيات — الفصل الأول',
                             style: TextStyle(
-                                fontSize: 17,
-                                fontWeight: FontWeight.bold)),
-                        SizedBox(height: 4),
-                        Text('قريباً في الإصدار 0.2',
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF1A1A1A))),
+                        SizedBox(height: 5),
+                        Text('الأساس والغلاف',
                             style: TextStyle(
-                                color: Color(0xFF555555), fontSize: 12)),
+                                fontSize: 12,
+                                color: Color(0xFF555555))),
                       ],
                     ),
                   ),
-                  const Icon(Icons.arrow_forward_ios,
-                      size: 16, color: Color(0xFF555555)),
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1565C0).withOpacity(0.08),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.play_arrow_rounded,
+                        color: Color(0xFF1565C0), size: 22),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // === بطاقة الدرس الثانية ===
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(22),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.06),
+                    blurRadius: 15,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 70,
+                    height: 70,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF7B1FA2), Color(0xFFAB47BC)],
+                        begin: Alignment.topRight,
+                        end: Alignment.bottomLeft,
+                      ),
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    child: const Icon(Icons.science_rounded,
+                        color: Colors.white, size: 34),
+                  ),
+                  const SizedBox(width: 14),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('العلوم الطبيعية',
+                            style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF1A1A1A))),
+                        SizedBox(height: 5),
+                        Text('مقدمة في الأحياء',
+                            style: TextStyle(
+                                fontSize: 12,
+                                color: Color(0xFF555555))),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF7B1FA2).withOpacity(0.08),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.play_arrow_rounded,
+                        color: Color(0xFF7B1FA2), size: 22),
+                  ),
                 ],
               ),
             ),
           ),
           const SizedBox(height: 25),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 20),
-            child: Text('المراحل الدراسية الليبية',
-                style: TextStyle(
-                    color: Color(0xFF1A1A1A),
-                    fontSize: 20, fontWeight: FontWeight.bold)),
-          ),
-          const SizedBox(height: 5),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 20),
-            child: Text('اختر مرحلتك لاستعراض الفصول والمقررات',
-                style: TextStyle(color: Color(0xFF555555), fontSize: 13)),
-          ),
-          const SizedBox(height: 15),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: _stageCard(
-              'المرحلة الابتدائية',
-              'الصفوف: 1 - 6 ابتدائي',
-              'تأسيس المهارات الأساسية للقراءة والحساب',
-              Icons.emoji_nature,
-              const LinearGradient(
-                  colors: [Color(0xFF00A86B), Color(0xFF4CAF50)]),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: _stageCard(
-              'المرحلة الإعدادية',
-              'الصفوف: 7 - 9 إعدادي',
-              'التعليم الأساسي المتقدم والاستعداد للشهادة',
-              Icons.architecture,
-              const LinearGradient(
-                  colors: [Color(0xFFF57C00), Color(0xFFFFB300)]),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: _stageCard(
-              'المرحلة الثانوية',
-              'الصفوف: 10 - 12 ثانوي',
-              'التخصص العلمي والأدبي وبناء المستقبل',
-              Icons.school,
-              const LinearGradient(
-                  colors: [Color(0xFF1565C0), Color(0xFF42A5F5)]),
-            ),
-          ),
-          const SizedBox(height: 25),
         ],
       ),
     );
   }
 
-  Widget _statCard(
-      String value, String label, IconData icon, Color color) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(icon, color: color, size: 20),
-            ),
-            const SizedBox(height: 8),
-            Text(value,
-                style: const TextStyle(
-                    fontSize: 18, fontWeight: FontWeight.bold)),
-            Text(label,
-                style: const TextStyle(fontSize: 11, color: Color(0xFF555555))),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _stageCard(String title, String subtitle, String desc,
-      IconData icon, Gradient grad) {
+  Widget _quickBtn(BuildContext context, String label, IconData icon,
+      Gradient grad, VoidCallback onTap) {
     return Container(
-      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(22),
+        gradient: grad,
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 14,
+            color: grad.colors.first.withOpacity(0.35),
+            blurRadius: 12,
             offset: const Offset(0, 5),
           ),
         ],
       ),
-      child: Row(
-        children: [
-          Container(
-            width: 64,
-            height: 64,
-            decoration: BoxDecoration(
-              gradient: grad,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: grad.colors.first.withOpacity(0.35),
-                  blurRadius: 12,
-                  offset: const Offset(0, 5),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: onTap,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, color: Colors.white, size: 30),
+              const SizedBox(height: 8),
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
                 ),
-              ],
-            ),
-            child: Icon(icon, color: Colors.white, size: 32),
+              ),
+            ],
           ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title,
-                    style: const TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 3),
-                Text(subtitle,
-                    style: const TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF1565C0),
-                        fontWeight: FontWeight.w600)),
-                const SizedBox(height: 4),
-                Text(desc,
-                    style: const TextStyle(
-                        fontSize: 11, color: Color(0xFF555555), height: 1.4)),
-              ],
-            ),
-          ),
-          const Icon(Icons.arrow_back_ios, size: 14, color: Color(0xFF555555)),
-        ],
+        ),
       ),
     );
   }
