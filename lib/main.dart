@@ -3403,6 +3403,10 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
 }
 }
 
+
+  // ============ إرسال إشعار ============
+  }
+
 // ============ Custom SnackBar (من اليمين، حواف من اليسار فقط) ============
 void showKitabiSnack(BuildContext context, String message) {
   ScaffoldMessenger.of(context).clearSnackBars();
@@ -3431,7 +3435,3 @@ void showKitabiSnack(BuildContext context, String message) {
       ),
     ),
   );
-
-
-  // ============ الإحصائيات ============
-
