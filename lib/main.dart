@@ -2,6 +2,41 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+// ============ نموذج إحصائيات المستخدم ============
+class UserStats {
+  static Future<Map<String, int>> get() async {
+    final prefs = await SharedPreferences.getInstance();
+    return {
+      'points': prefs.getInt('user_points') ?? 0,
+      'level': prefs.getInt('user_level') ?? 1,
+      'achievements': prefs.getInt('user_achievements') ?? 0,
+      'lessons': prefs.getInt('user_lessons') ?? 0,
+    };
+  }
+
+  // إضافة نقاط عند فعل معين
+  static Future<void> addPoints(int amount) async {
+    final prefs = await SharedPreferences.getInstance();
+    final current = prefs.getInt('user_points') ?? 0;
+    final newVal = current + amount;
+    await prefs.setInt('user_points', newVal);
+
+    // حساب المستوى تلقائياً (كل 100 نقطة = مستوى)
+    final level = (newVal ~/ 100) + 1;
+    await prefs.setInt('user_level', level);
+
+    // الإنجازات: كل مستوى = إنجاز
+    await prefs.setInt('user_achievements', level - 1);
+  }
+
+  static Future<void> addLesson() async {
+    final prefs = await SharedPreferences.getInstance();
+    final lessons = (prefs.getInt('user_lessons') ?? 0) + 1;
+    await prefs.setInt('user_lessons', lessons);
+    await addPoints(10); // كل درس = 10 نقاط
+  }
+}
+
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
@@ -167,6 +202,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
     await prefs.setString('user_name', _nameController.text.trim());
     await prefs.setString('user_grade', _selectedGrade!);
     await prefs.setString('user_muraqaba', _selectedMuraqaba!);
+    // مكافأة ترحيب: 50 نقطة
+    final currentPts = prefs.getInt('user_points') ?? 0;
+    if (currentPts == 0) {
+      await prefs.setInt('user_points', 50);
+      await prefs.setInt('user_level', 1);
+      await prefs.setInt('user_achievements', 0);
+    }
     if (!mounted) return;
     Navigator.pushReplacement(
       context,
@@ -482,7 +524,7 @@ class HomeTab extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Container(
-              height: 200,
+              height: 250,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(28),
                 boxShadow: [
@@ -499,7 +541,7 @@ class HomeTab extends StatelessWidget {
                   fit: StackFit.expand,
                   children: [
                     Image.network(
-                      'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=1200&q=80',
+                      'https://images.unsplash.com/photo-1497633762265-9d179a990aa6?w=1200&q=80',
                       fit: BoxFit.cover,
                       loadingBuilder: (c, child, p) => Container(
                         color: const Color(0xFF1565C0),
@@ -1026,6 +1068,9 @@ class _AccountTabState extends State<AccountTab> {
   String _name = '';
   String _grade = '';
   String _muraqaba = '';
+  int _points = 0;
+  int _level = 1;
+  int _achievements = 0;
 
   @override
   void initState() {
@@ -1035,10 +1080,15 @@ class _AccountTabState extends State<AccountTab> {
 
   Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();
+    final stats = await UserStats.get();
+    if (!mounted) return;
     setState(() {
       _name = prefs.getString('user_name') ?? 'طالب';
       _grade = prefs.getString('user_grade') ?? '';
       _muraqaba = prefs.getString('user_muraqaba') ?? '';
+      _points = stats['points'] ?? 0;
+      _level = stats['level'] ?? 1;
+      _achievements = stats['achievements'] ?? 0;
     });
   }
 
@@ -1052,6 +1102,20 @@ class _AccountTabState extends State<AccountTab> {
     );
   }
 
+  Color _avatarColor() {
+    if (_name.isEmpty) return const Color(0xFF1565C0);
+    final colors = [
+      const Color(0xFF1565C0),
+      const Color(0xFF00897B),
+      const Color(0xFF7B1FA2),
+      const Color(0xFFEF6C00),
+      const Color(0xFF283593),
+      const Color(0xFFD32F2F),
+      const Color(0xFF00838F),
+    ];
+    return colors[_name.codeUnitAt(0) % colors.length];
+  }
+
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
@@ -1062,21 +1126,20 @@ class _AccountTabState extends State<AccountTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // ==== بطاقة رئيسية كبيرة ====
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Container(
               padding: const EdgeInsets.all(22),
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF1565C0), Color(0xFF42A5F5)],
+                gradient: LinearGradient(
+                  colors: [_avatarColor(), _avatarColor().withOpacity(0.7)],
                   begin: Alignment.topRight,
                   end: Alignment.bottomLeft,
                 ),
                 borderRadius: BorderRadius.circular(30),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFF1565C0).withOpacity(0.4),
+                    color: _avatarColor().withOpacity(0.4),
                     blurRadius: 25,
                     offset: const Offset(0, 12),
                   ),
@@ -1092,8 +1155,7 @@ class _AccountTabState extends State<AccountTab> {
                         decoration: BoxDecoration(
                           color: Colors.white,
                           shape: BoxShape.circle,
-                          border: Border.all(
-                              color: Colors.white, width: 3),
+                          border: Border.all(color: Colors.white, width: 3),
                           boxShadow: [
                             BoxShadow(
                               color: Colors.black.withOpacity(0.15),
@@ -1105,9 +1167,9 @@ class _AccountTabState extends State<AccountTab> {
                         child: Center(
                           child: Text(
                             _name.isNotEmpty ? _name[0] : '؟',
-                            style: const TextStyle(
-                              color: Color(0xFF1565C0),
-                              fontSize: 42,
+                            style: TextStyle(
+                              color: _avatarColor(),
+                              fontSize: 44,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -1116,16 +1178,20 @@ class _AccountTabState extends State<AccountTab> {
                       Positioned(
                         bottom: 0,
                         right: 0,
-                        child: Container(
-                          padding: const EdgeInsets.all(7),
-                          decoration: BoxDecoration(
-                            color: Colors.amber,
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                                color: Colors.white, width: 2),
+                        child: GestureDetector(
+                          onTap: () => showKitabiSnack(
+                              context, 'تغيير الصورة — قريباً'),
+                          child: Container(
+                            padding: const EdgeInsets.all(7),
+                            decoration: BoxDecoration(
+                              color: Colors.amber,
+                              shape: BoxShape.circle,
+                              border:
+                                  Border.all(color: Colors.white, width: 2),
+                            ),
+                            child: const Icon(Icons.edit,
+                                size: 14, color: Colors.white),
                           ),
-                          child: const Icon(Icons.edit,
-                              size: 14, color: Colors.white),
                         ),
                       ),
                     ],
@@ -1161,8 +1227,6 @@ class _AccountTabState extends State<AccountTab> {
             ),
           ),
           const SizedBox(height: 18),
-
-          // ==== إحصائيات ====
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Container(
@@ -1180,21 +1244,19 @@ class _AccountTabState extends State<AccountTab> {
               ),
               child: Row(
                 children: [
-                  _statItem(Icons.local_fire_department,
-                      'النقاط', '420', const Color(0xFFFF6B35)),
+                  _statItem(Icons.local_fire_department, 'النقاط',
+                      '$_points', const Color(0xFFFF6B35)),
                   _vDivider(),
-                  _statItem(Icons.star, 'المستوى', '5',
+                  _statItem(Icons.star, 'المستوى', '$_level',
                       const Color(0xFFFFB300)),
                   _vDivider(),
-                  _statItem(Icons.emoji_events, 'الإنجازات', '3',
-                      const Color(0xFF7E57C2)),
+                  _statItem(Icons.emoji_events, 'الإنجازات',
+                      '$_achievements', const Color(0xFF7E57C2)),
                 ],
               ),
             ),
           ),
           const SizedBox(height: 18),
-
-          // ==== قائمة الخيارات ====
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Container(
@@ -1210,28 +1272,28 @@ class _AccountTabState extends State<AccountTab> {
               ),
               child: Column(
                 children: [
-                  _menuItem(Icons.person_outline,
-                      'معلوماتي الشخصية',
-                      const Color(0xFF1565C0), () {}),
+                  _menuItem(Icons.person_outline, 'معلوماتي الشخصية',
+                      const Color(0xFF1565C0),
+                      () => showKitabiSnack(context, 'معلوماتي — قريباً')),
                   _menuDivider(),
-                  _menuItem(Icons.track_changes,
-                      'أهدافي التعليمية',
-                      const Color(0xFF66BB6A), () {}),
+                  _menuItem(Icons.track_changes, 'أهدافي التعليمية',
+                      const Color(0xFF66BB6A),
+                      () => showKitabiSnack(context, 'أهدافي — قريباً')),
                   _menuDivider(),
-                  _menuItem(Icons.notifications_none,
-                      'إشعاراتي',
-                      const Color(0xFFFFA726), () {}),
+                  _menuItem(Icons.notifications_none, 'إشعاراتي',
+                      const Color(0xFFFFA726),
+                      () => showKitabiSnack(context, 'الإشعارات — قريباً')),
                   _menuDivider(),
                   _menuItem(Icons.dark_mode_outlined,
-                      'المظهر (الوضع الليلي)',
-                      const Color(0xFF7E57C2), () {}),
+                      'المظهر (الوضع الليلي)', const Color(0xFF7E57C2), () {
+                    showKitabiSnack(context, 'قريباً في الإصدار القادم');
+                  }),
                   _menuDivider(),
-                  _menuItem(Icons.help_outline,
-                      'المساعدة والدعم',
-                      const Color(0xFF26A69A), () {}),
+                  _menuItem(Icons.help_outline, 'المساعدة والدعم',
+                      const Color(0xFF26A69A),
+                      () => showKitabiSnack(context, 'المساعدة — قريباً')),
                   _menuDivider(),
-                  _menuItem(Icons.info_outline,
-                      'عن التطبيق',
+                  _menuItem(Icons.info_outline, 'عن التطبيق',
                       const Color(0xFF5E35B1), () {
                     showAboutDialog(
                       context: context,
@@ -1246,8 +1308,7 @@ class _AccountTabState extends State<AccountTab> {
                     );
                   }),
                   _menuDivider(),
-                  _menuItem(Icons.admin_panel_settings,
-                      'غرفة التحكم',
+                  _menuItem(Icons.admin_panel_settings, 'غرفة التحكم',
                       const Color(0xFFEF6C00), () {
                     Navigator.push(
                       context,
@@ -1260,8 +1321,6 @@ class _AccountTabState extends State<AccountTab> {
             ),
           ),
           const SizedBox(height: 18),
-
-          // ==== زر تسجيل خروج ====
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: SizedBox(
@@ -1535,7 +1594,7 @@ void showKitabiSnack(BuildContext context, String message) {
       ),
       backgroundColor: const Color(0xFF2C2C2E),
       behavior: SnackBarBehavior.floating,
-      margin: const EdgeInsets.only(left: 40, right: 0, bottom: 120),
+      margin: const EdgeInsets.only(left: 30, right: 0, bottom: 100),
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       duration: const Duration(seconds: 2),
       shape: const RoundedRectangleBorder(
