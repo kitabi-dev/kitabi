@@ -3299,11 +3299,9 @@ void showKitabiSnack(BuildContext context, String message) {
                   'grade': gradeCtrl.text.trim(),
                   'questions': [],
                 });
-                if (!mounted) return;
                 showKitabiSnack(context, 'تم إضافة الاختبار');
                 setSt(() {});
               } catch (e) {
-                if (!mounted) return;
                 showKitabiSnack(context, 'فشل الإضافة');
               }
             },
@@ -3430,11 +3428,9 @@ void showKitabiSnack(BuildContext context, String message) {
                     'pdf_url': pdfCtrl.text.trim(),
                     'uploaded_by': 'admin',
                   });
-                  if (!mounted) return;
-                  showKitabiSnack(context, 'تم رفع الكتاب بنجاح');
+                    showKitabiSnack(context, 'تم رفع الكتاب بنجاح');
                 } catch (e) {
-                  if (!mounted) return;
-                  showKitabiSnack(context, 'فشل الرفع');
+                    showKitabiSnack(context, 'فشل الرفع');
                 }
               },
               style: ElevatedButton.styleFrom(
