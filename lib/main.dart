@@ -12,7 +12,6 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:video_player/video_player.dart';
-import 'package:chewie/chewie.dart';
 
 // ============ إعدادات Supabase ============
 const String kSupabaseUrl = 'https://vlyfghfoelbbbdljbvcr.supabase.co';
@@ -4047,7 +4046,6 @@ class VideoPlayerScreen extends StatefulWidget {
 
 class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   VideoPlayerController? _videoCtrl;
-  ChewieController? _chewieCtrl;
   WebViewController? _webCtrl;
   bool _initializing = true;
   String _error = '';
@@ -4091,16 +4089,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         // mp4
         _videoCtrl = VideoPlayerController.networkUrl(Uri.parse(url));
         await _videoCtrl!.initialize();
-        _chewieCtrl = ChewieController(
-          videoPlayerController: _videoCtrl!,
-          autoPlay: true,
-          looping: false,
-          aspectRatio: _videoCtrl!.value.aspectRatio,
-          errorBuilder: (context, msg) => Center(
-            child: Text('خطأ: $msg',
-                style: const TextStyle(color: Colors.white)),
-          ),
-        );
+        await _videoCtrl!.play();
         setState(() => _initializing = false);
       }
     } catch (e) {
@@ -4132,7 +4121,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   @override
   void dispose() {
     _videoCtrl?.dispose();
-    _chewieCtrl?.dispose();
     super.dispose();
   }
 
@@ -4173,7 +4161,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                       )
                     : widget.video['video_type'] == 'youtube'
                         ? WebViewWidget(controller: _webCtrl!)
-                        : Chewie(controller: _chewieCtrl!),
+                        : AspectRatio(
+                            aspectRatio: _videoCtrl!.value.aspectRatio,
+                            child: VideoPlayer(_videoCtrl!),
+                          ),
           ),
           // معلومات
           Expanded(
