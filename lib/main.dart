@@ -209,7 +209,6 @@ class _SplashScreenState extends State<SplashScreen> {
     await Future.delayed(const Duration(seconds: 2));
     final prefs = await SharedPreferences.getInstance();
     final name = prefs.getString('user_name');
-    if (!mounted) return;
     if (name == null || name.isEmpty) {
       Navigator.pushReplacement(
         context,
@@ -235,7 +234,6 @@ class _SplashScreenState extends State<SplashScreen> {
 
     if (banned) {
       await prefs.clear();
-      if (!mounted) return;
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => const BannedScreen()),
@@ -1412,7 +1410,6 @@ class _NotificationsTabState extends State<NotificationsTab> {
           .select()
           .order('created_at', ascending: false)
           .limit(50);
-      if (!mounted) return;
       setState(() {
         _notifications = List<Map<String, dynamic>>.from(data);
         _loading = false;
@@ -1651,7 +1648,6 @@ class _AccountTabState extends State<AccountTab> {
   Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();
     final stats = await UserStats.get();
-    if (!mounted) return;
     setState(() {
       _name = prefs.getString('user_name') ?? 'طالب';
       _grade = prefs.getString('user_grade') ?? '';
@@ -1665,7 +1661,6 @@ class _AccountTabState extends State<AccountTab> {
   Future<void> _logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
-    if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const RegisterScreen()),
       (route) => false,
@@ -2597,11 +2592,9 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
                     'target_type': selectedTarget,
                     'sent_by': 'admin',
                   });
-                  if (!mounted) return;
                   showKitabiSnack(
                       context, '✅ تم إرسال الإشعار بنجاح');
                 } catch (e) {
-                  if (!mounted) return;
                   showKitabiSnack(context, '❌ فشل الإرسال');
                   debugPrint('Send notification error: \$e');
                 }
@@ -2716,10 +2709,8 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
                     'admin_password': newPassCtrl.text.trim(),
                     'updated_at': DateTime.now().toIso8601String(),
                   }).eq('id', 1);
-                  if (!mounted) return;
                   showKitabiSnack(context, 'تم تغيير كلمة السر بنجاح');
                 } catch (e) {
-                  if (!mounted) return;
                   showKitabiSnack(context, 'فشل تغيير كلمة السر');
                 }
               },
@@ -2882,7 +2873,6 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
                                               usersList[i]['is_banned'] =
                                                   !banned;
                                             });
-                                            if (!mounted) return;
                                             showKitabiSnack(
                                                 context,
                                                 !banned
