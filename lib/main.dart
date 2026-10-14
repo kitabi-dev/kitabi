@@ -335,6 +335,7 @@ class _HomeShellState extends State<HomeShell> {
             ],
           ),
           child: Row(
+            textDirection: TextDirection.rtl,
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
               _navItem(0, Icons.home_outlined, Icons.home, 'الرئيسية'),
@@ -686,8 +687,9 @@ class HomeTab extends StatelessWidget {
           const SizedBox(height: 25),
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 20),
-            child: Text('المراحل الدراسية في ليبيا',
+            child: Text('المراحل الدراسية الليبية',
                 style: TextStyle(
+                    color: Color(0xFF1A1A1A),
                     fontSize: 20, fontWeight: FontWeight.bold)),
           ),
           const SizedBox(height: 5),
@@ -884,60 +886,73 @@ class LibraryTab extends StatelessWidget {
         ),
         const SizedBox(height: 15),
         Expanded(
-          child: GridView.builder(
-            padding: EdgeInsets.fromLTRB(16, 0, 16,
+          child: ListView.separated(
+            padding: EdgeInsets.fromLTRB(20, 4, 20,
                 MediaQuery.of(context).padding.bottom + 110),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-              childAspectRatio: 1.05,
-            ),
             itemCount: _grades.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 14),
             itemBuilder: (context, i) {
               final g = _grades[i];
               return Container(
+                height: 82,
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(22),
+                  borderRadius: BorderRadius.circular(26),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
+                      color: Colors.black.withOpacity(0.06),
+                      blurRadius: 16,
+                      offset: const Offset(0, 6),
                     ),
                   ],
                 ),
                 child: Material(
                   color: Colors.transparent,
                   child: InkWell(
-                    borderRadius: BorderRadius.circular(22),
+                    borderRadius: BorderRadius.circular(26),
                     onTap: () {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(content: Text(g['name'])),
                       );
                     },
                     child: Padding(
-                      padding: const EdgeInsets.all(14),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 18, vertical: 12),
+                      child: Row(
                         children: [
                           Container(
-                            padding: const EdgeInsets.all(14),
+                            width: 56,
+                            height: 56,
                             decoration: BoxDecoration(
                               color: Color(g['color']).withOpacity(0.15),
-                              borderRadius: BorderRadius.circular(16),
+                              borderRadius: BorderRadius.circular(18),
                             ),
                             child: Icon(g['icon'],
-                                size: 36, color: Color(g['color'])),
+                                size: 30, color: Color(g['color'])),
                           ),
-                          const SizedBox(height: 10),
-                          Text(
-                            g['name'],
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.bold,
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Text(
+                              g['name'],
+                              style: const TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF1A1A1A),
+                              ),
+                            ),
+                          ),
+                          Container(
+                            width: 34,
+                            height: 34,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF1565C0)
+                                  .withOpacity(0.08),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.arrow_back_ios_new,
+                              size: 14,
+                              color: Color(0xFF1565C0),
                             ),
                           ),
                         ],
