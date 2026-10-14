@@ -93,6 +93,83 @@ Future<void> main() async {
 }
 
 // ============ KitabiApp ============
+// ============ Subscription Helper ============
+class RoleHelper {
+  static String roleLabel(String? role) {
+    switch (role) {
+      case 'admin':
+        return 'مدير';
+      case 'moderator':
+        return 'مشرف';
+      case 'teacher':
+        return 'معلم';
+      default:
+        return 'طالب';
+    }
+  }
+
+  static Color roleColor(String? role) {
+    switch (role) {
+      case 'admin':
+        return const Color(0xFFD32F2F);
+      case 'moderator':
+        return const Color(0xFF7B1FA2);
+      case 'teacher':
+        return const Color(0xFF00897B);
+      default:
+        return const Color(0xFF1565C0);
+    }
+  }
+
+  static IconData roleIcon(String? role) {
+    switch (role) {
+      case 'admin':
+        return Icons.admin_panel_settings;
+      case 'moderator':
+        return Icons.shield;
+      case 'teacher':
+        return Icons.school;
+      default:
+        return Icons.person;
+    }
+  }
+}
+
+class SubscriptionHelper {
+  static Future<bool> isPlusUser(String userName) async {
+    try {
+      final now = DateTime.now().toIso8601String();
+      final data = await supabase
+          .from('subscriptions')
+          .select('id')
+          .eq('user_name', userName)
+          .eq('is_active', true)
+          .gte('expires_at', now)
+          .limit(1);
+      return data.isNotEmpty;
+    } catch (e) {
+      debugPrint('Check plus error: $e');
+      return false;
+    }
+  }
+
+  static Future<Map<String, dynamic>?> getSubscription(String userName) async {
+    try {
+      final data = await supabase
+          .from('subscriptions')
+          .select()
+          .eq('user_name', userName)
+          .eq('is_active', true)
+          .order('expires_at', ascending: false)
+          .limit(1);
+      if (data.isEmpty) return null;
+      return Map<String, dynamic>.from(data[0]);
+    } catch (e) {
+      return null;
+    }
+  }
+}
+
 class KitabiApp extends StatelessWidget {
   const KitabiApp({super.key});
 
@@ -2420,6 +2497,17 @@ class _AccountTabState extends State<AccountTab> {
                       context,
                       MaterialPageRoute(
                           builder: (_) => const ControlRoomScreen()),
+                    );
+                  }),
+                  _menuDivider(),
+                  _menuItem(Icons.mail_outline, 'طلبات الصلاحيات',
+                      const Color(0xFF7B1FA2), () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) =>
+                              RoleRequestsScreen(userName: _name),
+                      ),
                     );
                   }),
                 ],
@@ -4983,6 +5071,975 @@ class _ManageVideosScreenState extends State<ManageVideosScreen> {
   }
 }
 
+// ============ Add Subscription Screen ============
+class AddSubscriptionScreen extends StatefulWidget {
+  const AddSubscriptionScreen({super.key});
+  @override
+  State<AddSubscriptionScreen> createState() => _AddSubscriptionScreenState();
+}
+
+class _AddSubscriptionScreenState extends State<AddSubscriptionScreen> {
+  List<Map<String, dynamic>> _users = [];
+  bool _loading = true;
+  String _search = '';
+  String _selectedDuration = '1';
+  String? _selectedUser;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUsers();
+  }
+
+  Future<void> _loadUsers() async {
+    setState(() => _loading = true);
+    try {
+      final data = await supabase
+          .from('users')
+          .select()
+          .order('created_at', ascending: false);
+      if (!mounted) return;
+      setState(() {
+        _users = List<Map<String, dynamic>>.from(data);
+        _loading = false;
+      });
+    } catch (e) {
+      debugPrint('Load users error: $e');
+      if (!mounted) return;
+      setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _activate() async {
+    if (_selectedUser == null) {
+      showKitabiSnack(context, 'اختر مستخدماً');
+      return;
+    }
+
+    final months = int.parse(_selectedDuration);
+    final now = DateTime.now();
+    final expires = DateTime(now.year, now.month + months, now.day);
+
+    try {
+      // نتحقق إذا عنده اشتراك سابق
+      final existing = await supabase
+          .from('subscriptions')
+          .select('id')
+          .eq('user_name', _selectedUser!)
+          .eq('is_active', true)
+          .limit(1);
+
+      if (existing.isNotEmpty) {
+        // نحدّث الموجود
+        await supabase.from('subscriptions').update({
+          'expires_at': expires.toIso8601String(),
+          'started_at': now.toIso8601String(),
+        }).eq('id', existing[0]['id']);
+      } else {
+        // نضيف جديد
+        await supabase.from('subscriptions').insert({
+          'user_name': _selectedUser,
+          'plan': 'plus',
+          'started_at': now.toIso8601String(),
+          'expires_at': expires.toIso8601String(),
+          'is_active': true,
+        });
+      }
+
+      if (!mounted) return;
+      showKitabiSnack(
+          context, 'تم تفعيل بلس لـ $_selectedUser ($months شهر)');
+      Navigator.pop(context);
+    } catch (e) {
+      if (!mounted) return;
+      showKitabiSnack(context, 'فشل التفعيل: $e');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final filtered = _search.isEmpty
+        ? _users
+        : _users.where((u) {
+            final name = (u['name'] ?? '').toString();
+            return name.contains(_search);
+          }).toList();
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFFFFA000),
+        foregroundColor: Colors.white,
+        elevation: 0,
+        title: const Text('إضافة اشتراك بلس',
+            style: TextStyle(fontWeight: FontWeight.bold)),
+      ),
+      body: Column(
+        children: [
+          // اختيار المدة
+          Container(
+            padding: const EdgeInsets.all(16),
+            color: Colors.white,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('اختر المدة:',
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                        color: Color(0xFF1A1A1A))),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    _durationChip('1', 'شهر'),
+                    const SizedBox(width: 8),
+                    _durationChip('6', '6 شهور'),
+                    const SizedBox(width: 8),
+                    _durationChip('12', 'سنة'),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          // البحث
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: TextField(
+              onChanged: (v) => setState(() => _search = v),
+              decoration: InputDecoration(
+                hintText: 'ابحث عن مستخدم...',
+                prefixIcon: const Icon(Icons.search),
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+          ),
+          // قائمة المستخدمين
+          Expanded(
+            child: _loading
+                ? const Center(
+                    child: CircularProgressIndicator(
+                        color: Color(0xFFFFA000)))
+                : filtered.isEmpty
+                    ? const Center(child: Text('لا يوجد مستخدمون'))
+                    : ListView.builder(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        itemCount: filtered.length,
+                        itemBuilder: (_, i) => _userCard(filtered[i]),
+                      ),
+          ),
+          // زر التفعيل
+          if (_selectedUser != null)
+            Container(
+              padding: const EdgeInsets.all(16),
+              color: Colors.white,
+              child: SafeArea(
+                top: false,
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 55,
+                  child: ElevatedButton(
+                    onPressed: _activate,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFFFA000),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    child: Text(
+                      'تفعيل بلس لـ $_selectedUser',
+                      style: const TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _durationChip(String value, String label) {
+    final selected = _selectedDuration == value;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => _selectedDuration = value),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: selected
+                ? const Color(0xFFFFA000)
+                : const Color(0xFFF0F0F0),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Text(
+            label,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: selected ? Colors.white : const Color(0xFF555555),
+              fontWeight: FontWeight.bold,
+              fontSize: 13,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _userCard(Map<String, dynamic> user) {
+    final name = (user['name'] ?? '').toString();
+    final isSelected = _selectedUser == name;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: isSelected
+            ? const Color(0xFFFFA000).withOpacity(0.15)
+            : Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: isSelected
+              ? const Color(0xFFFFA000)
+              : Colors.transparent,
+          width: 2,
+        ),
+      ),
+      child: ListTile(
+        onTap: () => setState(() => _selectedUser = name),
+        leading: CircleAvatar(
+          backgroundColor: const Color(0xFF1565C0),
+          child: Text(
+            name.isNotEmpty ? name[0] : '؟',
+            style: const TextStyle(
+                color: Colors.white, fontWeight: FontWeight.bold),
+          ),
+        ),
+        title: Text(name,
+            style: const TextStyle(
+                fontWeight: FontWeight.bold, fontSize: 14)),
+        subtitle: Text('${user['grade']} • ${user['muraqaba']}',
+            style: const TextStyle(fontSize: 11)),
+        trailing: isSelected
+            ? const Icon(Icons.check_circle,
+                color: Color(0xFFFFA000), size: 26)
+            : null,
+      ),
+    );
+  }
+}
+
+// ============ Subscriptions List Screen ============
+class SubscriptionsListScreen extends StatefulWidget {
+  const SubscriptionsListScreen({super.key});
+  @override
+  State<SubscriptionsListScreen> createState() =>
+      _SubscriptionsListScreenState();
+}
+
+class _SubscriptionsListScreenState extends State<SubscriptionsListScreen> {
+  List<Map<String, dynamic>> _subs = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    try {
+      final data = await supabase
+          .from('subscriptions')
+          .select()
+          .eq('is_active', true)
+          .order('expires_at', ascending: true);
+      if (!mounted) return;
+      setState(() {
+        _subs = List<Map<String, dynamic>>.from(data);
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _cancelSubscription(Map<String, dynamic> sub) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20)),
+        title: const Text('إلغاء الاشتراك'),
+        content: Text('هل تريد إلغاء بلس لـ "${sub['user_name']}"؟'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('لا'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white),
+            child: const Text('إلغاء'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    try {
+      await supabase.from('subscriptions').update({
+        'is_active': false,
+      }).eq('id', sub['id']);
+      if (!mounted) return;
+      showKitabiSnack(context, 'تم إلغاء الاشتراك');
+      _load();
+    } catch (e) {
+      showKitabiSnack(context, 'فشل الإلغاء');
+    }
+  }
+
+  String _daysLeft(String? expiresStr) {
+    if (expiresStr == null) return '';
+    try {
+      final expires = DateTime.parse(expiresStr);
+      final diff = expires.difference(DateTime.now()).inDays;
+      if (diff < 0) return 'منتهي';
+      if (diff == 0) return 'اليوم';
+      if (diff == 1) return 'يوم واحد';
+      return '$diff يوم';
+    } catch (_) {
+      return '';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFFFFA000),
+        foregroundColor: Colors.white,
+        elevation: 0,
+        title: Text('اشتراكات بلس (${_subs.length})',
+            style: const TextStyle(fontWeight: FontWeight.bold)),
+      ),
+      body: _loading
+          ? const Center(
+              child: CircularProgressIndicator(color: Color(0xFFFFA000)))
+          : _subs.isEmpty
+              ? const Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.card_membership,
+                          size: 80, color: Color(0xFFFFA000)),
+                      SizedBox(height: 15),
+                      Text('لا توجد اشتراكات نشطة',
+                          style: TextStyle(
+                              fontSize: 16, color: Color(0xFF555555))),
+                    ],
+                  ),
+                )
+              : RefreshIndicator(
+                  onRefresh: _load,
+                  color: const Color(0xFFFFA000),
+                  child: ListView.builder(
+                    padding: const EdgeInsets.all(12),
+                    itemCount: _subs.length,
+                    itemBuilder: (_, i) => _subCard(_subs[i]),
+                  ),
+                ),
+    );
+  }
+
+  Widget _subCard(Map<String, dynamic> sub) {
+    final name = (sub['user_name'] ?? '').toString();
+    final days = _daysLeft(sub['expires_at']);
+    final expired = days == 'منتهي';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ListTile(
+        leading: Stack(
+          children: [
+            CircleAvatar(
+              backgroundColor:
+                  expired ? Colors.grey : const Color(0xFFFFA000),
+              child: Text(
+                name.isNotEmpty ? name[0] : '؟',
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold),
+              ),
+            ),
+            Positioned(
+              bottom: 0,
+              right: 0,
+              child: Container(
+                padding: const EdgeInsets.all(3),
+                decoration: BoxDecoration(
+                  color: expired ? Colors.grey : const Color(0xFFFFA000),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 2),
+                ),
+                child: Icon(
+                  expired ? Icons.timer_off : Icons.workspace_premium,
+                  color: Colors.white,
+                  size: 10,
+                ),
+              ),
+            ),
+          ],
+        ),
+        title: Row(
+          children: [
+            Text(name,
+                style: const TextStyle(
+                    fontWeight: FontWeight.bold, fontSize: 14)),
+            const SizedBox(width: 6),
+            if (!expired)
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFA000),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: const Text('PLUS',
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 9,
+                        fontWeight: FontWeight.bold)),
+              ),
+          ],
+        ),
+        subtitle: Text(
+          'متبقي: $days',
+          style: TextStyle(
+            fontSize: 12,
+            color: expired ? Colors.red : const Color(0xFF555555),
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        trailing: IconButton(
+          onPressed: () => _cancelSubscription(sub),
+          icon: const Icon(Icons.cancel, color: Colors.red, size: 22),
+          tooltip: 'إلغاء',
+        ),
+      ),
+    );
+  }
+}
+
+// ============ Manage Roles Screen ============
+class ManageRolesScreen extends StatefulWidget {
+  const ManageRolesScreen({super.key});
+  @override
+  State<ManageRolesScreen> createState() => _ManageRolesScreenState();
+}
+
+class _ManageRolesScreenState extends State<ManageRolesScreen> {
+  List<Map<String, dynamic>> _users = [];
+  bool _loading = true;
+  String _search = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    try {
+      final data = await supabase
+          .from('users')
+          .select()
+          .order('created_at', ascending: false);
+      if (!mounted) return;
+      setState(() {
+        _users = List<Map<String, dynamic>>.from(data);
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _sendRoleRequest(Map<String, dynamic> user) async {
+    String? newRole;
+    final msgCtrl = TextEditingController();
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSt) => AlertDialog(
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20)),
+          title: const Row(
+            children: [
+              Icon(Icons.shield, color: Color(0xFF7B1FA2)),
+              SizedBox(width: 10),
+              Text('تعيين دور',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('اختر الدور لـ "${user['name']}":',
+                  style: const TextStyle(fontSize: 14)),
+              const SizedBox(height: 15),
+              _roleOption('teacher', 'معلم', Icons.school,
+                  const Color(0xFF00897B), newRole, (r) {
+                newRole = r;
+                setSt(() {});
+              }),
+              const SizedBox(height: 8),
+              _roleOption('moderator', 'مشرف', Icons.shield,
+                  const Color(0xFF7B1FA2), newRole, (r) {
+                newRole = r;
+                setSt(() {});
+              }),
+              const SizedBox(height: 8),
+              _roleOption('admin', 'مدير',
+                  Icons.admin_panel_settings, const Color(0xFFD32F2F),
+                  newRole, (r) {
+                newRole = r;
+                setSt(() {});
+              }),
+              const SizedBox(height: 15),
+              TextField(
+                controller: msgCtrl,
+                maxLines: 2,
+                decoration: InputDecoration(
+                  labelText: 'رسالة (اختياري)',
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('إلغاء'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (newRole == null) {
+                  showKitabiSnack(context, 'اختر دوراً');
+                  return;
+                }
+                Navigator.pop(ctx, true);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF7B1FA2),
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('إرسال'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (confirm != true || newRole == null) return;
+
+    try {
+      await supabase.from('role_requests').insert({
+        'user_name': user['name'],
+        'requested_role': newRole,
+        'message': msgCtrl.text.trim().isEmpty
+            ? 'طلب تعيين كـ ${RoleHelper.roleLabel(newRole)}'
+            : msgCtrl.text.trim(),
+        'status': 'pending',
+      });
+      if (!mounted) return;
+      showKitabiSnack(context, 'تم إرسال الطلب لـ ${user['name']}');
+    } catch (e) {
+      if (!mounted) return;
+      showKitabiSnack(context, 'فشل الإرسال');
+    }
+  }
+
+  Widget _roleOption(String value, String label, IconData icon,
+      Color color, String? current, Function(String) onSelect) {
+    final selected = current == value;
+    return GestureDetector(
+      onTap: () => onSelect(value),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: selected ? color.withOpacity(0.15) : Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: selected ? color : Colors.transparent,
+            width: 2,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: color, size: 22),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(label,
+                  style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: color,
+                      fontSize: 14)),
+            ),
+            if (selected)
+              Icon(Icons.check_circle, color: color, size: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final filtered = _search.isEmpty
+        ? _users
+        : _users
+            .where((u) => (u['name'] ?? '').toString().contains(_search))
+            .toList();
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF7B1FA2),
+        foregroundColor: Colors.white,
+        elevation: 0,
+        title: const Text('إدارة الصلاحيات',
+            style: TextStyle(fontWeight: FontWeight.bold)),
+      ),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: TextField(
+              onChanged: (v) => setState(() => _search = v),
+              decoration: InputDecoration(
+                hintText: 'ابحث عن مستخدم...',
+                prefixIcon: const Icon(Icons.search),
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            child: _loading
+                ? const Center(
+                    child: CircularProgressIndicator(
+                        color: Color(0xFF7B1FA2)))
+                : filtered.isEmpty
+                    ? const Center(child: Text('لا يوجد مستخدمون'))
+                    : RefreshIndicator(
+                        onRefresh: _load,
+                        color: const Color(0xFF7B1FA2),
+                        child: ListView.builder(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          itemCount: filtered.length,
+                          itemBuilder: (_, i) => _userCard(filtered[i]),
+                        ),
+                      ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _userCard(Map<String, dynamic> user) {
+    final role = user['role'] ?? 'student';
+    final color = RoleHelper.roleColor(role);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 3)),
+        ],
+      ),
+      child: ListTile(
+        leading: Stack(
+          children: [
+            CircleAvatar(
+              backgroundColor: color,
+              child: Text(
+                (user['name'] ?? '؟').toString().substring(0, 1),
+                style: const TextStyle(
+                    color: Colors.white, fontWeight: FontWeight.bold),
+              ),
+            ),
+            Positioned(
+              bottom: 0,
+              right: 0,
+              child: Container(
+                padding: const EdgeInsets.all(2),
+                decoration: BoxDecoration(
+                  color: color,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 1.5),
+                ),
+                child: Icon(RoleHelper.roleIcon(role),
+                    color: Colors.white, size: 10),
+              ),
+            ),
+          ],
+        ),
+        title: Text(user['name'] ?? '',
+            style: const TextStyle(
+                fontWeight: FontWeight.bold, fontSize: 14)),
+        subtitle: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(RoleHelper.roleLabel(role),
+                  style: TextStyle(
+                      color: color,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold)),
+            ),
+            const SizedBox(width: 6),
+            Text('${user['grade'] ?? ''}',
+                style: const TextStyle(fontSize: 11)),
+          ],
+        ),
+        trailing: IconButton(
+          onPressed: () => _sendRoleRequest(user),
+          icon: const Icon(Icons.edit, color: Color(0xFF7B1FA2), size: 22),
+          tooltip: 'تعيين دور',
+        ),
+      ),
+    );
+  }
+}
+
+// ============ Role Requests Screen (للمستخدم) ============
+class RoleRequestsScreen extends StatefulWidget {
+  final String userName;
+  const RoleRequestsScreen({super.key, required this.userName});
+
+  @override
+  State<RoleRequestsScreen> createState() => _RoleRequestsScreenState();
+}
+
+class _RoleRequestsScreenState extends State<RoleRequestsScreen> {
+  List<Map<String, dynamic>> _requests = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    try {
+      final data = await supabase
+          .from('role_requests')
+          .select()
+          .eq('user_name', widget.userName)
+          .eq('status', 'pending')
+          .order('created_at', ascending: false);
+      if (!mounted) return;
+      setState(() {
+        _requests = List<Map<String, dynamic>>.from(data);
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _respond(Map<String, dynamic> req, bool accept) async {
+    try {
+      if (accept) {
+        await supabase.from('users').update({
+          'role': req['requested_role'],
+        }).eq('name', widget.userName);
+      }
+      await supabase.from('role_requests').update({
+        'status': accept ? 'accepted' : 'rejected',
+        'responded_at': DateTime.now().toIso8601String(),
+      }).eq('id', req['id']);
+
+      if (!mounted) return;
+      showKitabiSnack(
+          context, accept ? 'تم قبول الدور ✅' : 'تم الرفض');
+      _load();
+    } catch (e) {
+      if (!mounted) return;
+      showKitabiSnack(context, 'فشل');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF7B1FA2),
+        foregroundColor: Colors.white,
+        elevation: 0,
+        title: Text('طلباتي (${_requests.length})',
+            style: const TextStyle(fontWeight: FontWeight.bold)),
+      ),
+      body: _loading
+          ? const Center(
+              child: CircularProgressIndicator(color: Color(0xFF7B1FA2)))
+          : _requests.isEmpty
+              ? const Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.inbox,
+                          size: 80, color: Color(0xFF7B1FA2)),
+                      SizedBox(height: 15),
+                      Text('لا توجد طلبات',
+                          style: TextStyle(
+                              fontSize: 16, color: Color(0xFF555555))),
+                    ],
+                  ),
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.all(12),
+                  itemCount: _requests.length,
+                  itemBuilder: (_, i) => _requestCard(_requests[i]),
+                ),
+    );
+  }
+
+  Widget _requestCard(Map<String, dynamic> req) {
+    final role = req['requested_role'] ?? 'teacher';
+    final color = RoleHelper.roleColor(role);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withOpacity(0.3), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+              color: color.withOpacity(0.1),
+              blurRadius: 10,
+              offset: const Offset(0, 4)),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(RoleHelper.roleIcon(role),
+                    color: color, size: 24),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('دعوة لتصبح ${RoleHelper.roleLabel(role)}',
+                        style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: color)),
+                    const SizedBox(height: 4),
+                    Text(req['message'] ?? '',
+                        style: const TextStyle(
+                            fontSize: 12, color: Color(0xFF555555))),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 15),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => _respond(req, false),
+                  icon: const Icon(Icons.close, color: Colors.red, size: 18),
+                  label: const Text('رفض',
+                      style: TextStyle(
+                          color: Colors.red, fontWeight: FontWeight.bold)),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: Colors.red),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () => _respond(req, true),
+                  icon: const Icon(Icons.check, size: 18),
+                  label: const Text('قبول',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF2E7D32),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class ControlRoomScreen extends StatefulWidget {
   const ControlRoomScreen({super.key});
   @override
@@ -5209,6 +6266,62 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
             ),
           ],
         ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _bigCard('اشتراك بلس', 'إضافة',
+                  Icons.workspace_premium, const Color(0xFFFFA000),
+                  () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const AddSubscriptionScreen()),
+                );
+              }),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _bigCard('المشتركون', 'قائمة',
+                  Icons.card_membership, const Color(0xFF6A1B9A),
+                  () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const SubscriptionsListScreen()),
+                );
+              }),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _bigCard('الصلاحيات', 'إدارة',
+                  Icons.shield, const Color(0xFF7B1FA2),
+                  () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const ManageRolesScreen()),
+                );
+              }),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _bigCard('الأدوار', 'عرض',
+                  Icons.verified_user, const Color(0xFF00897B),
+                  () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const ManageRolesScreen()),
+                );
+              }),
+            ),
+          ],
+        ),
         const SizedBox(height: 20),
         Container(
           decoration: BoxDecoration(
@@ -5245,6 +6358,33 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
                   context,
                   MaterialPageRoute(
                       builder: (_) => const ManageVideosScreen()),
+                );
+              }),
+              _divider(),
+              _listItem(Icons.workspace_premium, 'إضافة اشتراك بلس',
+                  const Color(0xFFFFA000), () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const AddSubscriptionScreen()),
+                );
+              }),
+              _divider(),
+              _listItem(Icons.card_membership, 'اشتراكات بلس',
+                  const Color(0xFF6A1B9A), () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const SubscriptionsListScreen()),
+                );
+              }),
+              _divider(),
+              _listItem(Icons.shield, 'إدارة الصلاحيات',
+                  const Color(0xFF7B1FA2), () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const ManageRolesScreen()),
                 );
               }),
               _divider(),
