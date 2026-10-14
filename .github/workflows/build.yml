@@ -30,6 +30,24 @@ jobs:
         run: |
           flutter create . --platforms android --org com.kitabi --project-name kitabi
 
+      - name: Update Kotlin version
+        run: |
+          # تحديث build.gradle الرئيسي
+          if [ -f "android/build.gradle" ]; then
+            sed -i "s/ext.kotlin_version = .*/ext.kotlin_version = '2.0.21'/" android/build.gradle || true
+            grep -q "kotlin_version" android/build.gradle || sed -i "/buildscript {/a\\    ext.kotlin_version = '2.0.21'" android/build.gradle || true
+          fi
+          # تحديث settings.gradle
+          if [ -f "android/settings.gradle" ]; then
+            sed -i "s/id \"org.jetbrains.kotlin.android\" version .*/id \"org.jetbrains.kotlin.android\" version \"2.0.21\"/" android/settings.gradle || true
+          fi
+          # تحديث gradle.properties
+          if [ -f "android/gradle.properties" ]; then
+            echo "android.kotlinVersion=2.0.21" >> android/gradle.properties || true
+          fi
+          echo "--- android/build.gradle ---"
+          cat android/build.gradle || true
+
       - name: Add permissions and cleartext to AndroidManifest
         run: |
           MANIFEST="android/app/src/main/AndroidManifest.xml"
