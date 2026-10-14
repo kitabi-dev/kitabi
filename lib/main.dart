@@ -2019,7 +2019,7 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
             Expanded(
               child: _bigCard(
                 'المستخدمون',
-                '${_users.length}',
+                'عرض',
                 Icons.people_alt_rounded,
                 const Color(0xFF1565C0),
                 () => _showUsers(),
@@ -2102,7 +2102,7 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
           child: Column(
             children: [
               _listItem(Icons.group_add_rounded, 'إدارة المستخدمين',
-                  const Color(0xFF1565C0), _showUsers),
+                  const Color(0xFF1565C0), _showUsersManagement),
               _divider(),
               _listItem(Icons.campaign_rounded, 'إشعار جماعي',
                   const Color(0xFF7B1FA2), _showSendNotification),
@@ -2202,58 +2202,172 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
       height: 1, indent: 70, endIndent: 15, color: Color(0xFFF0F0F0));
 
   // ============ الحوارات ============
-  void _showUsers() {
+  Future<void> _showUsers() async {
+    List<Map<String, dynamic>> usersList = [];
+    bool loading = true;
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (_) => Container(
-        padding: const EdgeInsets.all(20),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(24),
-            topRight: Radius.circular(24),
-          ),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 50,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(2),
+      isScrollControlled: true,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSt) {
+          if (loading) {
+            supabase
+                .from('users')
+                .select()
+                .order('created_at', ascending: false)
+                .then((data) {
+              setSt(() {
+                usersList = List<Map<String, dynamic>>.from(data);
+                loading = false;
+              });
+            }).catchError((e) {
+              setSt(() => loading = false);
+            });
+          }
+          return Container(
+            height: MediaQuery.of(context).size.height * 0.75,
+            padding: const EdgeInsets.all(20),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(24),
+                topRight: Radius.circular(24),
               ),
             ),
-            const SizedBox(height: 20),
-            const Text('إدارة المستخدمين',
-                style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF1A1A1A))),
-            const SizedBox(height: 20),
-            if (_users.isEmpty)
-              const Padding(
-                padding: EdgeInsets.all(30),
-                child: Column(
+            child: Column(
+              children: [
+                Container(
+                  width: 50,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 15),
+                Row(
                   children: [
-                    Icon(Icons.people_outline,
-                        size: 60, color: Color(0xFF555555)),
-                    SizedBox(height: 12),
-                    Text('لا يوجد مستخدمون مسجلون بعد',
-                        style: TextStyle(
-                            fontSize: 14, color: Color(0xFF555555))),
-                    SizedBox(height: 6),
-                    Text('سيظهر هنا كل من يسجل في التطبيق',
-                        style: TextStyle(
-                            fontSize: 12, color: Color(0xFF888888))),
+                    const Icon(Icons.people,
+                        color: Color(0xFF1565C0), size: 24),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'المستخدمون (${usersList.length})',
+                        style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF1A1A1A)),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => setSt(() => loading = true),
+                      icon: const Icon(Icons.refresh,
+                          color: Color(0xFF1565C0)),
+                    ),
                   ],
                 ),
-              ),
-            const SizedBox(height: 10),
-          ],
-        ),
+                const SizedBox(height: 10),
+                Expanded(
+                  child: loading
+                      ? const Center(
+                          child: CircularProgressIndicator(
+                              color: Color(0xFF1565C0)),
+                        )
+                      : usersList.isEmpty
+                          ? const Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.people_outline,
+                                      size: 60, color: Color(0xFF555555)),
+                                  SizedBox(height: 12),
+                                  Text('لا يوجد مستخدمون بعد',
+                                      style: TextStyle(
+                                          fontSize: 14,
+                                          color: Color(0xFF555555))),
+                                ],
+                              ),
+                            )
+                          : ListView.separated(
+                              itemCount: usersList.length,
+                              separatorBuilder: (_, __) =>
+                                  const SizedBox(height: 10),
+                              itemBuilder: (_, i) {
+                                final u = usersList[i];
+                                final banned = u['is_banned'] == true;
+                                return Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: banned
+                                        ? Colors.red.shade50
+                                        : Colors.grey.shade50,
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(
+                                      color: banned
+                                          ? Colors.red.shade200
+                                          : Colors.grey.shade200,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      CircleAvatar(
+                                        backgroundColor:
+                                            banned ? Colors.red : const Color(0xFF1565C0),
+                                        child: Text(
+                                          (u['name'] ?? '؟')
+                                              .toString()
+                                              .substring(0, 1),
+                                          style: const TextStyle(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.bold),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(u['name'] ?? '',
+                                                style: const TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 14,
+                                                    color: Color(0xFF1A1A1A))),
+                                            Text(
+                                                '${u['grade'] ?? ''} • ${u['muraqaba'] ?? ''}',
+                                                style: const TextStyle(
+                                                    fontSize: 11,
+                                                    color: Color(0xFF555555))),
+                                          ],
+                                        ),
+                                      ),
+                                      if (banned)
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 8, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: Colors.red,
+                                            borderRadius:
+                                                BorderRadius.circular(8),
+                                          ),
+                                          child: const Text('محظور',
+                                              style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.bold)),
+                                        ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
@@ -2368,10 +2482,21 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
     );
   }
 
-  void _changePassword() {
+  Future<void> _changePassword() async {
     final oldPassCtrl = TextEditingController();
     final newPassCtrl = TextEditingController();
-
+    String currentPassword = 'العلم نور';
+    try {
+      final data = await supabase
+          .from('admin_settings')
+          .select('admin_password')
+          .eq('id', 1)
+          .single();
+      currentPassword = data['admin_password'] ?? 'العلم نور';
+    } catch (e) {
+      debugPrint('Load password error: \$e');
+    }
+    if (!mounted) return;
     showDialog(
       context: context,
       builder: (dialogCtx) => AlertDialog(
@@ -2418,17 +2543,27 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
-            onPressed: () {
-              if (oldPassCtrl.text.trim() != 'العلم نور') {
+            onPressed: () async {
+              if (oldPassCtrl.text.trim() != currentPassword) {
                 showKitabiSnack(context, 'كلمة السر الحالية خاطئة');
                 return;
               }
               if (newPassCtrl.text.trim().length < 4) {
-                showKitabiSnack(context, 'كلمة السر قصيرة (4 أحرف على الأقل)');
+                showKitabiSnack(context, 'كلمة السر قصيرة');
                 return;
               }
               Navigator.pop(dialogCtx);
-              showKitabiSnack(context, 'تم تغيير كلمة السر بنجاح');
+              try {
+                await supabase.from('admin_settings').update({
+                  'admin_password': newPassCtrl.text.trim(),
+                  'updated_at': DateTime.now().toIso8601String(),
+                }).eq('id', 1);
+                if (!mounted) return;
+                showKitabiSnack(context, 'تم تغيير كلمة السر بنجاح');
+              } catch (e) {
+                if (!mounted) return;
+                showKitabiSnack(context, 'فشل تغيير كلمة السر');
+              }
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFEF6C00),
@@ -2440,34 +2575,186 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
       ),
     );
   }
-}
 
-// ============ Custom SnackBar (من اليمين، حواف من اليسار فقط) ============
-void showKitabiSnack(BuildContext context, String message) {
-  ScaffoldMessenger.of(context).clearSnackBars();
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(
-      content: Text(
-        message,
-        style: const TextStyle(
-          color: Colors.white,
-          fontWeight: FontWeight.bold,
-          fontSize: 14,
-        ),
+  Future<void> _showUsersManagement() async {
+    List<Map<String, dynamic>> usersList = [];
+    bool loading = true;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSt) {
+          if (loading) {
+            supabase
+                .from('users')
+                .select()
+                .order('created_at', ascending: false)
+                .then((data) {
+              setSt(() {
+                usersList = List<Map<String, dynamic>>.from(data);
+                loading = false;
+              });
+            }).catchError((e) {
+              setSt(() => loading = false);
+            });
+          }
+          return Container(
+            height: MediaQuery.of(context).size.height * 0.8,
+            padding: const EdgeInsets.all(20),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(24),
+                topRight: Radius.circular(24),
+              ),
+            ),
+            child: Column(
+              children: [
+                Container(
+                  width: 50,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 15),
+                Row(
+                  children: [
+                    const Icon(Icons.manage_accounts,
+                        color: Color(0xFF1565C0), size: 24),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'إدارة المستخدمين (${usersList.length})',
+                        style: const TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF1A1A1A)),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => setSt(() => loading = true),
+                      icon: const Icon(Icons.refresh,
+                          color: Color(0xFF1565C0)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Expanded(
+                  child: loading
+                      ? const Center(
+                          child: CircularProgressIndicator(
+                              color: Color(0xFF1565C0)),
+                        )
+                      : usersList.isEmpty
+                          ? const Center(
+                              child: Text('لا يوجد مستخدمون',
+                                  style: TextStyle(
+                                      color: Color(0xFF555555))))
+                          : ListView.separated(
+                              itemCount: usersList.length,
+                              separatorBuilder: (_, __) =>
+                                  const SizedBox(height: 10),
+                              itemBuilder: (_, i) {
+                                final u = usersList[i];
+                                final banned = u['is_banned'] == true;
+                                return Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: banned
+                                        ? Colors.red.shade50
+                                        : Colors.grey.shade50,
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(
+                                      color: banned
+                                          ? Colors.red.shade200
+                                          : Colors.grey.shade200,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      CircleAvatar(
+                                        backgroundColor: banned
+                                            ? Colors.red
+                                            : const Color(0xFF1565C0),
+                                        child: Text(
+                                          (u['name'] ?? '?')
+                                              .toString()
+                                              .substring(0, 1),
+                                          style: const TextStyle(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.bold),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(u['name'] ?? '',
+                                                style: const TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 14,
+                                                    color: Color(0xFF1A1A1A))),
+                                            Text(
+                                                '${u['grade'] ?? ''} - ${u['muraqaba'] ?? ''}',
+                                                style: const TextStyle(
+                                                    fontSize: 11,
+                                                    color: Color(0xFF555555))),
+                                          ],
+                                        ),
+                                      ),
+                                      IconButton(
+                                        onPressed: () async {
+                                          try {
+                                            await supabase
+                                                .from('users')
+                                                .update({
+                                              'is_banned': !banned,
+                                              'ban_reason': !banned
+                                                  ? 'مخالفة سياسة التطبيق'
+                                                  : null,
+                                            }).eq('id', u['id']);
+                                            setSt(() {
+                                              usersList[i]['is_banned'] =
+                                                  !banned;
+                                            });
+                                            if (!mounted) return;
+                                            showKitabiSnack(
+                                                context,
+                                                !banned
+                                                    ? 'تم حظر المستخدم'
+                                                    : 'تم إلغاء الحظر');
+                                          } catch (e) {
+                                            showKitabiSnack(
+                                                context, 'فشل التحديث');
+                                          }
+                                        },
+                                        icon: Icon(
+                                          banned
+                                              ? Icons.lock_open
+                                              : Icons.block,
+                                          color: banned
+                                              ? Colors.green
+                                              : Colors.red,
+                                          size: 22,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
+                ),
+              ],
+            ),
+          );
+        },
       ),
-      backgroundColor: const Color(0xFF2C2C2E),
-      behavior: SnackBarBehavior.floating,
-      margin: const EdgeInsets.only(left: 30, right: 0, bottom: 95),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      duration: const Duration(seconds: 2),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(20),
-          bottomLeft: Radius.circular(20),
-          topRight: Radius.zero,
-          bottomRight: Radius.zero,
-        ),
-      ),
-    ),
-  );
+    );
+  }
 }
