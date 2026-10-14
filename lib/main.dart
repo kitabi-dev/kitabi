@@ -2536,7 +2536,7 @@ class _SheetsListScreenState extends State<SheetsListScreen> {
         query = query.eq('subject', widget.subject!);
       }
 
-      final data = await query.order('created_at', ascending: false);
+      final data = await query;
       if (!mounted) return;
       setState(() {
         _sheets = List<Map<String, dynamic>>.from(data);
@@ -2735,14 +2735,11 @@ class _ManageBooksScreenState extends State<ManageBooksScreen> {
   Future<void> _loadBooks() async {
     setState(() => _loading = true);
     try {
-      var query = supabase
-          .from('books')
-          .select()
-          .order('created_at', ascending: false);
+      var query = supabase.from('books').select();
       if (_filter != 'all') {
         query = query.eq('category', _filter);
       }
-      final data = await query;
+      final data = await query.order('created_at', ascending: false);
       if (!mounted) return;
       setState(() {
         _books = List<Map<String, dynamic>>.from(data);
