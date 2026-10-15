@@ -5778,7 +5778,7 @@ class _TeacherAIScreenState extends State<TeacherAIScreen> {
         return 'خدمة المعلم غير مفعّلة. تواصل مع الإدارة.';
       }
 
-      final model = 'google/gemma-4-31b-it:free';
+      final model = 'google/gemma-4-26b-a4b-it:free';
 
       final sys = 'أنت معلم ذكي اسمك معلم كتابي، تعمل في تطبيق كتابي التعليمي الليبي. '
           'الطالب اسمه: $_userName. صفه: $_userGrade. '
@@ -5815,11 +5815,12 @@ class _TeacherAIScreenState extends State<TeacherAIScreen> {
         }
         return 'لم أفهم الرد. جرب مرة أخرى.';
       } else if (response.statusCode == 429) {
-        return 'المعلم مشغول حالياً. جرب بعد دقيقة.';
+        // نجرب نموذج بديل
+        return await _tryAlternativeModel(question, apiKey, sys);
       } else if (response.statusCode == 401) {
         return 'مفتاح المعلم غير صحيح.';
-      } else if (response.statusCode == 503) {
-        return 'الخدمة غير متاحة مؤقتاً.';
+      } else if (response.statusCode == 503 || response.statusCode == 404) {
+        return await _tryAlternativeModel(question, apiKey, sys);
       } else {
         return 'حدث خطأ (${response.statusCode}). جرب لاحقاً.';
       }
@@ -5828,6 +5829,57 @@ class _TeacherAIScreenState extends State<TeacherAIScreen> {
       return 'تعذر الاتصال بالمعلم. تحقق من الإنترنت.';
     }
   }
+
+  Future<String> _tryAlternativeModel(
+      String question, String apiKey, String sys) async {
+    final models = [
+      'google/gemma-4-26b-a4b-it:free',
+      'nvidia/nemotron-3.5-lightning:free',
+      'liquid/lfm-2.5-2.6b:free',
+      'openrouter/free',
+    ];
+
+    for (var model in models) {
+      try {
+        final response = await http.post(
+          Uri.parse('https://openrouter.ai/api/v1/chat/completions'),
+          headers: {
+            'Authorization': 'Bearer $apiKey',
+            'Content-Type': 'application/json',
+            'HTTP-Referer': 'https://kitabi.app',
+            'X-Title': 'Kitabi',
+          },
+          body: jsonEncode({
+            'model': model,
+            'messages': [
+              {'role': 'system', 'content': sys},
+              {'role': 'user', 'content': question},
+            ],
+            'temperature': 0.7,
+            'max_tokens': 1000,
+          }),
+        );
+
+        if (response.statusCode == 200) {
+          final data = jsonDecode(utf8.decode(response.bodyBytes));
+          if (data['choices'] != null &&
+              data['choices'] is List &&
+              data['choices'].isNotEmpty) {
+            final msg = data['choices'][0]['message'];
+            if (msg != null && msg['content'] != null) {
+              return msg['content'].toString();
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint('Alt model error: $e');
+        continue;
+      }
+    }
+
+    return 'المعلم مشغول حالياً. جرب بعد دقيقة.';
+  }
+
 
   Future<void> _clearChat() async {
     final confirm = await showDialog<bool>(
