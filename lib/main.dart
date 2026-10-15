@@ -1377,6 +1377,38 @@ class LibraryTab extends StatelessWidget {
     'الاجتماعيات': Color(0xFFD32F2F),
   };
 
+  IconData _iconFromName(String name) {
+    final map = {
+      'calculate': Icons.calculate_rounded,
+      'translate': Icons.translate_rounded,
+      'language': Icons.language_rounded,
+      'mosque': Icons.mosque_rounded,
+      'computer': Icons.computer_rounded,
+      'science': Icons.science_rounded,
+      'public': Icons.public_rounded,
+      'biotech': Icons.biotech_rounded,
+      'history_edu': Icons.history_edu_rounded,
+      'groups': Icons.groups_rounded,
+      'flag': Icons.flag_rounded,
+      'sports_soccer': Icons.sports_soccer_rounded,
+      'psychology': Icons.psychology_rounded,
+      'bar_chart': Icons.bar_chart_rounded,
+      'menu_book': Icons.menu_book_rounded,
+      'edit': Icons.edit_rounded,
+      'rate_review': Icons.rate_review_rounded,
+    };
+    return map[name] ?? Icons.book_rounded;
+  }
+
+  Color _colorFromHex(String hex) {
+    try {
+      hex = hex.replaceAll('#', '');
+      return Color(int.parse('FF$hex', radix: 16));
+    } catch (_) {
+      return const Color(0xFF1565C0);
+    }
+  }
+
   static const List<Map<String, dynamic>> _grades = [
     {'name': 'أول ابتدائي', 'icon': Icons.looks_one, 'color': 0xFF42A5F5, 'locked': false},
     {'name': 'ثاني ابتدائي', 'icon': Icons.looks_two, 'color': 0xFF42A5F5, 'locked': false},
@@ -1386,10 +1418,10 @@ class LibraryTab extends StatelessWidget {
     {'name': 'سادس ابتدائي', 'icon': Icons.looks_6, 'color': 0xFF66BB6A, 'locked': false},
     {'name': 'أول إعدادي', 'icon': Icons.school, 'color': 0xFFFFA726, 'locked': false},
     {'name': 'ثاني إعدادي', 'icon': Icons.school, 'color': 0xFFFFA726, 'locked': false},
-    {'name': 'ثالث إعدادي', 'icon': Icons.school, 'color': 0xFFEF6C00, 'locked': true},
-    {'name': 'أولى ثانوي', 'icon': Icons.workspace_premium, 'color': 0xFF7E57C2, 'locked': true},
-    {'name': 'ثانية ثانوي', 'icon': Icons.workspace_premium, 'color': 0xFF5E35B1, 'locked': true},
-    {'name': 'ثالثة ثانوي', 'icon': Icons.workspace_premium, 'color': 0xFF4527A0, 'locked': true},
+    {'name': 'ثالث إعدادي', 'icon': Icons.school, 'color': 0xFFEF6C00, 'locked': false},
+    {'name': 'أولى ثانوي', 'icon': Icons.workspace_premium, 'color': 0xFF7E57C2, 'locked': false},
+    {'name': 'ثانية ثانوي', 'icon': Icons.workspace_premium, 'color': 0xFF5E35B1, 'locked': false},
+    {'name': 'ثالثة ثانوي', 'icon': Icons.workspace_premium, 'color': 0xFF4527A0, 'locked': false},
   ];
 
   @override
@@ -1574,6 +1606,195 @@ class LibraryTab extends StatelessWidget {
 }
 
 // ============ Grade Subjects Screen ============
+// ============ Section Select Screen ============
+class SectionSelectScreen extends StatelessWidget {
+  final String gradeName;
+  final List<String> sections;
+
+  const SectionSelectScreen({
+    super.key,
+    required this.gradeName,
+    required this.sections,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF5E35B1),
+        foregroundColor: Colors.white,
+        elevation: 0,
+        title: Text(gradeName,
+            style: const TextStyle(fontWeight: FontWeight.bold)),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            const SizedBox(height: 20),
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: const Color(0xFF5E35B1).withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.school,
+                  size: 60, color: Color(0xFF5E35B1)),
+            ),
+            const SizedBox(height: 20),
+            const Text('اختر القسم',
+                style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1A1A1A))),
+            const SizedBox(height: 8),
+            Text('صف $gradeName يحتوي على أكثر من قسم',
+                style: const TextStyle(
+                    fontSize: 14, color: Color(0xFF555555))),
+            const SizedBox(height: 30),
+            ...sections.map((section) => _sectionCard(context, section)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _sectionCard(BuildContext context, String section) {
+    final isScientific = section == 'علمي';
+    final color = isScientific
+        ? const Color(0xFF1565C0)
+        : const Color(0xFF7B1FA2);
+    final icon = isScientific ? Icons.science : Icons.menu_book;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.15),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: () async {
+            // نجيب المواد من subjects
+            try {
+              final data = await supabase
+                  .from('subjects')
+                  .select()
+                  .eq('grade', gradeName)
+                  .eq('section', section)
+                  .order('display_order', ascending: true);
+              if (!context.mounted) return;
+              final subjects = data
+                  .map((e) => e['subject_name'].toString())
+                  .toList();
+              final icons = <String, IconData>{};
+              final colors = <String, Color>{};
+              for (var item in data) {
+                final name = item['subject_name'].toString();
+                icons[name] = _iconFromName(item['icon_name'].toString());
+                colors[name] = _colorFromHex(item['color'].toString());
+              }
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => GradeSubjectsScreen(
+                    gradeName: '$gradeName - $section',
+                    subjects: subjects,
+                    icons: icons,
+                    colors: colors,
+                  ),
+                ),
+              );
+            } catch (e) {
+              debugPrint('Load subjects error: $e');
+            }
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(15),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Icon(icon, color: color, size: 36),
+                ),
+                const SizedBox(width: 15),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('القسم $section',
+                          style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: color)),
+                      const SizedBox(height: 4),
+                      Text(
+                        isScientific
+                            ? 'العلوم + الرياضيات + الفيزياء'
+                            : 'الآداب + اللغات + الفلسفة',
+                        style: const TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFF555555)),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(Icons.arrow_back_ios, color: color, size: 18),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  IconData _iconFromName(String name) {
+    final map = {
+      'calculate': Icons.calculate_rounded,
+      'translate': Icons.translate_rounded,
+      'language': Icons.language_rounded,
+      'mosque': Icons.mosque_rounded,
+      'computer': Icons.computer_rounded,
+      'science': Icons.science_rounded,
+      'public': Icons.public_rounded,
+      'biotech': Icons.biotech_rounded,
+      'history_edu': Icons.history_edu_rounded,
+      'groups': Icons.groups_rounded,
+      'flag': Icons.flag_rounded,
+      'sports_soccer': Icons.sports_soccer_rounded,
+      'psychology': Icons.psychology_rounded,
+      'bar_chart': Icons.bar_chart_rounded,
+      'menu_book': Icons.menu_book_rounded,
+      'edit': Icons.edit_rounded,
+      'rate_review': Icons.rate_review_rounded,
+    };
+    return map[name] ?? Icons.book_rounded;
+  }
+
+  Color _colorFromHex(String hex) {
+    try {
+      hex = hex.replaceAll('#', '');
+      return Color(int.parse('FF$hex', radix: 16));
+    } catch (_) {
+      return const Color(0xFF1565C0);
+    }
+  }
+}
+
 class GradeSubjectsScreen extends StatelessWidget {
   final String gradeName;
   final List<String> subjects;
@@ -3520,7 +3741,8 @@ class _ManageBooksScreenState extends State<ManageBooksScreen> {
                           fontWeight: FontWeight.bold,
                           color: Color(0xFF1A1A1A))),
                   const SizedBox(height: 4),
-                  Text('${book['grade']} • ${book['subject']}',
+                  Text(
+                      '${book['grade']}${book['section'] != null ? ' - ${book['section']}' : ''} • ${book['subject']}',
                       style: const TextStyle(
                           fontSize: 11, color: Color(0xFF555555))),
                   const SizedBox(height: 6),
@@ -6199,9 +6421,43 @@ class _ManageVideosScreenState extends State<ManageVideosScreen> {
                         .toList(),
                     onChanged: uploading
                         ? null
-                        : (v) => setSt(
-                            () => selectedGrade = v ?? selectedGrade),
+                        : (v) => setSt(() {
+                              selectedGrade = v ?? selectedGrade;
+                              // إذا اختر صف ثانوي → نعرض القسم
+                              if (selectedGrade == 'ثانية ثانوي' ||
+                                  selectedGrade == 'ثالثة ثانوي') {
+                                if (selectedSection.isEmpty) {
+                                  selectedSection = 'علمي';
+                                }
+                              } else {
+                                selectedSection = '';
+                              }
+                            }),
                   ),
+                  if (selectedGrade == 'ثانية ثانوي' ||
+                      selectedGrade == 'ثالثة ثانوي') ...[
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      value: selectedSection.isEmpty
+                          ? 'علمي'
+                          : selectedSection,
+                      decoration: InputDecoration(
+                        labelText: 'القسم',
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                      ),
+                      items: const [
+                        DropdownMenuItem(
+                            value: 'علمي', child: Text('القسم العلمي')),
+                        DropdownMenuItem(
+                            value: 'أدبي', child: Text('القسم الأدبي')),
+                      ],
+                      onChanged: uploading
+                          ? null
+                          : (v) => setSt(
+                              () => selectedSection = v ?? 'علمي'),
+                    ),
+                  ],
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
                     value: selectedSubject,
@@ -10647,6 +10903,7 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
     String selectedGrade = 'أول ابتدائي';
     String selectedSubject = 'الرياضيات';
     String selectedCategory = 'book';
+    String selectedSection = '';
     List<XFile> pickedImages = [];
     XFile? coverImage;
     bool uploading = false;
@@ -11024,6 +11281,9 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
                           'title': titleCtrl.text.trim(),
                           'grade': selectedGrade,
                           'subject': selectedSubject,
+                          'section': selectedSection.isEmpty
+                              ? null
+                              : selectedSection,
                           'book_type': 'images',
                           'category': selectedCategory,
                           'image_urls': uploadedUrls,
