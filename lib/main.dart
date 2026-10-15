@@ -2603,9 +2603,12 @@ class _AccountTabState extends State<AccountTab> {
 
   Future<void> _loadDarkMode() async {
     final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getBool('dark_mode') ?? false;
+    // نحدّث Notifier + State
+    darkModeNotifier.value = saved;
     if (!mounted) return;
     setState(() {
-      _darkMode = prefs.getBool('dark_mode') ?? false;
+      _darkMode = saved;
     });
   }
 
@@ -12366,6 +12369,1339 @@ class _GoalsScreenState extends State<GoalsScreen> {
   }
 }
 
+// ============ Create Quiz Screen ============
+class CreateQuizScreen extends StatefulWidget {
+  const CreateQuizScreen({super.key});
+  @override
+  State<CreateQuizScreen> createState() => _CreateQuizScreenState();
+}
+
+class _CreateQuizScreenState extends State<CreateQuizScreen> {
+  final _titleCtrl = TextEditingController();
+  String? _selectedGrade;
+  String? _selectedSubject;
+  int _duration = 30;
+  int _perQuestionTime = 60;
+  final List<Map<String, dynamic>> _questions = [];
+  bool _saving = false;
+
+  final List<String> _grades = [
+    'أول ابتدائي', 'ثاني ابتدائي', 'ثالث ابتدائي',
+    'رابع ابتدائي', 'خامس ابتدائي', 'سادس ابتدائي',
+    'أول إعدادي', 'ثاني إعدادي', 'ثالث إعدادي',
+    'أولى ثانوي', 'ثانية ثانوي', 'ثالثة ثانوي',
+  ];
+
+  final List<String> _subjects = [
+    'الرياضيات', 'اللغة العربية', 'اللغة الإنجليزية',
+    'التربية الإسلامية', 'الحاسوب', 'العلوم', 'الفيزياء',
+    'الكيمياء', 'الأحياء', 'التاريخ', 'الجغرافيا',
+  ];
+
+  Future<void> _addQuestion() async {
+    final qCtrl = TextEditingController();
+    final imgUrlCtrl = TextEditingController();
+    final a1 = TextEditingController();
+    final a2 = TextEditingController();
+    final a3 = TextEditingController();
+    final a4 = TextEditingController();
+    final hintCtrl = TextEditingController();
+    final explCtrl = TextEditingController();
+    final timeCtrl = TextEditingController(text: '$_perQuestionTime');
+    final marksCtrl = TextEditingController(text: '10');
+    int correct = 0;
+    XFile? pickedImage;
+    bool uploading = false;
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSt) => Dialog(
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20)),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.85,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.help_outline,
+                        color: Color(0xFFD32F2F), size: 24),
+                    const SizedBox(width: 10),
+                    Text('سؤال ${_questions.length + 1}',
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 16)),
+                    const Spacer(),
+                    IconButton(
+                      onPressed: () => Navigator.pop(ctx, false),
+                      icon: const Icon(Icons.close),
+                    ),
+                  ],
+                ),
+                const Divider(),
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // نص السؤال
+                        TextField(
+                          controller: qCtrl,
+                          maxLines: 3,
+                          decoration: InputDecoration(
+                            labelText: 'نص السؤال',
+                            prefixIcon: const Icon(Icons.question_mark),
+                            border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        // صورة السؤال
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF5F7FA),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('🖼️ صورة السؤال (اختياري)',
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12)),
+                              const SizedBox(height: 8),
+                              TextField(
+                                controller: imgUrlCtrl,
+                                decoration: InputDecoration(
+                                  labelText: 'رابط صورة',
+                                  hintText: 'https://...',
+                                  isDense: true,
+                                  border: OutlineInputBorder(
+                                      borderRadius:
+                                          BorderRadius.circular(10)),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              if (pickedImage != null)
+                                Container(
+                                  height: 80,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Image.file(
+                                    File(pickedImage.path),
+                                    fit: BoxFit.cover,
+                                  ),
+                                ),
+                              const SizedBox(height: 8),
+                              OutlinedButton.icon(
+                                onPressed: uploading
+                                    ? null
+                                    : () async {
+                                        try {
+                                          final picker = ImagePicker();
+                                          final img = await picker.pickImage(
+                                              source: ImageSource.gallery,
+                                              imageQuality: 70);
+                                          if (img != null) {
+                                            setSt(() => pickedImage = img);
+                                          }
+                                        } catch (e) {
+                                          debugPrint('Pick error: $e');
+                                        }
+                                      },
+                                icon: const Icon(Icons.image),
+                                label: Text(pickedImage == null
+                                    ? 'رفع صورة من الجهاز'
+                                    : 'تم اختيار صورة'),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor:
+                                      const Color(0xFF1565C0),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        // الخيارات
+                        TextField(
+                          controller: a1,
+                          decoration: InputDecoration(
+                            labelText: 'الخيار أ',
+                            prefixIcon: const Icon(Icons.looks_one),
+                            border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: a2,
+                          decoration: InputDecoration(
+                            labelText: 'الخيار ب',
+                            prefixIcon: const Icon(Icons.looks_two),
+                            border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: a3,
+                          decoration: InputDecoration(
+                            labelText: 'الخيار ج',
+                            prefixIcon: const Icon(Icons.looks_3),
+                            border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: a4,
+                          decoration: InputDecoration(
+                            labelText: 'الخيار د',
+                            prefixIcon: const Icon(Icons.looks_4),
+                            border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                        const SizedBox(height: 15),
+                        // الإجابة الصحيحة
+                        const Text('✅ الإجابة الصحيحة:',
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13)),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            _answerRadio('أ', 0, correct, (v) {
+                              correct = v;
+                              setSt(() {});
+                            }),
+                            _answerRadio('ب', 1, correct, (v) {
+                              correct = v;
+                              setSt(() {});
+                            }),
+                            _answerRadio('ج', 2, correct, (v) {
+                              correct = v;
+                              setSt(() {});
+                            }),
+                            _answerRadio('د', 3, correct, (v) {
+                              correct = v;
+                              setSt(() {});
+                            }),
+                          ],
+                        ),
+                        const SizedBox(height: 15),
+                        // تلميح
+                        TextField(
+                          controller: hintCtrl,
+                          maxLines: 2,
+                          decoration: InputDecoration(
+                            labelText: '💡 تلميح (اختياري)',
+                            hintText: 'مساعدة صغيرة للطالب',
+                            prefixIcon:
+                                const Icon(Icons.lightbulb_outline),
+                            border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        // شرح
+                        TextField(
+                          controller: explCtrl,
+                          maxLines: 3,
+                          decoration: InputDecoration(
+                            labelText: '📖 شرح الإجابة (اختياري)',
+                            hintText: 'اشرح سبب الإجابة الصحيحة',
+                            prefixIcon: const Icon(Icons.info_outline),
+                            border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        // وقت ونقاط
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                controller: timeCtrl,
+                                keyboardType: TextInputType.number,
+                                decoration: InputDecoration(
+                                  labelText: '⏰ الوقت (ث)',
+                                  prefixIcon:
+                                      const Icon(Icons.timer_outlined),
+                                  border: OutlineInputBorder(
+                                      borderRadius:
+                                          BorderRadius.circular(12)),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: TextField(
+                                controller: marksCtrl,
+                                keyboardType: TextInputType.number,
+                                decoration: InputDecoration(
+                                  labelText: '🎯 النقاط',
+                                  prefixIcon: const Icon(Icons.stars),
+                                  border: OutlineInputBorder(
+                                      borderRadius:
+                                          BorderRadius.circular(12)),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const Divider(),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(ctx, false),
+                        child: const Text('إلغاء'),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          if (qCtrl.text.trim().isEmpty ||
+                              a1.text.trim().isEmpty ||
+                              a2.text.trim().isEmpty) {
+                            showKitabiSnack(context,
+                                'املأ السؤال + خيارين على الأقل');
+                            return;
+                          }
+                          Navigator.pop(ctx, true);
+                        },
+                        style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFD32F2F),
+                            foregroundColor: Colors.white),
+                        child: const Text('إضافة'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    if (result == true) {
+      // نرفع الصورة إذا موجودة
+      String? imgUrl;
+      if (pickedImage != null) {
+        try {
+          final bytes = await pickedImage.readAsBytes();
+          final ext = pickedImage.path.split('.').last;
+          final fileName =
+              'quiz_${DateTime.now().millisecondsSinceEpoch}.$ext';
+          await supabase.storage
+              .from('books')
+              .uploadBinary(fileName, bytes);
+          imgUrl = supabase.storage
+              .from('books')
+              .getPublicUrl(fileName);
+        } catch (e) {
+          debugPrint('Upload error: $e');
+        }
+      } else if (imgUrlCtrl.text.trim().isNotEmpty) {
+        imgUrl = imgUrlCtrl.text.trim();
+      }
+
+      setState(() {
+        _questions.add({
+          'q': qCtrl.text.trim(),
+          'image': imgUrl,
+          'options': [
+            a1.text.trim(),
+            a2.text.trim(),
+            a3.text.trim().isEmpty ? '-' : a3.text.trim(),
+            a4.text.trim().isEmpty ? '-' : a4.text.trim(),
+          ],
+          'correct': correct,
+          'hint': hintCtrl.text.trim(),
+          'explanation': explCtrl.text.trim(),
+          'time': int.tryParse(timeCtrl.text) ?? _perQuestionTime,
+          'marks': int.tryParse(marksCtrl.text) ?? 10,
+        });
+      });
+      if (!mounted) return;
+      showKitabiSnack(context, '✅ تم إضافة السؤال');
+    }
+  }
+
+  Widget _answerRadio(String label, int value, int current,
+      Function(int) onSelect) {
+    final selected = current == value;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => onSelect(value),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          margin: const EdgeInsets.symmetric(horizontal: 3),
+          decoration: BoxDecoration(
+            color: selected
+                ? const Color(0xFF2E7D32)
+                : const Color(0xFFF0F0F0),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Center(
+            child: Text(label,
+                style: TextStyle(
+                    color: selected
+                        ? Colors.white
+                        : const Color(0xFF555555),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16)),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _save() async {
+    if (_titleCtrl.text.trim().isEmpty) {
+      showKitabiSnack(context, 'اكتب عنوان الاختبار');
+      return;
+    }
+    if (_selectedGrade == null) {
+      showKitabiSnack(context, 'اختر الصف');
+      return;
+    }
+    if (_selectedSubject == null) {
+      showKitabiSnack(context, 'اختر المادة');
+      return;
+    }
+    if (_questions.isEmpty) {
+      showKitabiSnack(context, 'أضف سؤال واحد على الأقل');
+      return;
+    }
+
+    setState(() => _saving = true);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final name = prefs.getString('user_name') ?? 'admin';
+      final totalMarks = _questions.fold<int>(
+          0, (sum, q) => sum + ((q['marks'] ?? 10) as int));
+
+      await supabase.from('quizzes').insert({
+        'title': _titleCtrl.text.trim(),
+        'subject': _selectedSubject,
+        'grade': _selectedGrade,
+        'questions': _questions,
+        'duration_min': _duration,
+        'per_question_time': _perQuestionTime,
+        'total_marks': totalMarks,
+        'created_by': name,
+      });
+
+      if (!mounted) return;
+      Navigator.pop(context, true);
+    } catch (e) {
+      debugPrint('Save quiz error: $e');
+      if (!mounted) return;
+      setState(() => _saving = false);
+      showKitabiSnack(context, 'فشل الحفظ');
+    }
+  }
+
+  @override
+  void dispose() {
+    _titleCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFFD32F2F),
+        foregroundColor: Colors.white,
+        elevation: 0,
+        title: const Text('اختبار جديد',
+            style: TextStyle(fontWeight: FontWeight.bold)),
+        actions: [
+          TextButton(
+            onPressed: _saving ? null : _save,
+            child: _saving
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                        color: Colors.white, strokeWidth: 2))
+                : const Text('حفظ',
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16)),
+          ),
+        ],
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // عنوان الاختبار
+            TextField(
+              controller: _titleCtrl,
+              decoration: InputDecoration(
+                labelText: 'عنوان الاختبار',
+                prefixIcon: const Icon(Icons.title),
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            // الصف
+            DropdownButtonFormField<String>(
+              value: _selectedGrade,
+              decoration: InputDecoration(
+                labelText: 'الصف',
+                prefixIcon: const Icon(Icons.school),
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+              items: _grades
+                  .map((g) => DropdownMenuItem(value: g, child: Text(g)))
+                  .toList(),
+              onChanged: (v) => setState(() => _selectedGrade = v),
+            ),
+            const SizedBox(height: 12),
+            // المادة
+            DropdownButtonFormField<String>(
+              value: _selectedSubject,
+              decoration: InputDecoration(
+                labelText: 'المادة',
+                prefixIcon: const Icon(Icons.book),
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+              items: _subjects
+                  .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+                  .toList(),
+              onChanged: (v) => setState(() => _selectedSubject = v),
+            ),
+            const SizedBox(height: 12),
+            // الإعدادات
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('⏰ وقت الاختبار الكامل:',
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 13)),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [15, 30, 45, 60, 90].map((m) {
+                      final selected = _duration == m;
+                      return GestureDetector(
+                        onTap: () => setState(() => _duration = m),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: selected
+                                ? const Color(0xFFD32F2F)
+                                : const Color(0xFFF0F0F0),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text('$m د',
+                              style: TextStyle(
+                                  color: selected
+                                      ? Colors.white
+                                      : const Color(0xFF555555),
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12)),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text('⏰ وقت كل سؤال (افتراضي):',
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 13)),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [30, 60, 90, 120, 180].map((s) {
+                      final selected = _perQuestionTime == s;
+                      return GestureDetector(
+                        onTap: () => setState(() => _perQuestionTime = s),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: selected
+                                ? const Color(0xFF1565C0)
+                                : const Color(0xFFF0F0F0),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text('$s ث',
+                              style: TextStyle(
+                                  color: selected
+                                      ? Colors.white
+                                      : const Color(0xFF555555),
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12)),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // قائمة الأسئلة
+            Row(
+              children: [
+                const Icon(Icons.quiz,
+                    color: Color(0xFFD32F2F), size: 22),
+                const SizedBox(width: 8),
+                Text('الأسئلة (${_questions.length})',
+                    style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1A1A1A))),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (_questions.isEmpty)
+              Container(
+                padding: const EdgeInsets.all(30),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: const Column(
+                  children: [
+                    Icon(Icons.help_outline,
+                        size: 50, color: Color(0xFF888888)),
+                    SizedBox(height: 10),
+                    Text('لا توجد أسئلة بعد',
+                        style: TextStyle(
+                            color: Color(0xFF888888), fontSize: 14)),
+                    SizedBox(height: 5),
+                    Text('اضغط + لإضافة أول سؤال',
+                        style: TextStyle(
+                            color: Color(0xFFD32F2F),
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold)),
+                  ],
+                ),
+              )
+            else
+              ..._questions.asMap().entries.map((entry) {
+                final idx = entry.key;
+                final q = entry.value;
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 10),
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: 30,
+                            height: 30,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFD32F2F),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Center(
+                              child: Text('${idx + 1}',
+                                  style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold)),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(q['q'] ?? '',
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13)),
+                          ),
+                          IconButton(
+                            onPressed: () =>
+                                setState(() => _questions.removeAt(idx)),
+                            icon: const Icon(Icons.delete,
+                                color: Colors.red, size: 20),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: List.generate(4, (i) {
+                          final isCorrect = q['correct'] == i;
+                          final label = ['أ', 'ب', 'ج', 'د'][i];
+                          return Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: isCorrect
+                                  ? const Color(0xFF2E7D32)
+                                      .withOpacity(0.15)
+                                  : const Color(0xFFF0F0F0),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              '$label: ${(q['options'] as List)[i]}',
+                              style: TextStyle(
+                                  fontSize: 11,
+                                  color: isCorrect
+                                      ? const Color(0xFF2E7D32)
+                                      : const Color(0xFF555555),
+                                  fontWeight: isCorrect
+                                      ? FontWeight.bold
+                                      : FontWeight.normal),
+                            ),
+                          );
+                        }),
+                      ),
+                      if ((q['hint'] ?? '').toString().isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            const Icon(Icons.lightbulb_outline,
+                                size: 14, color: Color(0xFFFFA000)),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text('تلميح: ${q['hint']}',
+                                  style: const TextStyle(
+                                      fontSize: 10,
+                                      color: Color(0xFF888888))),
+                            ),
+                          ],
+                        ),
+                      ],
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF1565C0)
+                                  .withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              '⏰ ${q['time'] ?? 60} ث',
+                              style: const TextStyle(
+                                  fontSize: 10,
+                                  color: Color(0xFF1565C0)),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFFA000)
+                                  .withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              '🎯 ${q['marks'] ?? 10} نقطة',
+                              style: const TextStyle(
+                                  fontSize: 10,
+                                  color: Color(0xFFFFA000)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                );
+              }),
+
+            const SizedBox(height: 20),
+            SizedBox(
+              height: 55,
+              child: ElevatedButton.icon(
+                onPressed: _addQuestion,
+                icon: const Icon(Icons.add),
+                label: const Text('إضافة سؤال',
+                    style: TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.bold)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFD32F2F),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+
+
+class _CreateQuizScreenState extends State<CreateQuizScreen> {
+  final _titleCtrl = TextEditingController();
+  String? _selectedGrade;
+  String? _selectedSubject;
+  int _duration = 30;
+  final List<Map<String, dynamic>> _questions = [];
+  bool _saving = false;
+
+  final List<String> _grades = [
+    'أول ابتدائي', 'ثاني ابتدائي', 'ثالث ابتدائي',
+    'رابع ابتدائي', 'خامس ابتدائي', 'سادس ابتدائي',
+    'أول إعدادي', 'ثاني إعدادي', 'ثالث إعدادي',
+    'أولى ثانوي', 'ثانية ثانوي', 'ثالثة ثانوي',
+  ];
+
+  final List<String> _subjects = [
+    'الرياضيات', 'اللغة العربية', 'اللغة الإنجليزية',
+    'التربية الإسلامية', 'الحاسوب', 'العلوم', 'الفيزياء',
+    'الكيمياء', 'الأحياء', 'التاريخ', 'الجغرافيا',
+  ];
+
+  Future<void> _addQuestion() async {
+    final qCtrl = TextEditingController();
+    final a1 = TextEditingController();
+    final a2 = TextEditingController();
+    final a3 = TextEditingController();
+    final a4 = TextEditingController();
+    final explCtrl = TextEditingController();
+    int correct = 0;
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSt) => AlertDialog(
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20)),
+          title: Row(
+            children: [
+              const Icon(Icons.help_outline,
+                  color: Color(0xFF1565C0)),
+              const SizedBox(width: 10),
+              Text('سؤال ${_questions.length + 1}',
+                  style: const TextStyle(fontWeight: FontWeight.bold)),
+            ],
+          ),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: qCtrl,
+                    maxLines: 3,
+                    decoration: InputDecoration(
+                      labelText: 'نص السؤال',
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: a1,
+                    decoration: InputDecoration(
+                      labelText: 'الخيار أ',
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: a2,
+                    decoration: InputDecoration(
+                      labelText: 'الخيار ب',
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: a3,
+                    decoration: InputDecoration(
+                      labelText: 'الخيار ج',
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: a4,
+                    decoration: InputDecoration(
+                      labelText: 'الخيار د',
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                  const SizedBox(height: 15),
+                  const Text('الإجابة الصحيحة:',
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 13)),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      _answerRadio('أ', 0, correct,
+                          (v) => setSt(() => correct = v)),
+                      _answerRadio('ب', 1, correct,
+                          (v) => setSt(() => correct = v)),
+                      _answerRadio('ج', 2, correct,
+                          (v) => setSt(() => correct = v)),
+                      _answerRadio('د', 3, correct,
+                          (v) => setSt(() => correct = v)),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: explCtrl,
+                    maxLines: 2,
+                    decoration: InputDecoration(
+                      labelText: 'شرح الإجابة (اختياري)',
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('إلغاء'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (qCtrl.text.trim().isEmpty ||
+                    a1.text.trim().isEmpty ||
+                    a2.text.trim().isEmpty) {
+                  showKitabiSnack(context, 'املأ السؤال + خيارين على الأقل');
+                  return;
+                }
+                Navigator.pop(ctx, true);
+              },
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1565C0),
+                  foregroundColor: Colors.white),
+              child: const Text('إضافة'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (result == true) {
+      setState(() {
+        _questions.add({
+          'q': qCtrl.text.trim(),
+          'options': [
+            a1.text.trim(),
+            a2.text.trim(),
+            a3.text.trim().isEmpty ? '-' : a3.text.trim(),
+            a4.text.trim().isEmpty ? '-' : a4.text.trim(),
+          ],
+          'correct': correct,
+          'explanation': explCtrl.text.trim(),
+        });
+      });
+      if (!mounted) return;
+      showKitabiSnack(context, 'تم إضافة السؤال');
+    }
+  }
+
+  Widget _answerRadio(String label, int value, int current,
+      Function(int) onSelect) {
+    final selected = current == value;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => onSelect(value),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          margin: const EdgeInsets.symmetric(horizontal: 3),
+          decoration: BoxDecoration(
+            color: selected
+                ? const Color(0xFF2E7D32)
+                : const Color(0xFFF0F0F0),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Center(
+            child: Text(label,
+                style: TextStyle(
+                    color: selected
+                        ? Colors.white
+                        : const Color(0xFF555555),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16)),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _save() async {
+    if (_titleCtrl.text.trim().isEmpty) {
+      showKitabiSnack(context, 'اكتب عنوان الاختبار');
+      return;
+    }
+    if (_selectedGrade == null) {
+      showKitabiSnack(context, 'اختر الصف');
+      return;
+    }
+    if (_selectedSubject == null) {
+      showKitabiSnack(context, 'اختر المادة');
+      return;
+    }
+    if (_questions.isEmpty) {
+      showKitabiSnack(context, 'أضف سؤال واحد على الأقل');
+      return;
+    }
+
+    setState(() => _saving = true);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final name = prefs.getString('user_name') ?? 'admin';
+
+      await supabase.from('quizzes').insert({
+        'title': _titleCtrl.text.trim(),
+        'subject': _selectedSubject,
+        'grade': _selectedGrade,
+        'questions': _questions,
+        'duration_min': _duration,
+        'total_marks': _questions.length * 10,
+        'created_by': name,
+      });
+
+      if (!mounted) return;
+      Navigator.pop(context, true);
+    } catch (e) {
+      debugPrint('Save quiz error: $e');
+      if (!mounted) return;
+      setState(() => _saving = false);
+      showKitabiSnack(context, 'فشل الحفظ');
+    }
+  }
+
+  @override
+  void dispose() {
+    _titleCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFFD32F2F),
+        foregroundColor: Colors.white,
+        elevation: 0,
+        title: const Text('اختبار جديد',
+            style: TextStyle(fontWeight: FontWeight.bold)),
+        actions: [
+          TextButton(
+            onPressed: _saving ? null : _save,
+            child: _saving
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                        color: Colors.white, strokeWidth: 2))
+                : const Text('حفظ',
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16)),
+          ),
+        ],
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            TextField(
+              controller: _titleCtrl,
+              decoration: InputDecoration(
+                labelText: 'عنوان الاختبار',
+                prefixIcon: const Icon(Icons.title),
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              value: _selectedGrade,
+              decoration: InputDecoration(
+                labelText: 'الصف',
+                prefixIcon: const Icon(Icons.school),
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+              items: _grades
+                  .map((g) => DropdownMenuItem(value: g, child: Text(g)))
+                  .toList(),
+              onChanged: (v) => setState(() => _selectedGrade = v),
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              value: _selectedSubject,
+              decoration: InputDecoration(
+                labelText: 'المادة',
+                prefixIcon: const Icon(Icons.book),
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+              items: _subjects
+                  .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+                  .toList(),
+              onChanged: (v) => setState(() => _selectedSubject = v),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('المدة (بالدقائق):',
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 13)),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [15, 30, 45, 60, 90].map((m) {
+                      final selected = _duration == m;
+                      return GestureDetector(
+                        onTap: () => setState(() => _duration = m),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: selected
+                                ? const Color(0xFFD32F2F)
+                                : const Color(0xFFF0F0F0),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text('$m د',
+                              style: TextStyle(
+                                  color: selected
+                                      ? Colors.white
+                                      : const Color(0xFF555555),
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12)),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            // قائمة الأسئلة
+            Row(
+              children: [
+                const Icon(Icons.quiz,
+                    color: Color(0xFFD32F2F), size: 22),
+                const SizedBox(width: 8),
+                Text('الأسئلة (${_questions.length})',
+                    style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1A1A1A))),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (_questions.isEmpty)
+              Container(
+                padding: const EdgeInsets.all(30),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: const Column(
+                  children: [
+                    Icon(Icons.help_outline,
+                        size: 50, color: Color(0xFF888888)),
+                    SizedBox(height: 10),
+                    Text('لا توجد أسئلة بعد',
+                        style: TextStyle(
+                            color: Color(0xFF888888), fontSize: 14)),
+                    SizedBox(height: 5),
+                    Text('اضغط + لإضافة أول سؤال',
+                        style: TextStyle(
+                            color: Color(0xFFD32F2F),
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold)),
+                  ],
+                ),
+              )
+            else
+              ..._questions.asMap().entries.map((entry) {
+                final idx = entry.key;
+                final q = entry.value;
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 10),
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: 30,
+                            height: 30,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFD32F2F),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Center(
+                              child: Text('${idx + 1}',
+                                  style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold)),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(q['q'] ?? '',
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13)),
+                          ),
+                          IconButton(
+                            onPressed: () =>
+                                setState(() => _questions.removeAt(idx)),
+                            icon: const Icon(Icons.delete,
+                                color: Colors.red, size: 20),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: List.generate(4, (i) {
+                          final isCorrect = q['correct'] == i;
+                          final label = ['أ', 'ب', 'ج', 'د'][i];
+                          return Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: isCorrect
+                                  ? const Color(0xFF2E7D32)
+                                      .withOpacity(0.15)
+                                  : const Color(0xFFF0F0F0),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              '$label: ${(q['options'] as List)[i]}',
+                              style: TextStyle(
+                                  fontSize: 11,
+                                  color: isCorrect
+                                      ? const Color(0xFF2E7D32)
+                                      : const Color(0xFF555555),
+                                  fontWeight: isCorrect
+                                      ? FontWeight.bold
+                                      : FontWeight.normal),
+                            ),
+                          );
+                        }),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+
+            const SizedBox(height: 20),
+            SizedBox(
+              height: 55,
+              child: ElevatedButton.icon(
+                onPressed: _addQuestion,
+                icon: const Icon(Icons.add),
+                label: const Text('إضافة سؤال',
+                    style: TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.bold)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFD32F2F),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class ControlRoomScreen extends StatefulWidget {
   final bool fromSplash;
   const ControlRoomScreen({super.key, this.fromSplash = false});
@@ -12599,7 +13935,14 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
             Expanded(
               child: _bigCard('الاختبارات', 'إدارة',
                   Icons.assignment_rounded, const Color(0xFFD32F2F),
-                  () => _showQuizzes()),
+                  () async {
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const CreateQuizScreen()),
+                );
+                if (result == true && mounted) _showQuizzes();
+              }),
             ),
             const SizedBox(width: 12),
             Expanded(
