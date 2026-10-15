@@ -5778,7 +5778,7 @@ class _TeacherAIScreenState extends State<TeacherAIScreen> {
         return 'خدمة المعلم غير مفعّلة. تواصل مع الإدارة.';
       }
 
-      final model = 'google/gemini-2.0-flash-exp:free';
+      final model = 'google/gemma-4-31b-it:free';
 
       final sys = 'أنت معلم ذكي اسمك معلم كتابي، تعمل في تطبيق كتابي التعليمي الليبي. '
           'الطالب اسمه: $_userName. صفه: $_userGrade. '
@@ -10024,10 +10024,7 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
                 );
               }),
               _divider(),
-              _listItem(Icons.settings_rounded, 'إعدادات متقدمة',
-                  const Color(0xFF283593), () {
-                showKitabiSnack(context, 'الإعدادات — قريباً');
-              }),
+
             ],
           ),
         ),
