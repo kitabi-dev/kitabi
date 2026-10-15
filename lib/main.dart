@@ -82,6 +82,14 @@ Future<void> main() async {
     anonKey: kSupabaseAnonKey,
   );
 
+  // نقرأ الوضع الليلي المحفوظ
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    darkModeNotifier.value = prefs.getBool('dark_mode') ?? false;
+  } catch (e) {
+    debugPrint('Load dark mode error: $e');
+  }
+
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
     systemNavigationBarColor: Colors.transparent,
@@ -171,38 +179,40 @@ class SubscriptionHelper {
   }
 }
 
+// ValueNotifier للوضع الليلي
+final ValueNotifier<bool> darkModeNotifier = ValueNotifier(false);
+
 class KitabiApp extends StatelessWidget {
   const KitabiApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Kitabi',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF1565C0),
-          brightness: Brightness.light,
+    return ValueListenableBuilder<bool>(
+      valueListenable: darkModeNotifier,
+      builder: (context, dark, _) => MaterialApp(
+        title: 'Kitabi',
+        debugShowCheckedModeBanner: false,
+        theme: ThemeData(
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: const Color(0xFF1565C0),
+            brightness: Brightness.light,
+          ),
+          scaffoldBackgroundColor: const Color(0xFFF5F7FA),
+          useMaterial3: true,
         ),
-        scaffoldBackgroundColor: const Color(0xFFF5F7FA),
-        useMaterial3: true,
-      ),
-      darkTheme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF1565C0),
-          brightness: Brightness.dark,
+        darkTheme: ThemeData(
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: const Color(0xFF1565C0),
+            brightness: Brightness.dark,
+          ),
+          useMaterial3: true,
         ),
-        useMaterial3: true,
+        themeMode: dark ? ThemeMode.dark : ThemeMode.light,
+        home: const SplashScreen(),
       ),
-      themeMode: ThemeMode.system,
-      home: const SplashScreen(),
     );
   }
 }
-
-// ============ Splash Screen ============
-
-
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -1002,7 +1012,13 @@ class HomeTab extends StatelessWidget {
                 _quickBtn(context, 'الدورات', Icons.school_rounded,
                     const LinearGradient(
                         colors: [Color(0xFF00897B), Color(0xFF26A69A)]),
-                    () => showKitabiSnack(context, 'الدورات — قريباً')),
+                    () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const CoursesScreen()),
+                  );
+                }),
                 _quickBtn(context, 'المعلم الذكي', Icons.smart_toy_rounded,
                     const LinearGradient(
                         colors: [Color(0xFF7B1FA2), Color(0xFFAB47BC)]),
@@ -2576,11 +2592,21 @@ class _AccountTabState extends State<AccountTab> {
   int _level = 1;
   int _achievements = 0;
   int _pendingRequests = 0;
+  bool _darkMode = false;
 
   @override
   void initState() {
     super.initState();
     _load();
+    _loadDarkMode();
+  }
+
+  Future<void> _loadDarkMode() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() {
+      _darkMode = prefs.getBool('dark_mode') ?? false;
+    });
   }
 
   Future<void> _loadPendingRequests() async {
@@ -2814,25 +2840,61 @@ class _AccountTabState extends State<AccountTab> {
               child: Column(
                 children: [
                   _menuItem(Icons.person_outline, 'معلوماتي الشخصية',
-                      const Color(0xFF1565C0),
-                      () => showKitabiSnack(context, 'معلوماتي — قريباً')),
-                  _menuDivider(),
-                  _menuItem(Icons.track_changes, 'أهدافي التعليمية',
-                      const Color(0xFF66BB6A),
-                      () => showKitabiSnack(context, 'أهدافي — قريباً')),
-                  _menuDivider(),
-                  _menuItem(Icons.notifications_none, 'إشعاراتي',
-                      const Color(0xFFFFA726),
-                      () => showKitabiSnack(context, 'الإشعارات — قريباً')),
-                  _menuDivider(),
-                  _menuItem(Icons.dark_mode_outlined,
-                      'المظهر (الوضع الليلي)', const Color(0xFF7E57C2), () {
-                    showKitabiSnack(context, 'قريباً في الإصدار القادم');
+                      const Color(0xFF1565C0), () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const PersonalInfoScreen()),
+                    ).then((_) => _load());
                   }),
                   _menuDivider(),
+                  _menuItem(Icons.track_changes, 'أهدافي التعليمية',
+                      const Color(0xFF66BB6A), () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const GoalsScreen()),
+                    );
+                  }),
+                  _menuDivider(),
+
+                  ListTile(
+                    leading: Container(
+                      padding: const EdgeInsets.all(9),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF7E57C2).withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.dark_mode_outlined,
+                          color: Color(0xFF7E57C2), size: 22),
+                    ),
+                    title: const Text('المظهر (الوضع الليلي)',
+                        style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                            color: Color(0xFF1A1A1A))),
+                    trailing: Switch(
+                      value: _darkMode,
+                      onChanged: (v) async {
+                        setState(() => _darkMode = v);
+                        // نحدث التطبيق كامل فوراً
+                        darkModeNotifier.value = v;
+                        final prefs =
+                            await SharedPreferences.getInstance();
+                        await prefs.setBool('dark_mode', v);
+                        if (!mounted) return;
+                        showKitabiSnack(
+                            context,
+                            v ? 'تم تفعيل الوضع الليلي' : 'تم إلغاء الوضع الليلي');
+                      },
+                      activeColor: const Color(0xFF7E57C2),
+                    ),
+                  ),
+                  _menuDivider(),
                   _menuItem(Icons.help_outline, 'المساعدة والدعم',
-                      const Color(0xFF26A69A),
-                      () => showKitabiSnack(context, 'المساعدة — قريباً')),
+                      const Color(0xFF26A69A), () {
+                    _showHelpDialog();
+                  }),
                   _menuDivider(),
                   _menuItem(Icons.info_outline, 'عن التطبيق',
                       const Color(0xFF5E35B1), () {
@@ -2993,6 +3055,204 @@ class _AccountTabState extends State<AccountTab> {
 
   Widget _menuDivider() => const Divider(
       height: 1, indent: 70, endIndent: 15, color: Color(0xFFF0F0F0));
+
+  void _showHelpDialog() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => Container(
+        padding: const EdgeInsets.all(20),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(24),
+            topRight: Radius.circular(24),
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Center(
+              child: Container(
+                width: 50,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Row(
+              children: [
+                Icon(Icons.help_outline,
+                    color: Color(0xFF26A69A), size: 28),
+                SizedBox(width: 10),
+                Text('المساعدة والدعم',
+                    style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1A1A1A))),
+              ],
+            ),
+            const SizedBox(height: 20),
+            _helpItem(
+              Icons.phone,
+              'اتصل بنا',
+              '+218 92 225 1374',
+              const Color(0xFF00897B),
+              () => showKitabiSnack(context, 'اتصل: 0922251374'),
+            ),
+            const SizedBox(height: 10),
+            _helpItem(
+              Icons.email,
+              'راسلنا',
+              'support@kitabi.app',
+              const Color(0xFF1565C0),
+              () => showKitabiSnack(context, 'أرسل: support@kitabi.app'),
+            ),
+            const SizedBox(height: 10),
+            _helpItem(
+              Icons.question_answer,
+              'الأسئلة الشائعة',
+              'إجابات على أسئلتك',
+              const Color(0xFF7B1FA2),
+              () => _showFAQ(),
+            ),
+            const SizedBox(height: 10),
+            _helpItem(
+              Icons.info,
+              'عن التطبيق',
+              'الإصدار 0.3.0',
+              const Color(0xFFEF6C00),
+              () {
+                Navigator.pop(context);
+                showAboutDialog(
+                  context: context,
+                  applicationName: 'KITABI',
+                  applicationVersion: '0.3.0',
+                  applicationIcon: const Icon(Icons.menu_book,
+                      size: 40, color: Color(0xFF1565C0)),
+                  children: const [
+                    Text(
+                        'تطبيق تعليمي مجاني للطلاب الليبيين.\nجميع الخصائص مجانية بالكامل.'),
+                  ],
+                );
+              },
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _helpItem(IconData icon, String title, String subtitle, Color color,
+      VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: color, size: 22),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                          color: Color(0xFF1A1A1A))),
+                  Text(subtitle,
+                      style: const TextStyle(
+                          fontSize: 12, color: Color(0xFF555555))),
+                ],
+              ),
+            ),
+            Icon(Icons.arrow_back_ios, size: 14, color: color),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showFAQ() {
+    Navigator.pop(context);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.question_answer, color: Color(0xFF7B1FA2)),
+            SizedBox(width: 10),
+            Text('الأسئلة الشائعة'),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: const [
+              Text('1. هل التطبيق مجاني؟',
+                  style: TextStyle(
+                      fontWeight: FontWeight.bold, fontSize: 14)),
+              SizedBox(height: 5),
+              Text('نعم، كل الخصائص مجانية بالكامل.',
+                  style: TextStyle(fontSize: 13)),
+              SizedBox(height: 15),
+              Text('2. كيف أسجل في التطبيق؟',
+                  style: TextStyle(
+                      fontWeight: FontWeight.bold, fontSize: 14)),
+              SizedBox(height: 5),
+              Text(
+                  'اكتب اسمك + صفك + مراقبتك عند أول فتح.',
+                  style: TextStyle(fontSize: 13)),
+              SizedBox(height: 15),
+              Text('3. ما هو كتابي بلس؟',
+                  style: TextStyle(
+                      fontWeight: FontWeight.bold, fontSize: 14)),
+              SizedBox(height: 5),
+              Text(
+                  'اشتراك اختياري يمنحك مزايا إضافية (بتوث تعليمية، دورات حصرية).',
+                  style: TextStyle(fontSize: 13)),
+              SizedBox(height: 15),
+              Text('4. كيف أضيف ملاحظة؟',
+                  style: TextStyle(
+                      fontWeight: FontWeight.bold, fontSize: 14)),
+              SizedBox(height: 5),
+              Text('من الرئيسية → ملاحظاتي → زر +.',
+                  style: TextStyle(fontSize: 13)),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('إغلاق'),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 // ============ Control Room Screen ============
@@ -10284,6 +10544,1823 @@ class _CreateNoteScreenState extends State<CreateNoteScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ============ Create Course Screen ============
+class CreateCourseScreen extends StatefulWidget {
+  final String userName;
+  final String userRole;
+
+  const CreateCourseScreen({
+    super.key,
+    required this.userName,
+    required this.userRole,
+  });
+
+  @override
+  State<CreateCourseScreen> createState() => _CreateCourseScreenState();
+}
+
+class _CreateCourseScreenState extends State<CreateCourseScreen> {
+  final _titleCtrl = TextEditingController();
+  final _descCtrl = TextEditingController();
+  final _coverCtrl = TextEditingController();
+  String? _selectedGrade;
+  String? _selectedSubject;
+  bool _isFree = true;
+  bool _saving = false;
+
+  final List<String> _grades = [
+    'الكل', 'أول ابتدائي', 'ثاني ابتدائي', 'ثالث ابتدائي',
+    'رابع ابتدائي', 'خامس ابتدائي', 'سادس ابتدائي',
+    'أول إعدادي', 'ثاني إعدادي', 'ثالث إعدادي',
+    'أولى ثانوي', 'ثانية ثانوي', 'ثالثة ثانوي',
+  ];
+
+  final List<String> _subjects = [
+    'الكل', 'الرياضيات', 'اللغة العربية', 'اللغة الإنجليزية',
+    'التربية الإسلامية', 'الحاسوب', 'العلوم', 'الفيزياء',
+    'الكيمياء', 'الأحياء', 'التاريخ', 'الجغرافيا',
+    'الفلسفة', 'علم الاجتماع',
+  ];
+
+  Future<void> _save() async {
+    if (_titleCtrl.text.trim().isEmpty) {
+      showKitabiSnack(context, 'اكتب عنوان الدورة');
+      return;
+    }
+
+    setState(() => _saving = true);
+    try {
+      await supabase.from('courses').insert({
+        'title': _titleCtrl.text.trim(),
+        'description': _descCtrl.text.trim(),
+        'cover_url': _coverCtrl.text.trim().isEmpty
+            ? null
+            : _coverCtrl.text.trim(),
+        'instructor_name': widget.userName,
+        'instructor_role': widget.userRole,
+        'grade': _selectedGrade,
+        'subject': _selectedSubject,
+        'is_free': _isFree,
+        'is_published': true,
+        'lessons_count': 0,
+        'students_count': 0,
+      });
+
+      if (!mounted) return;
+      Navigator.pop(context, true);
+    } catch (e) {
+      debugPrint('Save course error: $e');
+      if (!mounted) return;
+      setState(() => _saving = false);
+      showKitabiSnack(context, 'فشل الحفظ');
+    }
+  }
+
+  @override
+  void dispose() {
+    _titleCtrl.dispose();
+    _descCtrl.dispose();
+    _coverCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF00897B),
+        foregroundColor: Colors.white,
+        elevation: 0,
+        title: const Text('دورة جديدة',
+            style: TextStyle(fontWeight: FontWeight.bold)),
+        actions: [
+          TextButton(
+            onPressed: _saving ? null : _save,
+            child: _saving
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                        color: Colors.white, strokeWidth: 2))
+                : const Text('حفظ',
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16)),
+          ),
+        ],
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // العنوان
+            TextField(
+              controller: _titleCtrl,
+              decoration: InputDecoration(
+                labelText: 'عنوان الدورة',
+                hintText: 'مثال: أساسيات الرياضيات',
+                prefixIcon: const Icon(Icons.title),
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            // الوصف
+            TextField(
+              controller: _descCtrl,
+              maxLines: 4,
+              decoration: InputDecoration(
+                labelText: 'وصف الدورة',
+                hintText: 'اشرح ما سيتعلمه الطالب...',
+                alignLabelWithHint: true,
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            // غلاف
+            TextField(
+              controller: _coverCtrl,
+              decoration: InputDecoration(
+                labelText: 'رابط صورة الغلاف (اختياري)',
+                hintText: 'https://...',
+                prefixIcon: const Icon(Icons.image),
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            // الصف
+            DropdownButtonFormField<String>(
+              value: _selectedGrade,
+              decoration: InputDecoration(
+                labelText: 'الصف',
+                prefixIcon: const Icon(Icons.school),
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+              items: _grades
+                  .map((g) => DropdownMenuItem(value: g, child: Text(g)))
+                  .toList(),
+              onChanged: (v) => setState(() => _selectedGrade = v),
+            ),
+            const SizedBox(height: 12),
+            // المادة
+            DropdownButtonFormField<String>(
+              value: _selectedSubject,
+              decoration: InputDecoration(
+                labelText: 'المادة',
+                prefixIcon: const Icon(Icons.book),
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+              items: _subjects
+                  .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+                  .toList(),
+              onChanged: (v) => setState(() => _selectedSubject = v),
+            ),
+            const SizedBox(height: 12),
+            // مجاني / بلس
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('نوع الدورة:',
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 13)),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _typeBtn('🆓 مجاني', true),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _typeBtn('💎 مشتركي بلس', false),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _typeBtn(String label, bool value) {
+    final active = _isFree == value;
+    return GestureDetector(
+      onTap: () => setState(() => _isFree = value),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color: active
+              ? const Color(0xFF00897B)
+              : const Color(0xFFF0F0F0),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Text(label,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+                color: active ? Colors.white : const Color(0xFF555555),
+                fontWeight: FontWeight.bold,
+                fontSize: 13)),
+      ),
+    );
+  }
+}
+
+// ============ Create Lesson Screen ============
+class CreateLessonScreen extends StatefulWidget {
+  final String courseId;
+  final int nextOrder;
+
+  const CreateLessonScreen({
+    super.key,
+    required this.courseId,
+    required this.nextOrder,
+  });
+
+  @override
+  State<CreateLessonScreen> createState() => _CreateLessonScreenState();
+}
+
+class _CreateLessonScreenState extends State<CreateLessonScreen> {
+  final _titleCtrl = TextEditingController();
+  final _descCtrl = TextEditingController();
+  final _videoCtrl = TextEditingController();
+  int _duration = 0;
+  bool _saving = false;
+
+  Future<void> _save() async {
+    if (_titleCtrl.text.trim().isEmpty) {
+      showKitabiSnack(context, 'اكتب عنوان الدرس');
+      return;
+    }
+    if (_videoCtrl.text.trim().isEmpty) {
+      showKitabiSnack(context, 'اكتب رابط الفيديو');
+      return;
+    }
+
+    setState(() => _saving = true);
+    try {
+      await supabase.from('lessons').insert({
+        'course_id': widget.courseId,
+        'title': _titleCtrl.text.trim(),
+        'description': _descCtrl.text.trim(),
+        'video_url': _videoCtrl.text.trim(),
+        'duration_min': _duration,
+        'display_order': widget.nextOrder,
+      });
+
+      // نحدّث عدد الدروس في الدورة
+      final courseData = await supabase
+          .from('courses')
+          .select('lessons_count')
+          .eq('id', widget.courseId)
+          .single();
+      final current = courseData['lessons_count'] ?? 0;
+      await supabase.from('courses').update({
+        'lessons_count': (current as int) + 1,
+      }).eq('id', widget.courseId);
+
+      if (!mounted) return;
+      Navigator.pop(context, true);
+    } catch (e) {
+      debugPrint('Save lesson error: $e');
+      if (!mounted) return;
+      setState(() => _saving = false);
+      showKitabiSnack(context, 'فشل الحفظ');
+    }
+  }
+
+  @override
+  void dispose() {
+    _titleCtrl.dispose();
+    _descCtrl.dispose();
+    _videoCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF00897B),
+        foregroundColor: Colors.white,
+        elevation: 0,
+        title: Text('إضافة درس ${widget.nextOrder}',
+            style: const TextStyle(fontWeight: FontWeight.bold)),
+        actions: [
+          TextButton(
+            onPressed: _saving ? null : _save,
+            child: _saving
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                        color: Colors.white, strokeWidth: 2))
+                : const Text('حفظ',
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16)),
+          ),
+        ],
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            TextField(
+              controller: _titleCtrl,
+              decoration: InputDecoration(
+                labelText: 'عنوان الدرس',
+                hintText: 'مثال: مقدمة في الكسور',
+                prefixIcon: const Icon(Icons.title),
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _descCtrl,
+              maxLines: 3,
+              decoration: InputDecoration(
+                labelText: 'وصف الدرس (اختياري)',
+                alignLabelWithHint: true,
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _videoCtrl,
+              decoration: InputDecoration(
+                labelText: 'رابط الفيديو (YouTube)',
+                hintText: 'https://youtube.com/watch?v=...',
+                prefixIcon: const Icon(Icons.video_library),
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('المدة (بالدقائق):',
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 13)),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [5, 10, 15, 20, 30, 45, 60].map((m) {
+                      final selected = _duration == m;
+                      return GestureDetector(
+                        onTap: () => setState(() => _duration = m),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: selected
+                                ? const Color(0xFF00897B)
+                                : const Color(0xFFF0F0F0),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text('$m د',
+                              style: TextStyle(
+                                  color: selected
+                                      ? Colors.white
+                                      : const Color(0xFF555555),
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12)),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: const Color(0xFF00897B).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.info_outline,
+                      color: Color(0xFF00897B), size: 20),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'يمكنك استخدام روابط YouTube أو روابط mp4 مباشرة',
+                      style: TextStyle(
+                          fontSize: 12, color: Color(0xFF555555)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ============ Courses Screen ============
+class CoursesScreen extends StatefulWidget {
+  const CoursesScreen({super.key});
+  @override
+  State<CoursesScreen> createState() => _CoursesScreenState();
+}
+
+class _CoursesScreenState extends State<CoursesScreen> {
+  List<Map<String, dynamic>> _courses = [];
+  bool _loading = true;
+  String _userRole = 'student';
+  String _userName = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _init();
+  }
+
+  Future<void> _init() async {
+    final prefs = await SharedPreferences.getInstance();
+    _userName = prefs.getString('user_name') ?? '';
+    try {
+      final data = await supabase
+          .from('users')
+          .select('role')
+          .eq('name', _userName)
+          .limit(1);
+      if (data.isNotEmpty) {
+        _userRole = (data[0]['role'] ?? 'student').toString();
+      }
+    } catch (_) {}
+    await _load();
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    try {
+      final data = await supabase
+          .from('courses')
+          .select()
+          .eq('is_published', true)
+          .order('created_at', ascending: false);
+      if (!mounted) return;
+      setState(() {
+        _courses = List<Map<String, dynamic>>.from(data);
+        _loading = false;
+      });
+    } catch (e) {
+      debugPrint('Load courses error: $e');
+      if (!mounted) return;
+      setState(() => _loading = false);
+    }
+  }
+
+  bool get _canCreate {
+    return _userRole == 'admin' ||
+        _userRole == 'moderator' ||
+        _userRole == 'teacher';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF00897B),
+        foregroundColor: Colors.white,
+        elevation: 0,
+        title: const Row(
+          children: [
+            Icon(Icons.school),
+            SizedBox(width: 10),
+            Text('الدورات التعليمية',
+                style: TextStyle(fontWeight: FontWeight.bold)),
+          ],
+        ),
+        actions: [
+          IconButton(
+            onPressed: _load,
+            icon: const Icon(Icons.refresh),
+          ),
+        ],
+      ),
+      body: _loading
+          ? const Center(
+              child: CircularProgressIndicator(color: Color(0xFF00897B)))
+          : _courses.isEmpty
+              ? _buildEmpty()
+              : RefreshIndicator(
+                  onRefresh: _load,
+                  color: const Color(0xFF00897B),
+                  child: ListView.separated(
+                    padding: EdgeInsets.fromLTRB(16, 16, 16,
+                        MediaQuery.of(context).padding.bottom + 100),
+                    itemCount: _courses.length,
+                    separatorBuilder: (_, __) =>
+                        const SizedBox(height: 14),
+                    itemBuilder: (_, i) => _courseCard(_courses[i]),
+                  ),
+                ),
+      floatingActionButton: _canCreate
+          ? FloatingActionButton.extended(
+              onPressed: () async {
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => CreateCourseScreen(
+                      userName: _userName,
+                      userRole: _userRole,
+                    ),
+                  ),
+                );
+                if (result == true) _load();
+              },
+              backgroundColor: const Color(0xFF00897B),
+              icon: const Icon(Icons.add, color: Colors.white),
+              label: const Text('دورة جديدة',
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold)),
+            )
+          : null,
+    );
+  }
+
+  Widget _courseCard(Map<String, dynamic> course) {
+    final isFree = course['is_free'] == true;
+    final coverUrl = course['cover_url'];
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: () async {
+            await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => CourseDetailScreen(
+                  course: course,
+                  userName: _userName,
+                  userRole: _userRole,
+                ),
+              ),
+            );
+            _load();
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Row(
+              children: [
+                // صورة الغلاف
+                Container(
+                  width: 90,
+                  height: 90,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF00897B), Color(0xFF26A69A)],
+                      begin: Alignment.topRight,
+                      end: Alignment.bottomLeft,
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: coverUrl != null && coverUrl.toString().isNotEmpty
+                      ? Image.network(
+                          coverUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => const Icon(
+                              Icons.school,
+                              color: Colors.white,
+                              size: 40),
+                        )
+                      : const Icon(Icons.school,
+                          color: Colors.white, size: 40),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        course['title'] ?? '',
+                        style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF1A1A1A)),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        course['instructor_name'] ?? '',
+                        style: const TextStyle(
+                            fontSize: 12, color: Color(0xFF555555)),
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: isFree
+                                  ? const Color(0xFF2E7D32)
+                                      .withOpacity(0.15)
+                                  : const Color(0xFFFFA000)
+                                      .withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              isFree ? '🆓 مجاني' : '💎 بلس',
+                              style: TextStyle(
+                                  fontSize: 10,
+                                  color: isFree
+                                      ? const Color(0xFF2E7D32)
+                                      : const Color(0xFFFFA000),
+                                  fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF1565C0)
+                                  .withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              '📚 ${course['lessons_count'] ?? 0} درس',
+                              style: const TextStyle(
+                                  fontSize: 10,
+                                  color: Color(0xFF1565C0),
+                                  fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF00897B).withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.arrow_back_ios_new,
+                      size: 14, color: Color(0xFF00897B)),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmpty() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(28),
+            decoration: BoxDecoration(
+              color: const Color(0xFF00897B).withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.school_outlined,
+                size: 60, color: Color(0xFF00897B)),
+          ),
+          const SizedBox(height: 20),
+          const Text('لا توجد دورات بعد',
+              style: TextStyle(fontSize: 16, color: Color(0xFF555555))),
+          if (_canCreate) ...[
+            const SizedBox(height: 10),
+            const Text('اضغط + لإضافة أول دورة',
+                style: TextStyle(fontSize: 13, color: Color(0xFF888888))),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+// ============ Course Detail Screen ============
+class CourseDetailScreen extends StatefulWidget {
+  final Map<String, dynamic> course;
+  final String userName;
+  final String userRole;
+
+  const CourseDetailScreen({
+    super.key,
+    required this.course,
+    required this.userName,
+    required this.userRole,
+  });
+
+  @override
+  State<CourseDetailScreen> createState() => _CourseDetailScreenState();
+}
+
+class _CourseDetailScreenState extends State<CourseDetailScreen> {
+  List<Map<String, dynamic>> _lessons = [];
+  bool _loading = true;
+  bool _enrolled = false;
+  int _progress = 0;
+  List<String> _completedLessons = [];
+
+  bool get _canEdit {
+    return widget.userRole == 'admin' ||
+        widget.userRole == 'moderator' ||
+        widget.userRole == 'teacher';
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+    _checkEnrollment();
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    try {
+      final data = await supabase
+          .from('lessons')
+          .select()
+          .eq('course_id', widget.course['id'])
+          .order('display_order', ascending: true);
+      if (!mounted) return;
+      setState(() {
+        _lessons = List<Map<String, dynamic>>.from(data);
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _checkEnrollment() async {
+    try {
+      final data = await supabase
+          .from('course_enrollments')
+          .select()
+          .eq('course_id', widget.course['id'])
+          .eq('user_name', widget.userName)
+          .limit(1);
+      if (!mounted) return;
+      if (data.isNotEmpty) {
+        setState(() {
+          _enrolled = true;
+          _progress = (data[0]['progress'] ?? 0) as int;
+          _completedLessons =
+              List<String>.from(data[0]['completed_lessons'] ?? []);
+        });
+      }
+    } catch (e) {
+      debugPrint('Check enrollment error: $e');
+    }
+  }
+
+  Future<void> _enroll() async {
+    try {
+      await supabase.from('course_enrollments').insert({
+        'course_id': widget.course['id'],
+        'user_name': widget.userName,
+        'progress': 0,
+        'completed_lessons': [],
+      });
+      // نزيد students_count
+      final current = widget.course['students_count'] ?? 0;
+      await supabase.from('courses').update({
+        'students_count': (current as int) + 1,
+      }).eq('id', widget.course['id']);
+      if (!mounted) return;
+      setState(() => _enrolled = true);
+      showKitabiSnack(context, 'تم التسجيل في الدورة ✅');
+    } catch (e) {
+      showKitabiSnack(context, 'فشل التسجيل');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF00897B),
+        foregroundColor: Colors.white,
+        elevation: 0,
+        title: Text(
+          widget.course['title'] ?? 'الدورة',
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+      ),
+      body: _loading
+          ? const Center(
+              child: CircularProgressIndicator(color: Color(0xFF00897B)))
+          : SingleChildScrollView(
+              padding: EdgeInsets.fromLTRB(
+                  16, 16, 16, MediaQuery.of(context).padding.bottom + 80),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // رأس الدورة
+                  Container(
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF00897B), Color(0xFF26A69A)],
+                        begin: Alignment.topRight,
+                        end: Alignment.bottomLeft,
+                      ),
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF00897B).withOpacity(0.3),
+                          blurRadius: 20,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.course['title'] ?? '',
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'المعلم: ${widget.course['instructor_name'] ?? ''}',
+                          style: const TextStyle(
+                              color: Colors.white70, fontSize: 13),
+                        ),
+                        if ((widget.course['description'] ?? '')
+                            .toString()
+                            .isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          Text(
+                            widget.course['description'],
+                            style: const TextStyle(
+                                color: Colors.white70,
+                                fontSize: 13,
+                                height: 1.5),
+                          ),
+                        ],
+                        const SizedBox(height: 15),
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 5),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Text(
+                                '📚 ${_lessons.length} درس',
+                                style: const TextStyle(
+                                    color: Colors.white, fontSize: 12),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 5),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Text(
+                                '👥 ${widget.course['students_count'] ?? 0} طالب',
+                                style: const TextStyle(
+                                    color: Colors.white, fontSize: 12),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // شريط التقدم (إذا مشترك)
+                  if (_enrolled) ...[
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.trending_up,
+                                  color: Color(0xFF00897B), size: 20),
+                              const SizedBox(width: 8),
+                              const Text('تقدمك:',
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14)),
+                              const Spacer(),
+                              Text('$_progress%',
+                                  style: const TextStyle(
+                                      color: Color(0xFF00897B),
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16)),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: LinearProgressIndicator(
+                              value: _progress / 100,
+                              minHeight: 10,
+                              backgroundColor:
+                                  const Color(0xFFE0E0E0),
+                              valueColor:
+                                  const AlwaysStoppedAnimation<Color>(
+                                      Color(0xFF00897B)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                  ],
+
+                  // عنوان الدروس
+                  Row(
+                    children: [
+                      const Icon(Icons.play_lesson,
+                          color: Color(0xFF00897B), size: 22),
+                      const SizedBox(width: 8),
+                      Text('الدروس (${_lessons.length})',
+                          style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF1A1A1A))),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+
+                  // قائمة الدروس
+                  if (_lessons.isEmpty)
+                    Container(
+                      padding: const EdgeInsets.all(30),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: const Column(
+                        children: [
+                          Icon(Icons.menu_book_outlined,
+                              size: 60, color: Color(0xFF888888)),
+                          SizedBox(height: 10),
+                          Text('لا توجد دروس بعد',
+                              style: TextStyle(
+                                  color: Color(0xFF888888),
+                                  fontSize: 14)),
+                        ],
+                      ),
+                    )
+                  else
+                    ..._lessons.asMap().entries.map((entry) {
+                      final idx = entry.key;
+                      final lesson = entry.value;
+                      final isCompleted =
+                          _completedLessons.contains(lesson['id']);
+                      return _lessonCard(lesson, idx, isCompleted);
+                    }),
+
+                  const SizedBox(height: 20),
+
+                  // زر التسجيل
+                  if (!_enrolled)
+                    SizedBox(
+                      height: 55,
+                      child: ElevatedButton.icon(
+                        onPressed: _enroll,
+                        icon: const Icon(Icons.school),
+                        label: const Text('سجل في الدورة',
+                            style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF00897B),
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                      ),
+                    ),
+
+                  // زر إضافة درس
+                  if (_canEdit) ...[
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      height: 50,
+                      child: OutlinedButton.icon(
+                        onPressed: () async {
+                          final result = await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => CreateLessonScreen(
+                                courseId: widget.course['id'],
+                                nextOrder: _lessons.length + 1,
+                              ),
+                            ),
+                          );
+                          if (result == true) _load();
+                        },
+                        icon: const Icon(Icons.add),
+                        label: const Text('إضافة درس'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFF00897B),
+                          side: const BorderSide(
+                              color: Color(0xFF00897B), width: 1.5),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+    );
+  }
+
+  Widget _lessonCard(
+      Map<String, dynamic> lesson, int idx, bool isCompleted) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: isCompleted
+            ? Border.all(color: const Color(0xFF2E7D32), width: 1.5)
+            : null,
+      ),
+      child: ListTile(
+        onTap: () {
+          if (lesson['video_url'] != null &&
+              lesson['video_url'].toString().isNotEmpty) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => VideoPlayerScreen(
+                  video: {
+                    'title': lesson['title'],
+                    'video_url': lesson['video_url'],
+                    'video_type': 'youtube',
+                  },
+                ),
+              ),
+            );
+          } else {
+            showKitabiSnack(context, 'لا يوجد فيديو لهذا الدرس');
+          }
+        },
+        leading: Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: isCompleted
+                ? const Color(0xFF2E7D32)
+                : const Color(0xFF00897B).withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Center(
+            child: isCompleted
+                ? const Icon(Icons.check, color: Colors.white, size: 22)
+                : Text('${idx + 1}',
+                    style: const TextStyle(
+                        color: Color(0xFF00897B),
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16)),
+          ),
+        ),
+        title: Text(lesson['title'] ?? '',
+            style: const TextStyle(
+                fontSize: 14, fontWeight: FontWeight.bold)),
+        subtitle: (lesson['description'] ?? '').toString().isNotEmpty
+            ? Text(lesson['description'],
+                style: const TextStyle(fontSize: 11),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis)
+            : null,
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (_enrolled)
+              IconButton(
+                onPressed: () => _toggleComplete(lesson),
+                icon: Icon(
+                  isCompleted
+                      ? Icons.check_circle
+                      : Icons.radio_button_unchecked,
+                  color: isCompleted
+                      ? const Color(0xFF2E7D32)
+                      : const Color(0xFF888888),
+                  size: 24,
+                ),
+              ),
+            const Icon(Icons.arrow_back_ios,
+                size: 14, color: Color(0xFF888888)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _toggleComplete(Map<String, dynamic> lesson) async {
+    try {
+      final lessonId = lesson['id'].toString();
+      final newCompleted = List<String>.from(_completedLessons);
+      if (newCompleted.contains(lessonId)) {
+        newCompleted.remove(lessonId);
+      } else {
+        newCompleted.add(lessonId);
+      }
+      final newProgress = _lessons.isEmpty
+          ? 0
+          : ((newCompleted.length / _lessons.length) * 100).round();
+
+      await supabase.from('course_enrollments').update({
+        'completed_lessons': newCompleted,
+        'progress': newProgress,
+      }).eq('course_id', widget.course['id']).eq('user_name', widget.userName);
+
+      if (!mounted) return;
+      setState(() {
+        _completedLessons = newCompleted;
+        _progress = newProgress;
+      });
+    } catch (e) {
+      debugPrint('Toggle complete error: $e');
+    }
+  }
+}
+
+// ============ Personal Info Screen ============
+class PersonalInfoScreen extends StatefulWidget {
+  const PersonalInfoScreen({super.key});
+  @override
+  State<PersonalInfoScreen> createState() => _PersonalInfoScreenState();
+}
+
+class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
+  final _nameCtrl = TextEditingController();
+  String _grade = '';
+  String _muraqaba = '';
+  String _email = '';
+  String _role = 'student';
+  int _points = 0;
+  int _level = 1;
+  bool _loading = true;
+  bool _saving = false;
+
+  final List<String> _grades = [
+    'أول ابتدائي', 'ثاني ابتدائي', 'ثالث ابتدائي',
+    'رابع ابتدائي', 'خامس ابتدائي', 'سادس ابتدائي',
+    'أول إعدادي', 'ثاني إعدادي', 'ثالث إعدادي',
+    'أولى ثانوي', 'ثانية ثانوي', 'ثالثة ثانوي',
+  ];
+
+  final List<String> _muraqabat = [
+    'مراقبة طرابلس', 'مراقبة بنغازي', 'مراقبة مصراتة',
+    'مراقبة الزاوية', 'مراقبة قصر الأخيار', 'مراقبة الخمس',
+    'مراقبة زليتن', 'مراقبة سبها', 'مراقبة البيضاء', 'مراقبة درنة',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final name = prefs.getString('user_name') ?? '';
+      final stats = await UserStats.get();
+      if (name.isNotEmpty) {
+        final data = await supabase
+            .from('users')
+            .select()
+            .eq('name', name)
+            .limit(1);
+        if (data.isNotEmpty) {
+          if (!mounted) return;
+          setState(() {
+            _nameCtrl.text = data[0]['name'] ?? '';
+            _grade = data[0]['grade'] ?? '';
+            _muraqaba = data[0]['muraqaba'] ?? '';
+            _email = data[0]['email'] ?? '';
+            _role = data[0]['role'] ?? 'student';
+            _points = stats['points'] ?? 0;
+            _level = stats['level'] ?? 1;
+          });
+        }
+      }
+      if (!mounted) return;
+      setState(() => _loading = false);
+    } catch (e) {
+      debugPrint('Load personal info error: $e');
+      if (!mounted) return;
+      setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _save() async {
+    if (_nameCtrl.text.trim().isEmpty) {
+      showKitabiSnack(context, 'اكتب اسمك');
+      return;
+    }
+    if (_grade.isEmpty) {
+      showKitabiSnack(context, 'اختر صفك');
+      return;
+    }
+    if (_muraqaba.isEmpty) {
+      showKitabiSnack(context, 'اختر مراقبتك');
+      return;
+    }
+
+    setState(() => _saving = true);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final oldName = prefs.getString('user_name') ?? '';
+
+      // نحدث في users
+      await supabase.from('users').update({
+        'name': _nameCtrl.text.trim(),
+        'grade': _grade,
+        'muraqaba': _muraqaba,
+        'updated_at': DateTime.now().toIso8601String(),
+      }).eq('name', oldName);
+
+      // نحدث في prefs
+      await prefs.setString('user_name', _nameCtrl.text.trim());
+      await prefs.setString('user_grade', _grade);
+      await prefs.setString('user_muraqaba', _muraqaba);
+
+      if (!mounted) return;
+      showKitabiSnack(context, 'تم الحفظ ✅');
+      Navigator.pop(context);
+    } catch (e) {
+      debugPrint('Save error: $e');
+      if (!mounted) return;
+      setState(() => _saving = false);
+      showKitabiSnack(context, 'فشل الحفظ');
+    }
+  }
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF1565C0),
+        foregroundColor: Colors.white,
+        elevation: 0,
+        title: const Text('معلوماتي الشخصية',
+            style: TextStyle(fontWeight: FontWeight.bold)),
+        actions: [
+          TextButton(
+            onPressed: _saving ? null : _save,
+            child: _saving
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                        color: Colors.white, strokeWidth: 2))
+                : const Text('حفظ',
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16)),
+          ),
+        ],
+      ),
+      body: _loading
+          ? const Center(
+              child: CircularProgressIndicator(color: Color(0xFF1565C0)))
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // الأفاتار
+                  Center(
+                    child: Column(
+                      children: [
+                        Container(
+                          width: 100,
+                          height: 100,
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [
+                                Color(0xFF1565C0),
+                                Color(0xFF42A5F5)
+                              ],
+                            ),
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF1565C0)
+                                    .withOpacity(0.3),
+                                blurRadius: 20,
+                                offset: const Offset(0, 8),
+                              ),
+                            ],
+                          ),
+                          child: Center(
+                            child: Text(
+                              _nameCtrl.text.isEmpty
+                                  ? '؟'
+                                  : _nameCtrl.text[0],
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 40,
+                                  fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: RoleHelper.roleColor(_role)
+                                .withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            RoleHelper.roleLabel(_role),
+                            style: TextStyle(
+                                color: RoleHelper.roleColor(_role),
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 25),
+
+                  // الاسم
+                  TextField(
+                    controller: _nameCtrl,
+                    onChanged: (_) => setState(() {}),
+                    decoration: InputDecoration(
+                      labelText: 'الاسم',
+                      prefixIcon: const Icon(Icons.person),
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+
+                  // الصف
+                  DropdownButtonFormField<String>(
+                    value: _grade.isEmpty ? null : _grade,
+                    decoration: InputDecoration(
+                      labelText: 'الصف',
+                      prefixIcon: const Icon(Icons.school),
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                    items: _grades
+                        .map((g) => DropdownMenuItem(
+                            value: g, child: Text(g)))
+                        .toList(),
+                    onChanged: (v) => setState(() => _grade = v ?? ''),
+                  ),
+                  const SizedBox(height: 14),
+
+                  // المراقبة
+                  DropdownButtonFormField<String>(
+                    value: _muraqaba.isEmpty ? null : _muraqaba,
+                    decoration: InputDecoration(
+                      labelText: 'المراقبة',
+                      prefixIcon: const Icon(Icons.location_city),
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                    items: _muraqabat
+                        .map((m) => DropdownMenuItem(
+                            value: m, child: Text(m)))
+                        .toList(),
+                    onChanged: (v) =>
+                        setState(() => _muraqaba = v ?? ''),
+                  ),
+                  const SizedBox(height: 14),
+
+                  // الإيميل (لو موجود)
+                  if (_email.isNotEmpty)
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.email,
+                              color: Color(0xFF555555), size: 22),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('البريد الإلكتروني',
+                                    style: TextStyle(
+                                        fontSize: 11,
+                                        color: Color(0xFF888888))),
+                                Text(_email,
+                                    style: const TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600),
+                                    textDirection: TextDirection.ltr),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  const SizedBox(height: 20),
+
+                  // الإحصائيات
+                  Container(
+                    padding: const EdgeInsets.symmetric(vertical: 18),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: _statItem(
+                              Icons.local_fire_department,
+                              'النقاط',
+                              '$_points',
+                              const Color(0xFFFF6B35)),
+                        ),
+                        Container(
+                          width: 1,
+                          height: 40,
+                          color: const Color(0xFFE5E5E5),
+                        ),
+                        Expanded(
+                          child: _statItem(
+                              Icons.star,
+                              'المستوى',
+                              '$_level',
+                              const Color(0xFFFFB300)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+    );
+  }
+
+  Widget _statItem(
+      IconData icon, String label, String value, Color color) {
+    return Column(
+      children: [
+        Icon(icon, color: color, size: 26),
+        const SizedBox(height: 6),
+        Text(value,
+            style: const TextStyle(
+                fontSize: 18, fontWeight: FontWeight.bold)),
+        Text(label,
+            style: const TextStyle(
+                fontSize: 11, color: Color(0xFF555555))),
+      ],
+    );
+  }
+}
+
+// ============ Goals Screen ============
+class GoalsScreen extends StatefulWidget {
+  const GoalsScreen({super.key});
+  @override
+  State<GoalsScreen> createState() => _GoalsScreenState();
+}
+
+class _GoalsScreenState extends State<GoalsScreen> {
+  final List<Map<String, dynamic>> _goals = [
+    {
+      'id': '1',
+      'title': 'قراءة 5 كتب',
+      'desc': 'اقرأ 5 كتب هذا الشهر',
+      'icon': Icons.menu_book,
+      'color': 0xFF1565C0,
+      'target': 5,
+      'unit': 'كتاب',
+    },
+    {
+      'id': '2',
+      'title': 'حل 20 اختبار',
+      'desc': 'جرب 20 اختبار تدريبي',
+      'icon': Icons.assignment,
+      'color': 0xFFD32F2F,
+      'target': 20,
+      'unit': 'اختبار',
+    },
+    {
+      'id': '3',
+      'title': 'مشاهدة 10 فيديوهات',
+      'desc': 'شاهد 10 فيديوهات تعليمية',
+      'icon': Icons.play_circle,
+      'color': 0xFFEF6C00,
+      'target': 10,
+      'unit': 'فيديو',
+    },
+    {
+      'id': '4',
+      'title': 'مشاركة في المنتدى',
+      'desc': 'شارك بمنشور واحد على الأقل',
+      'icon': Icons.forum,
+      'color': 0xFF7B1FA2,
+      'target': 1,
+      'unit': 'منشور',
+    },
+    {
+      'id': '5',
+      'title': 'إنشاء 5 ملاحظات',
+      'desc': 'اكتب 5 ملاحظات دراسية',
+      'icon': Icons.sticky_note_2,
+      'color': 0xFF00838F,
+      'target': 5,
+      'unit': 'ملاحظة',
+    },
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF66BB6A),
+        foregroundColor: Colors.white,
+        elevation: 0,
+        title: const Text('أهدافي التعليمية',
+            style: TextStyle(fontWeight: FontWeight.bold)),
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          // رسالة تشجيعية
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF66BB6A), Color(0xFF81C784)],
+                begin: Alignment.topRight,
+                end: Alignment.bottomLeft,
+              ),
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF66BB6A).withOpacity(0.3),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: const Row(
+              children: [
+                Icon(Icons.emoji_events,
+                    color: Colors.white, size: 50),
+                SizedBox(width: 15),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('أهدافك لهذا الشهر',
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold)),
+                      SizedBox(height: 5),
+                      Text('أكمل أهدافك واكسب نقاطاً إضافية',
+                          style: TextStyle(
+                              color: Colors.white70, fontSize: 12)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // قائمة الأهداف
+          ..._goals.map((goal) => _goalCard(goal)),
+
+          const SizedBox(height: 20),
+          // إضافة هدف مخصص
+          SizedBox(
+            height: 50,
+            child: OutlinedButton.icon(
+              onPressed: () => showKitabiSnack(
+                  context, 'قريباً: إضافة أهداف مخصصة'),
+              icon: const Icon(Icons.add),
+              label: const Text('إضافة هدف مخصص'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFF66BB6A),
+                side: const BorderSide(
+                    color: Color(0xFF66BB6A), width: 1.5),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _goalCard(Map<String, dynamic> goal) {
+    final color = Color(goal['color']);
+    final progress = 0; // يمكن ربطه بـ DB لاحقاً
+    final target = goal['target'] as int;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(goal['icon'], color: color, size: 24),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(goal['title'],
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                            color: Color(0xFF1A1A1A))),
+                    Text(goal['desc'],
+                        style: const TextStyle(
+                            fontSize: 11, color: Color(0xFF555555))),
+                  ],
+                ),
+              ),
+              Text('$progress/$target',
+                  style: TextStyle(
+                      color: color,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14)),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: LinearProgressIndicator(
+              value: progress / target,
+              minHeight: 8,
+              backgroundColor: color.withOpacity(0.15),
+              valueColor: AlwaysStoppedAnimation<Color>(color),
+            ),
+          ),
+        ],
       ),
     );
   }
