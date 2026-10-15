@@ -1339,89 +1339,27 @@ class HomeTab extends StatelessWidget {
 }
 
 // ============ Library Tab ============
-class LibraryTab extends StatelessWidget {
+class LibraryTab extends StatefulWidget {
   const LibraryTab({super.key});
 
-  static const Map<String, List<String>> _subjectsByGrade = {
-    'أول ابتدائي': ['الرياضيات', 'اللغة العربية', 'اللغة الإنجليزية', 'التربية الإسلامية', 'الحاسوب'],
-    'ثاني ابتدائي': ['الرياضيات', 'اللغة العربية', 'اللغة الإنجليزية', 'التربية الإسلامية', 'الحاسوب'],
-    'ثالث ابتدائي': ['الرياضيات', 'اللغة العربية', 'اللغة الإنجليزية', 'التربية الإسلامية', 'الحاسوب', 'العلوم'],
-    'رابع ابتدائي': ['الرياضيات', 'اللغة العربية', 'اللغة الإنجليزية', 'التربية الإسلامية', 'الحاسوب', 'العلوم', 'الاجتماعيات'],
-    'خامس ابتدائي': ['الرياضيات', 'اللغة العربية', 'اللغة الإنجليزية', 'التربية الإسلامية', 'الحاسوب', 'العلوم', 'الاجتماعيات'],
-    'سادس ابتدائي': ['الرياضيات', 'اللغة العربية', 'اللغة الإنجليزية', 'التربية الإسلامية', 'الحاسوب', 'العلوم', 'الاجتماعيات'],
-    'أول إعدادي': ['الرياضيات', 'اللغة العربية', 'اللغة الإنجليزية', 'التربية الإسلامية', 'الحاسوب', 'العلوم', 'الاجتماعيات'],
-    'ثاني إعدادي': ['الرياضيات', 'اللغة العربية', 'اللغة الإنجليزية', 'التربية الإسلامية', 'الحاسوب', 'العلوم', 'الاجتماعيات'],
-    'ثالث إعدادي': ['الرياضيات', 'اللغة العربية', 'اللغة الإنجليزية', 'التربية الإسلامية', 'الحاسوب', 'العلوم', 'الاجتماعيات'],
-    'أولى ثانوي': ['الرياضيات', 'اللغة العربية', 'اللغة الإنجليزية', 'التربية الإسلامية', 'الحاسوب', 'العلوم', 'الاجتماعيات'],
-    'ثانية ثانوي': ['الرياضيات', 'اللغة العربية', 'اللغة الإنجليزية', 'التربية الإسلامية', 'الحاسوب', 'العلوم', 'الاجتماعيات'],
-    'ثالثة ثانوي': ['الرياضيات', 'اللغة العربية', 'اللغة الإنجليزية', 'التربية الإسلامية', 'الحاسوب', 'العلوم', 'الاجتماعيات'],
-  };
+  @override
+  State<LibraryTab> createState() => _LibraryTabState();
+}
 
-  static const Map<String, IconData> _subjectIcons = {
-    'الرياضيات': Icons.calculate_rounded,
-    'اللغة العربية': Icons.translate_rounded,
-    'اللغة الإنجليزية': Icons.language_rounded,
-    'التربية الإسلامية': Icons.mosque_rounded,
-    'الحاسوب': Icons.computer_rounded,
-    'العلوم': Icons.science_rounded,
-    'الاجتماعيات': Icons.public_rounded,
-  };
-
-  static const Map<String, Color> _subjectColors = {
-    'الرياضيات': Color(0xFF1565C0),
-    'اللغة العربية': Color(0xFF00897B),
-    'اللغة الإنجليزية': Color(0xFF7B1FA2),
-    'التربية الإسلامية': Color(0xFF00838F),
-    'الحاسوب': Color(0xFF283593),
-    'العلوم': Color(0xFFEF6C00),
-    'الاجتماعيات': Color(0xFFD32F2F),
-  };
-
-  IconData _iconFromName(String name) {
-    final map = {
-      'calculate': Icons.calculate_rounded,
-      'translate': Icons.translate_rounded,
-      'language': Icons.language_rounded,
-      'mosque': Icons.mosque_rounded,
-      'computer': Icons.computer_rounded,
-      'science': Icons.science_rounded,
-      'public': Icons.public_rounded,
-      'biotech': Icons.biotech_rounded,
-      'history_edu': Icons.history_edu_rounded,
-      'groups': Icons.groups_rounded,
-      'flag': Icons.flag_rounded,
-      'sports_soccer': Icons.sports_soccer_rounded,
-      'psychology': Icons.psychology_rounded,
-      'bar_chart': Icons.bar_chart_rounded,
-      'menu_book': Icons.menu_book_rounded,
-      'edit': Icons.edit_rounded,
-      'rate_review': Icons.rate_review_rounded,
-    };
-    return map[name] ?? Icons.book_rounded;
-  }
-
-  Color _colorFromHex(String hex) {
-    try {
-      hex = hex.replaceAll('#', '');
-      return Color(int.parse('FF$hex', radix: 16));
-    } catch (_) {
-      return const Color(0xFF1565C0);
-    }
-  }
-
+class _LibraryTabState extends State<LibraryTab> {
   static const List<Map<String, dynamic>> _grades = [
-    {'name': 'أول ابتدائي', 'icon': Icons.looks_one, 'color': 0xFF42A5F5, 'locked': false},
-    {'name': 'ثاني ابتدائي', 'icon': Icons.looks_two, 'color': 0xFF42A5F5, 'locked': false},
-    {'name': 'ثالث ابتدائي', 'icon': Icons.looks_3, 'color': 0xFF26A69A, 'locked': false},
-    {'name': 'رابع ابتدائي', 'icon': Icons.looks_4, 'color': 0xFF26A69A, 'locked': false},
-    {'name': 'خامس ابتدائي', 'icon': Icons.looks_5, 'color': 0xFF66BB6A, 'locked': false},
-    {'name': 'سادس ابتدائي', 'icon': Icons.looks_6, 'color': 0xFF66BB6A, 'locked': false},
-    {'name': 'أول إعدادي', 'icon': Icons.school, 'color': 0xFFFFA726, 'locked': false},
-    {'name': 'ثاني إعدادي', 'icon': Icons.school, 'color': 0xFFFFA726, 'locked': false},
-    {'name': 'ثالث إعدادي', 'icon': Icons.school, 'color': 0xFFEF6C00, 'locked': false},
-    {'name': 'أولى ثانوي', 'icon': Icons.workspace_premium, 'color': 0xFF7E57C2, 'locked': false},
-    {'name': 'ثانية ثانوي', 'icon': Icons.workspace_premium, 'color': 0xFF5E35B1, 'locked': false},
-    {'name': 'ثالثة ثانوي', 'icon': Icons.workspace_premium, 'color': 0xFF4527A0, 'locked': false},
+    {'name': 'أول ابتدائي', 'icon': Icons.looks_one, 'color': 0xFF42A5F5},
+    {'name': 'ثاني ابتدائي', 'icon': Icons.looks_two, 'color': 0xFF42A5F5},
+    {'name': 'ثالث ابتدائي', 'icon': Icons.looks_3, 'color': 0xFF26A69A},
+    {'name': 'رابع ابتدائي', 'icon': Icons.looks_4, 'color': 0xFF26A69A},
+    {'name': 'خامس ابتدائي', 'icon': Icons.looks_5, 'color': 0xFF66BB6A},
+    {'name': 'سادس ابتدائي', 'icon': Icons.looks_6, 'color': 0xFF66BB6A},
+    {'name': 'أول إعدادي', 'icon': Icons.school, 'color': 0xFFFFA726},
+    {'name': 'ثاني إعدادي', 'icon': Icons.school, 'color': 0xFFFFA726},
+    {'name': 'ثالث إعدادي', 'icon': Icons.school, 'color': 0xFFEF6C00},
+    {'name': 'أولى ثانوي', 'icon': Icons.workspace_premium, 'color': 0xFF7E57C2},
+    {'name': 'ثانية ثانوي', 'icon': Icons.workspace_premium, 'color': 0xFF5E35B1},
+    {'name': 'ثالثة ثانوي', 'icon': Icons.workspace_premium, 'color': 0xFF4527A0},
   ];
 
   @override
@@ -1506,115 +1444,187 @@ class LibraryTab extends StatelessWidget {
                 MediaQuery.of(context).padding.bottom + 110),
             itemCount: _grades.length,
             separatorBuilder: (_, __) => const SizedBox(height: 14),
-            itemBuilder: (context, i) {
-              final g = _grades[i];
-              final subjects = _subjectsByGrade[g['name']] ?? <String>[];
-              final locked = g['locked'] == true;
-              return Opacity(
-                opacity: locked ? 0.55 : 1.0,
-                child: Container(
-                height: 82,
-                decoration: BoxDecoration(
-                  color: locked ? Colors.grey.shade100 : Colors.white,
-                  borderRadius: BorderRadius.circular(26),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(locked ? 0.03 : 0.06),
-                      blurRadius: 16,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
-                ),
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(26),
-                    onTap: () {
-                      if (locked) {
-                        showKitabiSnack(context,
-                            'هذا الصف سيُفتح في الإصدار 0.5');
-                        return;
-                      }
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => GradeSubjectsScreen(
-                            gradeName: g['name'],
-                            subjects: subjects,
-                            icons: _subjectIcons,
-                            colors: _subjectColors,
-                          ),
-                        ),
-                      );
-                    },
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 18, vertical: 12),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 56,
-                            height: 56,
-                            decoration: BoxDecoration(
-                              color: Color(g['color']).withOpacity(0.15),
-                              borderRadius: BorderRadius.circular(18),
-                            ),
-                            child: Icon(g['icon'],
-                                size: 30, color: Color(g['color'])),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(g['name'],
-                                    style: const TextStyle(
-                                        fontSize: 17,
-                                        fontWeight: FontWeight.bold,
-                                        color: Color(0xFF1A1A1A))),
-                                const SizedBox(height: 3),
-                                Text('${subjects.length} مواد',
-                                    style: const TextStyle(
-                                        fontSize: 12,
-                                        color: Color(0xFF555555))),
-                              ],
-                            ),
-                          ),
-                          Container(
-                            width: 34,
-                            height: 34,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF1565C0).withOpacity(0.08),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(Icons.arrow_back_ios_new,
-                                size: 14, color: Color(0xFF1565C0)),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ));
-            },
+            itemBuilder: (context, i) => _gradeCard(_grades[i], context),
           ),
         ),
       ],
     );
   }
+
+  Widget _gradeCard(Map<String, dynamic> g, BuildContext context) {
+    return Container(
+      height: 82,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(26),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(26),
+          onTap: () => _openGrade(g['name'], context),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+                horizontal: 18, vertical: 12),
+            child: Row(
+              children: [
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: Color(g['color']).withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: Icon(g['icon'],
+                      size: 30, color: Color(g['color'])),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Text(g['name'],
+                      style: const TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF1A1A1A))),
+                ),
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1565C0).withOpacity(0.08),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.arrow_back_ios_new,
+                      size: 14, color: Color(0xFF1565C0)),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openGrade(String gradeName, BuildContext context) async {
+    try {
+      // نجيب المواد من DB
+      final data = await supabase
+          .from('subjects')
+          .select()
+          .eq('grade', gradeName)
+          .order('display_order', ascending: true);
+
+      if (!context.mounted) return;
+
+      // نتحقق إذا فيه أقسام
+      final sections = data
+          .map((e) => (e['section'] ?? '').toString())
+          .where((s) => s.isNotEmpty)
+          .toSet()
+          .toList();
+
+      if (sections.isNotEmpty) {
+        // فيه أقسام → نروح لشاشة اختيار القسم
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => SectionSelectScreen(
+              gradeName: gradeName,
+              sections: sections,
+            ),
+          ),
+        );
+        return;
+      }
+
+      // ما فيه أقسام → نروح للمواد مباشرة
+      final subjects = data
+          .map((e) => e['subject_name'].toString())
+          .toList();
+      final icons = <String, IconData>{};
+      final colors = <String, Color>{};
+      for (var item in data) {
+        final name = item['subject_name'].toString();
+        icons[name] = _iconFromName(item['icon_name'].toString());
+        colors[name] = _colorFromHex(item['color'].toString());
+      }
+
+      if (subjects.isEmpty) {
+        showKitabiSnack(context, 'لا توجد مواد في هذا الصف');
+        return;
+      }
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => GradeSubjectsScreen(
+            gradeName: gradeName,
+            subjects: subjects,
+            icons: icons,
+            colors: colors,
+          ),
+        ),
+      );
+    } catch (e) {
+      debugPrint('Load subjects error: $e');
+      if (!context.mounted) return;
+      showKitabiSnack(context, 'فشل تحميل المواد');
+    }
+  }
+
+  IconData _iconFromName(String name) {
+    final map = {
+      'calculate': Icons.calculate_rounded,
+      'translate': Icons.translate_rounded,
+      'language': Icons.language_rounded,
+      'mosque': Icons.mosque_rounded,
+      'computer': Icons.computer_rounded,
+      'science': Icons.science_rounded,
+      'public': Icons.public_rounded,
+      'biotech': Icons.biotech_rounded,
+      'history_edu': Icons.history_edu_rounded,
+      'groups': Icons.groups_rounded,
+      'flag': Icons.flag_rounded,
+      'sports_soccer': Icons.sports_soccer_rounded,
+      'psychology': Icons.psychology_rounded,
+      'bar_chart': Icons.bar_chart_rounded,
+      'menu_book': Icons.menu_book_rounded,
+      'edit': Icons.edit_rounded,
+      'rate_review': Icons.rate_review_rounded,
+    };
+    return map[name] ?? Icons.book_rounded;
+  }
+
+  Color _colorFromHex(String hex) {
+    try {
+      hex = hex.replaceAll('#', '');
+      return Color(int.parse('FF$hex', radix: 16));
+    } catch (_) {
+      return const Color(0xFF1565C0);
+    }
+  }
 }
+
+
 
 // ============ Grade Subjects Screen ============
 // ============ Section Select Screen ============
 class SectionSelectScreen extends StatelessWidget {
   final String gradeName;
   final List<String> sections;
+  final bool isSheets;
 
   const SectionSelectScreen({
     super.key,
     required this.gradeName,
     required this.sections,
+    this.isSheets = false,
   });
 
   @override
@@ -1685,8 +1695,22 @@ class SectionSelectScreen extends StatelessWidget {
         child: InkWell(
           borderRadius: BorderRadius.circular(20),
           onTap: () async {
-            // نجيب المواد من subjects
             try {
+              // إذا كان شيتات → نروح لقائمة الشيتات
+              if (isSheets) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => SheetsListScreen(
+                      grade: '$gradeName - $section',
+                      subject: null,
+                    ),
+                  ),
+                );
+                return;
+              }
+
+              // نجيب المواد من subjects
               final data = await supabase
                   .from('subjects')
                   .select()
@@ -2972,6 +2996,152 @@ class SheetsScreen extends StatefulWidget {
   @override
   State<SheetsScreen> createState() => _SheetsScreenState();
 }
+
+class _SheetsScreenState extends State<SheetsScreen> {
+  static const List<Map<String, dynamic>> _grades = [
+    {'name': 'أول ابتدائي', 'icon': Icons.looks_one, 'color': 0xFF42A5F5},
+    {'name': 'ثاني ابتدائي', 'icon': Icons.looks_two, 'color': 0xFF42A5F5},
+    {'name': 'ثالث ابتدائي', 'icon': Icons.looks_3, 'color': 0xFF26A69A},
+    {'name': 'رابع ابتدائي', 'icon': Icons.looks_4, 'color': 0xFF26A69A},
+    {'name': 'خامس ابتدائي', 'icon': Icons.looks_5, 'color': 0xFF66BB6A},
+    {'name': 'سادس ابتدائي', 'icon': Icons.looks_6, 'color': 0xFF66BB6A},
+    {'name': 'أول إعدادي', 'icon': Icons.school, 'color': 0xFFFFA726},
+    {'name': 'ثاني إعدادي', 'icon': Icons.school, 'color': 0xFFFFA726},
+    {'name': 'ثالث إعدادي', 'icon': Icons.school, 'color': 0xFFEF6C00},
+    {'name': 'أولى ثانوي', 'icon': Icons.workspace_premium, 'color': 0xFF7E57C2},
+    {'name': 'ثانية ثانوي', 'icon': Icons.workspace_premium, 'color': 0xFF5E35B1},
+    {'name': 'ثالثة ثانوي', 'icon': Icons.workspace_premium, 'color': 0xFF4527A0},
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF00695C),
+        foregroundColor: Colors.white,
+        elevation: 0,
+        title: const Text('شيتات وأوراق تعلمية',
+            style: TextStyle(fontWeight: FontWeight.bold)),
+      ),
+      body: ListView.separated(
+        padding: EdgeInsets.fromLTRB(16, 16, 16,
+            MediaQuery.of(context).padding.bottom + 20),
+        itemCount: _grades.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 12),
+        itemBuilder: (_, i) => _gradeCard(_grades[i], context),
+      ),
+    );
+  }
+
+  Widget _gradeCard(Map<String, dynamic> g, BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: () => _openGrade(g['name'], context),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: Color(g['color']).withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: Icon(g['icon'],
+                      size: 30, color: Color(g['color'])),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Text(g['name'],
+                      style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF1A1A1A))),
+                ),
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF00695C).withOpacity(0.08),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.arrow_back_ios_new,
+                      size: 14, color: Color(0xFF00695C)),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openGrade(String gradeName, BuildContext context) async {
+    try {
+      final data = await supabase
+          .from('subjects')
+          .select()
+          .eq('grade', gradeName)
+          .order('display_order', ascending: true);
+
+      if (!context.mounted) return;
+
+      final sections = data
+          .map((e) => (e['section'] ?? '').toString())
+          .where((s) => s.isNotEmpty)
+          .toSet()
+          .toList();
+
+      if (sections.isNotEmpty) {
+        // فيه أقسام → شاشة اختيار القسم (مع flag للشيتات)
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => SectionSelectScreen(
+              gradeName: gradeName,
+              sections: sections,
+              isSheets: true,
+            ),
+          ),
+        );
+        return;
+      }
+
+      // نروح لقائمة الشيتات مع الفلتر
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => SheetsListScreen(
+            grade: gradeName,
+            subject: null,
+          ),
+        ),
+      );
+    } catch (e) {
+      debugPrint('Sheets error: $e');
+      if (!context.mounted) return;
+      showKitabiSnack(context, 'فشل التحميل');
+    }
+  }
+}
+
+
 
 class _SheetsScreenState extends State<SheetsScreen> {
   static const List<Map<String, dynamic>> _grades = [
