@@ -9,6 +9,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'dart:convert';
+import 'package:path_provider/path_provider.dart';
 import 'package:http/http.dart' as http;
 import 'package:video_player/video_player.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -7401,6 +7402,2004 @@ class _RoleRequestsScreenState extends State<RoleRequestsScreen> {
   }
 }
 
+// ============ Advanced Settings Screen ============
+// ============ Statistics Screen ============
+// ============ Change Password Screen ============
+class ChangePasswordScreen extends StatefulWidget {
+  const ChangePasswordScreen({super.key});
+  @override
+  State<ChangePasswordScreen> createState() => _ChangePasswordScreenState();
+}
+
+class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
+  final _oldCtrl = TextEditingController();
+  final _newCtrl = TextEditingController();
+  final _confirmCtrl = TextEditingController();
+  bool _showOld = false;
+  bool _showNew = false;
+  bool _showConfirm = false;
+  bool _saving = false;
+
+  Future<void> _save() async {
+    if (_oldCtrl.text.trim().isEmpty ||
+        _newCtrl.text.trim().isEmpty ||
+        _confirmCtrl.text.trim().isEmpty) {
+      showKitabiSnack(context, 'املأ كل الحقول');
+      return;
+    }
+    if (_newCtrl.text.trim() != _confirmCtrl.text.trim()) {
+      showKitabiSnack(context, 'كلمتا السر غير متطابقتين');
+      return;
+    }
+    if (_newCtrl.text.trim().length < 4) {
+      showKitabiSnack(context, 'كلمة السر قصيرة (4 أحرف على الأقل)');
+      return;
+    }
+
+    setState(() => _saving = true);
+
+    try {
+      final data = await supabase
+          .from('admin_settings')
+          .select('admin_password')
+          .eq('id', 1)
+          .single();
+      final current = data['admin_password'] ?? 'العلم نور';
+
+      if (_oldCtrl.text.trim() != current) {
+        if (!mounted) return;
+        setState(() => _saving = false);
+        showKitabiSnack(context, 'كلمة السر الحالية خاطئة');
+        return;
+      }
+
+      await supabase.from('admin_settings').update({
+        'admin_password': _newCtrl.text.trim(),
+        'updated_at': DateTime.now().toIso8601String(),
+      }).eq('id', 1);
+
+      if (!mounted) return;
+      showKitabiSnack(context, 'تم تغيير كلمة السر بنجاح');
+      Navigator.pop(context);
+    } catch (e) {
+      debugPrint('Change pwd error: $e');
+      if (!mounted) return;
+      setState(() => _saving = false);
+      showKitabiSnack(context, 'فشل التغيير');
+    }
+  }
+
+  @override
+  void dispose() {
+    _oldCtrl.dispose();
+    _newCtrl.dispose();
+    _confirmCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFFEF6C00),
+        foregroundColor: Colors.white,
+        elevation: 0,
+        title: const Text('تغيير كلمة سر الغرفة',
+            style: TextStyle(fontWeight: FontWeight.bold)),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEF6C00).withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.lock_reset,
+                  size: 60, color: Color(0xFFEF6C00)),
+            ),
+            const SizedBox(height: 20),
+            const Center(
+              child: Text('غيّر كلمة سر الدخول للمشرفين',
+                  style: TextStyle(
+                      fontSize: 14, color: Color(0xFF555555))),
+            ),
+            const SizedBox(height: 30),
+            TextField(
+              controller: _oldCtrl,
+              obscureText: !_showOld,
+              decoration: InputDecoration(
+                labelText: 'كلمة السر الحالية',
+                prefixIcon: const Icon(Icons.lock_outline),
+                suffixIcon: IconButton(
+                  onPressed: () => setState(() => _showOld = !_showOld),
+                  icon: Icon(
+                    _showOld ? Icons.visibility : Icons.visibility_off,
+                    color: const Color(0xFF555555),
+                  ),
+                ),
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+            const SizedBox(height: 15),
+            TextField(
+              controller: _newCtrl,
+              obscureText: !_showNew,
+              decoration: InputDecoration(
+                labelText: 'كلمة السر الجديدة',
+                prefixIcon: const Icon(Icons.lock),
+                suffixIcon: IconButton(
+                  onPressed: () => setState(() => _showNew = !_showNew),
+                  icon: Icon(
+                    _showNew ? Icons.visibility : Icons.visibility_off,
+                    color: const Color(0xFF555555),
+                  ),
+                ),
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+            const SizedBox(height: 15),
+            TextField(
+              controller: _confirmCtrl,
+              obscureText: !_showConfirm,
+              decoration: InputDecoration(
+                labelText: 'تأكيد كلمة السر',
+                prefixIcon: const Icon(Icons.check_circle_outline),
+                suffixIcon: IconButton(
+                  onPressed: () =>
+                      setState(() => _showConfirm = !_showConfirm),
+                  icon: Icon(
+                    _showConfirm ? Icons.visibility : Icons.visibility_off,
+                    color: const Color(0xFF555555),
+                  ),
+                ),
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+            const SizedBox(height: 30),
+            SizedBox(
+              height: 55,
+              child: ElevatedButton.icon(
+                onPressed: _saving ? null : _save,
+                icon: _saving
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                            color: Colors.white, strokeWidth: 2))
+                    : const Icon(Icons.save),
+                label: const Text('حفظ',
+                    style: TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.bold)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFEF6C00),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ============ Quick Broadcast Screen ============
+class QuickBroadcastScreen extends StatefulWidget {
+  const QuickBroadcastScreen({super.key});
+  @override
+  State<QuickBroadcastScreen> createState() => _QuickBroadcastScreenState();
+}
+
+class _QuickBroadcastScreenState extends State<QuickBroadcastScreen> {
+  final _titleCtrl = TextEditingController();
+  final _bodyCtrl = TextEditingController();
+  String _target = 'all';
+  bool _sending = false;
+
+  final List<String> _templates = [
+    'صيانة مجدولة: سيتوقف التطبيق غداً من 2-4 صباحاً',
+    'تحديث جديد متوفر: تم إضافة ميزات رائعة',
+    'مسابقة أسبوعية: شارك واكسب نقاط',
+    'تذكير: راجع دروسك اليوم',
+  ];
+
+  Future<void> _send() async {
+    if (_titleCtrl.text.trim().isEmpty ||
+        _bodyCtrl.text.trim().isEmpty) {
+      showKitabiSnack(context, 'اكتب العنوان والنص');
+      return;
+    }
+
+    setState(() => _sending = true);
+
+    try {
+      await supabase.from('notifications').insert({
+        'title': _titleCtrl.text.trim(),
+        'body': _bodyCtrl.text.trim(),
+        'target_type': _target,
+        'sent_by': 'admin',
+      });
+      if (!mounted) return;
+      showKitabiSnack(context, '✅ تم إرسال الإشعار');
+      Navigator.pop(context);
+    } catch (e) {
+      debugPrint('Broadcast error: $e');
+      if (!mounted) return;
+      setState(() => _sending = false);
+      showKitabiSnack(context, 'فشل الإرسال');
+    }
+  }
+
+  @override
+  void dispose() {
+    _titleCtrl.dispose();
+    _bodyCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF7B1FA2),
+        foregroundColor: Colors.white,
+        elevation: 0,
+        title: const Text('إشعار جماعي سريع',
+            style: TextStyle(fontWeight: FontWeight.bold)),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // قوالب جاهزة
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.bolt,
+                          color: Color(0xFFFFA000), size: 20),
+                      SizedBox(width: 8),
+                      Text('قوالب سريعة',
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 13)),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  ..._templates.map((t) => GestureDetector(
+                        onTap: () =>
+                            setState(() => _bodyCtrl.text = t),
+                        child: Container(
+                          margin: const EdgeInsets.only(bottom: 6),
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF5F7FA),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(t,
+                              style: const TextStyle(fontSize: 12)),
+                        ),
+                      )),
+                ],
+              ),
+            ),
+            const SizedBox(height: 15),
+            TextField(
+              controller: _titleCtrl,
+              decoration: InputDecoration(
+                labelText: 'عنوان الإشعار',
+                prefixIcon: const Icon(Icons.title),
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+            const SizedBox(height: 15),
+            TextField(
+              controller: _bodyCtrl,
+              maxLines: 4,
+              decoration: InputDecoration(
+                labelText: 'نص الإشعار',
+                alignLabelWithHint: true,
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+            const SizedBox(height: 15),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: DropdownButtonFormField<String>(
+                value: _target,
+                decoration: const InputDecoration(
+                  labelText: 'المرسل إليه',
+                  prefixIcon: Icon(Icons.people),
+                  border: InputBorder.none,
+                ),
+                items: const [
+                  DropdownMenuItem(value: 'all', child: Text('الجميع')),
+                  DropdownMenuItem(
+                      value: 'plus_only', child: Text('مشتركو بلس فقط')),
+                  DropdownMenuItem(
+                      value: 'teachers', child: Text('المعلمون فقط')),
+                ],
+                onChanged: (v) =>
+                    setState(() => _target = v ?? 'all'),
+              ),
+            ),
+            const SizedBox(height: 25),
+            SizedBox(
+              height: 55,
+              child: ElevatedButton.icon(
+                onPressed: _sending ? null : _send,
+                icon: _sending
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                            color: Colors.white, strokeWidth: 2))
+                    : const Icon(Icons.send),
+                label: const Text('إرسال',
+                    style: TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.bold)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF7B1FA2),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ============ Export CSV Screen ============
+class ExportCSVScreen extends StatefulWidget {
+  const ExportCSVScreen({super.key});
+  @override
+  State<ExportCSVScreen> createState() => _ExportCSVScreenState();
+}
+
+class _ExportCSVScreenState extends State<ExportCSVScreen> {
+  bool _exporting = false;
+  String _status = '';
+
+  Future<void> _exportAll() async {
+    setState(() {
+      _exporting = true;
+      _status = 'جاري التصدير...';
+    });
+
+    try {
+      final dir = await getApplicationDocumentsDirectory();
+      final timestamp =
+          DateTime.now().millisecondsSinceEpoch.toString();
+      final exportDir = Directory('${dir.path}/kitabi_export_$timestamp');
+      await exportDir.create(recursive: true);
+
+      // 1) المستخدمون
+      final users = await supabase.from('users').select();
+      await _writeCSV(exportDir, 'users.csv', users);
+
+      // 2) الكتب
+      final books = await supabase.from('books').select();
+      await _writeCSV(exportDir, 'books.csv', books);
+
+      // 3) الإشعارات
+      final notifs = await supabase.from('notifications').select();
+      await _writeCSV(exportDir, 'notifications.csv', notifs);
+
+      // 4) الفيديوهات
+      final videos = await supabase.from('videos').select();
+      await _writeCSV(exportDir, 'videos.csv', videos);
+
+      // 5) الاختبارات
+      final quizzes = await supabase.from('quizzes').select();
+      await _writeCSV(exportDir, 'quizzes.csv', quizzes);
+
+      // 6) المنشورات
+      final posts = await supabase.from('posts').select();
+      await _writeCSV(exportDir, 'posts.csv', posts);
+
+      // 7) التعليقات
+      final comments = await supabase.from('post_comments').select();
+      await _writeCSV(exportDir, 'comments.csv', comments);
+
+      // 8) الاشتراكات
+      final subs = await supabase.from('subscriptions').select();
+      await _writeCSV(exportDir, 'subscriptions.csv', subs);
+
+      if (!mounted) return;
+      setState(() {
+        _exporting = false;
+        _status = '✅ تم التصدير إلى:\n${exportDir.path}';
+      });
+      showKitabiSnack(context, 'تم التصدير بنجاح');
+    } catch (e) {
+      debugPrint('Export error: $e');
+      if (!mounted) return;
+      setState(() {
+        _exporting = false;
+        _status = '❌ فشل: $e';
+      });
+    }
+  }
+
+  Future<void> _writeCSV(
+      Directory dir, String name, List<dynamic> data) async {
+    if (data.isEmpty) return;
+    final rows = <String>[];
+    final keys = (data[0] as Map).keys.toList();
+    rows.add(keys.join(','));
+    for (var item in data) {
+      final row = keys.map((k) {
+        final v = item[k];
+        if (v == null) return '';
+        final s = v.toString().replaceAll(',', ';').replaceAll('\n', ' ');
+        return '"$s"';
+      }).join(',');
+      rows.add(row);
+    }
+    final file = File('${dir.path}/$name');
+    await file.writeAsString('\uFEFF${rows.join('\n')}',
+        encoding: utf8);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF00897B),
+        foregroundColor: Colors.white,
+        elevation: 0,
+        title: const Text('تصدير البيانات (CSV)',
+            style: TextStyle(fontWeight: FontWeight.bold)),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: const Color(0xFF00897B).withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.download,
+                  size: 60, color: Color(0xFF00897B)),
+            ),
+            const SizedBox(height: 20),
+            const Center(
+              child: Text('تصدير كل البيانات كملفات CSV',
+                  style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1A1A1A))),
+            ),
+            const SizedBox(height: 8),
+            const Center(
+              child: Text(
+                  'سيتم إنشاء مجلد يحتوي على 8 ملفات CSV',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                      fontSize: 13, color: Color(0xFF555555))),
+            ),
+            const SizedBox(height: 20),
+            // الملفات
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _ExportItem('📁', 'users.csv', 'المستخدمون'),
+                  _ExportItem('📁', 'books.csv', 'الكتب + الشيتات'),
+                  _ExportItem('📁', 'notifications.csv', 'الإشعارات'),
+                  _ExportItem('📁', 'videos.csv', 'الفيديوهات'),
+                  _ExportItem('📁', 'quizzes.csv', 'الاختبارات'),
+                  _ExportItem('📁', 'posts.csv', 'المنشورات'),
+                  _ExportItem('📁', 'comments.csv', 'التعليقات'),
+                  _ExportItem('📁', 'subscriptions.csv', 'الاشتراكات'),
+                ],
+              ),
+            ),
+            const SizedBox(height: 25),
+            if (_status.isNotEmpty)
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: _status.startsWith('✅')
+                      ? Colors.green.shade50
+                      : _status.startsWith('❌')
+                          ? Colors.red.shade50
+                          : Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Text(_status,
+                    style: const TextStyle(fontSize: 12, height: 1.5)),
+              ),
+            const SizedBox(height: 15),
+            SizedBox(
+              height: 55,
+              child: ElevatedButton.icon(
+                onPressed: _exporting ? null : _exportAll,
+                icon: _exporting
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                            color: Colors.white, strokeWidth: 2))
+                    : const Icon(Icons.file_download),
+                label: Text(
+                  _exporting ? 'جاري التصدير...' : 'تصدير الكل',
+                  style: const TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF00897B),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ExportItem extends StatelessWidget {
+  final String icon, file, desc;
+  const _ExportItem(this.icon, this.file, this.desc);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Text(icon, style: const TextStyle(fontSize: 16)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(file,
+                style: const TextStyle(
+                    fontSize: 13, fontWeight: FontWeight.w600)),
+          ),
+          Text(desc,
+              style: const TextStyle(
+                  fontSize: 11, color: Color(0xFF888888))),
+        ],
+      ),
+    );
+  }
+}
+
+// ============ Backup Screen ============
+class BackupScreen extends StatefulWidget {
+  const BackupScreen({super.key});
+  @override
+  State<BackupScreen> createState() => _BackupScreenState();
+}
+
+class _BackupScreenState extends State<BackupScreen> {
+  bool _creating = false;
+  String _status = '';
+
+  Future<void> _createBackup() async {
+    setState(() {
+      _creating = true;
+      _status = 'جاري الإنشاء...';
+    });
+
+    try {
+      final dir = await getApplicationDocumentsDirectory();
+      final timestamp = DateTime.now()
+          .toIso8601String()
+          .replaceAll(':', '-')
+          .substring(0, 19);
+      final backupFile = File('${dir.path}/kitabi_backup_$timestamp.json');
+
+      // نجمع كل البيانات
+      final data = <String, dynamic>{
+        'created_at': DateTime.now().toIso8601String(),
+        'version': '0.3.0',
+        'users': await supabase.from('users').select(),
+        'books': await supabase.from('books').select(),
+        'notifications': await supabase.from('notifications').select(),
+        'videos': await supabase.from('videos').select(),
+        'quizzes': await supabase.from('quizzes').select(),
+        'posts': await supabase.from('posts').select(),
+        'post_comments': await supabase.from('post_comments').select(),
+        'subscriptions': await supabase.from('subscriptions').select(),
+        'role_requests': await supabase.from('role_requests').select(),
+        'app_settings': await supabase.from('app_settings').select(),
+        'admin_settings': await supabase.from('admin_settings').select(),
+      };
+
+      await backupFile.writeAsString(
+          const JsonEncoder.withIndent('  ').convert(data));
+
+      if (!mounted) return;
+      setState(() {
+        _creating = false;
+        _status = '✅ تم الحفظ:\n${backupFile.path}';
+      });
+      showKitabiSnack(context, 'تم إنشاء النسخة الاحتياطية');
+    } catch (e) {
+      debugPrint('Backup error: $e');
+      if (!mounted) return;
+      setState(() {
+        _creating = false;
+        _status = '❌ فشل: $e';
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF1565C0),
+        foregroundColor: Colors.white,
+        elevation: 0,
+        title: const Text('نسخة احتياطية',
+            style: TextStyle(fontWeight: FontWeight.bold)),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1565C0).withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.backup,
+                  size: 60, color: Color(0xFF1565C0)),
+            ),
+            const SizedBox(height: 20),
+            const Center(
+              child: Text('نسخة احتياطية كاملة',
+                  style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1A1A1A))),
+            ),
+            const SizedBox(height: 8),
+            const Center(
+              child: Text(
+                  'ملف JSON يحتوي على كل بيانات التطبيق',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                      fontSize: 13, color: Color(0xFF555555))),
+            ),
+            const SizedBox(height: 20),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('📦 النسخة تحتوي على:',
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 13)),
+                  SizedBox(height: 10),
+                  Text('• المستخدمون + الصلاحيات',
+                      style: TextStyle(fontSize: 12, height: 1.6)),
+                  Text('• الكتب + الشيتات',
+                      style: TextStyle(fontSize: 12, height: 1.6)),
+                  Text('• الإشعارات + الفيديوهات',
+                      style: TextStyle(fontSize: 12, height: 1.6)),
+                  Text('• المنشورات + التعليقات',
+                      style: TextStyle(fontSize: 12, height: 1.6)),
+                  Text('• الاشتراكات + الطلبات',
+                      style: TextStyle(fontSize: 12, height: 1.6)),
+                  Text('• إعدادات التطبيق',
+                      style: TextStyle(fontSize: 12, height: 1.6)),
+                ],
+              ),
+            ),
+            const SizedBox(height: 25),
+            if (_status.isNotEmpty)
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: _status.startsWith('✅')
+                      ? Colors.green.shade50
+                      : _status.startsWith('❌')
+                          ? Colors.red.shade50
+                          : Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Text(_status,
+                    style: const TextStyle(fontSize: 12, height: 1.5)),
+              ),
+            const SizedBox(height: 15),
+            SizedBox(
+              height: 55,
+              child: ElevatedButton.icon(
+                onPressed: _creating ? null : _createBackup,
+                icon: _creating
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                            color: Colors.white, strokeWidth: 2))
+                    : const Icon(Icons.save_alt),
+                label: Text(
+                  _creating ? 'جاري الإنشاء...' : 'إنشاء نسخة احتياطية',
+                  style: const TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1565C0),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class StatisticsScreen extends StatefulWidget {
+  const StatisticsScreen({super.key});
+  @override
+  State<StatisticsScreen> createState() => _StatisticsScreenState();
+}
+
+class _StatisticsScreenState extends State<StatisticsScreen> {
+  Map<String, int> _stats = {};
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    try {
+      final users = await supabase.from('users').select('id, role, is_banned');
+      final books = await supabase.from('books').select('id, category');
+      final notifs = await supabase.from('notifications').select('id');
+      final videos = await supabase.from('videos').select('id');
+      final quizzes = await supabase.from('quizzes').select('id');
+      final posts = await supabase.from('posts').select('id');
+      final comments = await supabase.from('post_comments').select('id');
+      final subs = await supabase
+          .from('subscriptions')
+          .select('id, is_active, expires_at');
+
+      final activeSubs = subs.where((s) {
+        if (s['is_active'] != true) return false;
+        try {
+          final exp = DateTime.parse(s['expires_at'].toString());
+          return exp.isAfter(DateTime.now());
+        } catch (_) {
+          return false;
+        }
+      }).length;
+
+      final teachers = users.where((u) => u['role'] == 'teacher').length;
+      final mods = users.where((u) => u['role'] == 'moderator').length;
+      final admins = users.where((u) => u['role'] == 'admin').length;
+      final banned = users.where((u) => u['is_banned'] == true).length;
+      final booksCount =
+          books.where((b) => b['category'] != 'sheets').length;
+      final sheetsCount =
+          books.where((b) => b['category'] == 'sheets').length;
+
+      if (!mounted) return;
+      setState(() {
+        _stats = {
+          'المستخدمون': users.length,
+          'المعلمون': teachers,
+          'المشرفون': mods,
+          'المدراء': admins,
+          'المحظورون': banned,
+          'الكتب': booksCount,
+          'الشيتات': sheetsCount,
+          'الإشعارات': notifs.length,
+          'الفيديوهات': videos.length,
+          'الاختبارات': quizzes.length,
+          'المنشورات': posts.length,
+          'التعليقات': comments.length,
+          'مشتركو بلس': activeSubs,
+        };
+        _loading = false;
+      });
+    } catch (e) {
+      debugPrint('Stats error: $e');
+      if (!mounted) return;
+      setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF283593),
+        foregroundColor: Colors.white,
+        elevation: 0,
+        title: const Text('الإحصائيات الشاملة',
+            style: TextStyle(fontWeight: FontWeight.bold)),
+        actions: [
+          IconButton(
+            onPressed: _load,
+            icon: const Icon(Icons.refresh),
+          ),
+        ],
+      ),
+      body: _loading
+          ? const Center(
+              child: CircularProgressIndicator(color: Color(0xFF283593)))
+          : RefreshIndicator(
+              onRefresh: _load,
+              color: const Color(0xFF283593),
+              child: ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  _sectionTitle('المستخدمون', Icons.people),
+                  _statsGrid([
+                    'المستخدمون', 'المعلمون', 'المشرفون',
+                    'المدراء', 'المحظورون', 'مشتركو بلس',
+                  ]),
+                  const SizedBox(height: 20),
+                  _sectionTitle('المحتوى', Icons.library_books),
+                  _statsGrid([
+                    'الكتب', 'الشيتات', 'الإشعارات',
+                    'الفيديوهات', 'الاختبارات',
+                  ]),
+                  const SizedBox(height: 20),
+                  _sectionTitle('المنتدى', Icons.forum),
+                  _statsGrid(['المنشورات', 'التعليقات']),
+                  const SizedBox(height: 30),
+                ],
+              ),
+            ),
+    );
+  }
+
+  Widget _sectionTitle(String title, IconData icon) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          Icon(icon, size: 20, color: const Color(0xFF283593)),
+          const SizedBox(width: 8),
+          Text(title,
+              style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1A1A1A))),
+        ],
+      ),
+    );
+  }
+
+  Widget _statsGrid(List<String> keys) {
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 10,
+        mainAxisSpacing: 10,
+        childAspectRatio: 1.6,
+      ),
+      itemCount: keys.length,
+      itemBuilder: (_, i) => _statCard(keys[i]),
+    );
+  }
+
+  Widget _statCard(String key) {
+    final value = _stats[key] ?? 0;
+    final color = _colorFor(key);
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withOpacity(0.2), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.08),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(key,
+              style: const TextStyle(
+                  fontSize: 12,
+                  color: Color(0xFF555555),
+                  fontWeight: FontWeight.w600)),
+          const SizedBox(height: 6),
+          Text('$value',
+              style: TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.bold,
+                  color: color)),
+        ],
+      ),
+    );
+  }
+
+  Color _colorFor(String key) {
+    switch (key) {
+      case 'المستخدمون':
+        return const Color(0xFF1565C0);
+      case 'المعلمون':
+        return const Color(0xFF00897B);
+      case 'المشرفون':
+        return const Color(0xFF7B1FA2);
+      case 'المدراء':
+        return const Color(0xFFD32F2F);
+      case 'المحظورون':
+        return const Color(0xFF555555);
+      case 'مشتركو بلس':
+        return const Color(0xFFFFA000);
+      case 'الكتب':
+        return const Color(0xFF1565C0);
+      case 'الشيتات':
+        return const Color(0xFF00695C);
+      case 'الإشعارات':
+        return const Color(0xFF7B1FA2);
+      case 'الفيديوهات':
+        return const Color(0xFFD32F2F);
+      case 'الاختبارات':
+        return const Color(0xFFEF6C00);
+      case 'المنشورات':
+        return const Color(0xFF283593);
+      case 'التعليقات':
+        return const Color(0xFF00838F);
+      default:
+        return const Color(0xFF555555);
+    }
+  }
+}
+
+// ============ Color Settings Screen ============
+class ColorSettingsScreen extends StatefulWidget {
+  const ColorSettingsScreen({super.key});
+  @override
+  State<ColorSettingsScreen> createState() => _ColorSettingsScreenState();
+}
+
+class _ColorSettingsScreenState extends State<ColorSettingsScreen> {
+  String _primary = '#1565C0';
+  String _nav = '#2C2C2E';
+  bool _loading = true;
+
+  final List<String> _colors = [
+    '#1565C0', // أزرق
+    '#00897B', // أخضر مزرق
+    '#7B1FA2', // بنفسجي
+    '#D32F2F', // أحمر
+    '#EF6C00', // برتقالي
+    '#283593', // نيلي
+    '#00695C', // أخضر داكن
+    '#455A64', // رمادي مزرق
+    '#F57C00', // ذهبي
+    '#C2185B', // وردي
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    try {
+      final data = await supabase
+          .from('app_settings')
+          .select('primary_color, nav_color')
+          .eq('id', 1)
+          .single();
+      if (!mounted) return;
+      setState(() {
+        _primary = data['primary_color'] ?? '#1565C0';
+        _nav = data['nav_color'] ?? '#2C2C2E';
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+    }
+  }
+
+  Color _hexToColor(String hex) {
+    hex = hex.replaceAll('#', '');
+    return Color(int.parse('FF$hex', radix: 16));
+  }
+
+  Future<void> _save() async {
+    try {
+      await supabase.from('app_settings').update({
+        'primary_color': _primary,
+        'nav_color': _nav,
+        'updated_at': DateTime.now().toIso8601String(),
+      }).eq('id', 1);
+      if (!mounted) return;
+      showKitabiSnack(context, 'تم حفظ الألوان');
+    } catch (e) {
+      showKitabiSnack(context, 'فشل الحفظ');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
+      appBar: AppBar(
+        backgroundColor: _hexToColor(_primary),
+        foregroundColor: Colors.white,
+        elevation: 0,
+        title: const Text('تخصيص الألوان',
+            style: TextStyle(fontWeight: FontWeight.bold)),
+        actions: [
+          IconButton(
+            onPressed: _save,
+            icon: const Icon(Icons.check),
+            tooltip: 'حفظ',
+          ),
+        ],
+      ),
+      body: _loading
+          ? const Center(
+              child: CircularProgressIndicator(color: Color(0xFF1565C0)))
+          : ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                _sectionTitle('اللون الأساسي', Icons.color_lens),
+                _colorGrid(
+                  _primary,
+                  (c) => setState(() => _primary = c),
+                ),
+                const SizedBox(height: 25),
+                _sectionTitle('لون الشريط السفلي', Icons.navigation),
+                _colorGrid(
+                  _nav,
+                  (c) => setState(() => _nav = c),
+                ),
+                const SizedBox(height: 25),
+                // معاينة
+                _sectionTitle('معاينة', Icons.preview),
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Column(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: _hexToColor(_primary),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: const Text('زر تجريبي',
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold)),
+                      ),
+                      const SizedBox(height: 15),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: _hexToColor(_nav),
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                        child: const Row(
+                          mainAxisAlignment:
+                              MainAxisAlignment.spaceAround,
+                          children: [
+                            Icon(Icons.home, color: Colors.white),
+                            Icon(Icons.menu_book, color: Colors.white70),
+                            Icon(Icons.notifications, color: Colors.white70),
+                            Icon(Icons.person, color: Colors.white70),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 25),
+                SizedBox(
+                  height: 55,
+                  child: ElevatedButton.icon(
+                    onPressed: _save,
+                    icon: const Icon(Icons.save),
+                    label: const Text('حفظ الألوان',
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _hexToColor(_primary),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+    );
+  }
+
+  Widget _sectionTitle(String title, IconData icon) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12, right: 4),
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: const Color(0xFF555555)),
+          const SizedBox(width: 8),
+          Text(title,
+              style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1A1A1A))),
+        ],
+      ),
+    );
+  }
+
+  Widget _colorGrid(String current, Function(String) onSelect) {
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 5,
+        crossAxisSpacing: 10,
+        mainAxisSpacing: 10,
+      ),
+      itemCount: _colors.length,
+      itemBuilder: (_, i) {
+        final color = _colors[i];
+        final selected = current == color;
+        return GestureDetector(
+          onTap: () => onSelect(color),
+          child: Container(
+            decoration: BoxDecoration(
+              color: _hexToColor(color),
+              borderRadius: BorderRadius.circular(14),
+              border: selected
+                  ? Border.all(color: Colors.white, width: 4)
+                  : null,
+              boxShadow: selected
+                  ? [
+                      BoxShadow(
+                        color: _hexToColor(color).withOpacity(0.5),
+                        blurRadius: 12,
+                      ),
+                    ]
+                  : null,
+            ),
+            child: selected
+                ? const Icon(Icons.check, color: Colors.white, size: 28)
+                : null,
+          ),
+        );
+      },
+    );
+  }
+}
+
+// ============ Welcome Message Screen ============
+class WelcomeMessageScreen extends StatefulWidget {
+  const WelcomeMessageScreen({super.key});
+  @override
+  State<WelcomeMessageScreen> createState() => _WelcomeMessageScreenState();
+}
+
+class _WelcomeMessageScreenState extends State<WelcomeMessageScreen> {
+  final _ctrl = TextEditingController();
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    try {
+      final data = await supabase
+          .from('app_settings')
+          .select('welcome_message')
+          .eq('id', 1)
+          .single();
+      if (!mounted) return;
+      setState(() {
+        _ctrl.text = data['welcome_message'] ?? '';
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _save() async {
+    try {
+      await supabase.from('app_settings').update({
+        'welcome_message': _ctrl.text.trim(),
+        'updated_at': DateTime.now().toIso8601String(),
+      }).eq('id', 1);
+      if (!mounted) return;
+      showKitabiSnack(context, 'تم الحفظ');
+      Navigator.pop(context);
+    } catch (e) {
+      showKitabiSnack(context, 'فشل الحفظ');
+    }
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF00897B),
+        foregroundColor: Colors.white,
+        elevation: 0,
+        title: const Text('رسالة الترحيب',
+            style: TextStyle(fontWeight: FontWeight.bold)),
+      ),
+      body: _loading
+          ? const Center(
+              child: CircularProgressIndicator(color: Color(0xFF00897B)))
+          : Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Text('اكتب رسالة تظهر للطلاب عند التسجيل:',
+                      style: TextStyle(
+                          fontSize: 14, color: Color(0xFF555555))),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _ctrl,
+                    maxLines: 5,
+                    decoration: InputDecoration(
+                      hintText: 'مرحباً بك في كتابي...',
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    height: 55,
+                    child: ElevatedButton.icon(
+                      onPressed: _save,
+                      icon: const Icon(Icons.save),
+                      label: const Text('حفظ',
+                          style: TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.bold)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF00897B),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+    );
+  }
+}
+
+class AdvancedSettingsScreen extends StatefulWidget {
+  const AdvancedSettingsScreen({super.key});
+  @override
+  State<AdvancedSettingsScreen> createState() =>
+      _AdvancedSettingsScreenState();
+}
+
+class _AdvancedSettingsScreenState extends State<AdvancedSettingsScreen> {
+  Map<String, dynamic> _settings = {};
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    try {
+      final data = await supabase
+          .from('app_settings')
+          .select()
+          .eq('id', 1)
+          .single();
+      if (!mounted) return;
+      setState(() {
+        _settings = Map<String, dynamic>.from(data);
+        _loading = false;
+      });
+    } catch (e) {
+      debugPrint('Load settings error: $e');
+      if (!mounted) return;
+      setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF455A64),
+        foregroundColor: Colors.white,
+        elevation: 0,
+        title: const Text('الإعدادات المتقدمة',
+            style: TextStyle(fontWeight: FontWeight.bold)),
+      ),
+      body: _loading
+          ? const Center(
+              child: CircularProgressIndicator(color: Color(0xFF455A64)))
+          : ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                // قسم عام
+                _sectionTitle('عام', Icons.settings),
+                _card([
+                  _item(
+                    icon: Icons.school,
+                    color: const Color(0xFF1565C0),
+                    title: 'المراقبات',
+                    subtitle:
+                        '${(_settings['muraqabat'] as List?)?.length ?? 0} مراقبة',
+                    onTap: () async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              const ManageMuraqabatScreen(),
+                        ),
+                      );
+                      _load();
+                    },
+                  ),
+                  _divider(),
+                  _item(
+                    icon: Icons.chat_bubble_outline,
+                    color: const Color(0xFF00897B),
+                    title: 'رسالة الترحيب',
+                    subtitle: _settings['welcome_message'] ?? '',
+                    onTap: () async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              const WelcomeMessageScreen(),
+                        ),
+                      );
+                      _load();
+                    },
+                  ),
+                  _divider(),
+                  _item(
+                    icon: Icons.apps,
+                    color: const Color(0xFF7B1FA2),
+                    title: 'اسم التطبيق',
+                    subtitle: _settings['app_name'] ?? 'Kitabi',
+                    onTap: () => showKitabiSnack(
+                        context, 'قريباً — تعديل اسم التطبيق'),
+                  ),
+                ]),
+
+                // قسم الأمان
+                _sectionTitle('الأمان', Icons.security),
+                _card([
+                  _item(
+                    icon: Icons.lock_reset,
+                    color: const Color(0xFFEF6C00),
+                    title: 'تغيير كلمة سر الغرفة',
+                    subtitle: 'تحديث كلمة سر الدخول',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              const ChangePasswordScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  _divider(),
+                  _item(
+                    icon: Icons.campaign,
+                    color: const Color(0xFF7B1FA2),
+                    title: 'إشعار جماعي سريع',
+                    subtitle: 'إرسال إشعار بقوالب جاهزة',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              const QuickBroadcastScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                ]),
+
+                // قسم التخصيص
+                _sectionTitle('التخصيص', Icons.color_lens),
+                _card([
+                  _item(
+                    icon: Icons.palette,
+                    color: const Color(0xFF7B1FA2),
+                    title: 'الألوان',
+                    subtitle:
+                        'تخصيص ألوان التطبيق (${_settings['primary_color'] ?? ''})',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const ColorSettingsScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  _divider(),
+                  _item(
+                    icon: Icons.notifications_active,
+                    color: const Color(0xFFFFA000),
+                    title: 'إعدادات الإشعارات',
+                    subtitle: (_settings['notifications_enabled'] == true)
+                        ? 'مفعّلة'
+                        : 'معطّلة',
+                    onTap: () => showKitabiSnack(
+                        context, 'قريباً — إعدادات الإشعارات'),
+                  ),
+                ]),
+
+                // قسم التحليلات
+                _sectionTitle('التحليلات', Icons.analytics),
+                _card([
+                  _item(
+                    icon: Icons.bar_chart,
+                    color: const Color(0xFF283593),
+                    title: 'إحصائيات شاملة',
+                    subtitle: 'تحليل بيانات التطبيق',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const StatisticsScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  _divider(),
+                  _item(
+                    icon: Icons.download,
+                    color: const Color(0xFF00897B),
+                    title: 'تصدير البيانات (CSV)',
+                    subtitle: 'تحميل كل البيانات كملفات CSV',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const ExportCSVScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                ]),
+
+                // قسم الصيانة
+                _sectionTitle('الصيانة', Icons.build),
+                _card([
+                  _item(
+                    icon: Icons.backup,
+                    color: const Color(0xFF1565C0),
+                    title: 'نسخة احتياطية',
+                    subtitle: 'إنشاء نسخة من البيانات',
+                    onTap: () => showKitabiSnack(
+                        context, 'قريباً — نسخ احتياطي'),
+                  ),
+                  _divider(),
+                  _item(
+                    icon: Icons.build_circle,
+                    color: (_settings['maintenance_mode'] == true)
+                        ? Colors.red
+                        : const Color(0xFF555555),
+                    title: 'وضع الصيانة',
+                    subtitle: (_settings['maintenance_mode'] == true)
+                        ? 'مفعّل — التطبيق متوقف'
+                        : 'معطّل',
+                    onTap: () => _toggleMaintenance(),
+                  ),
+                ]),
+
+                const SizedBox(height: 30),
+              ],
+            ),
+    );
+  }
+
+  Future<void> _toggleMaintenance() async {
+    final current = _settings['maintenance_mode'] == true;
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20)),
+        title: Text(current ? 'إلغاء وضع الصيانة' : 'تفعيل وضع الصيانة'),
+        content: Text(current
+            ? 'سيتمكن الطلاب من استخدام التطبيق.'
+            : 'سيتم إيقاف استخدام التطبيق مؤقتاً للطلاب.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: current ? Colors.green : Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: Text(current ? 'إلغاء' : 'تفعيل'),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+
+    try {
+      await supabase.from('app_settings').update({
+        'maintenance_mode': !current,
+        'updated_at': DateTime.now().toIso8601String(),
+      }).eq('id', 1);
+      if (!mounted) return;
+      showKitabiSnack(context,
+          !current ? 'تم تفعيل وضع الصيانة' : 'تم إلغاء وضع الصيانة');
+      _load();
+    } catch (e) {
+      showKitabiSnack(context, 'فشل');
+    }
+  }
+
+  Widget _sectionTitle(String title, IconData icon) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 8, bottom: 10, right: 4),
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: const Color(0xFF455A64)),
+          const SizedBox(width: 8),
+          Text(title,
+              style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF455A64))),
+        ],
+      ),
+    );
+  }
+
+  Widget _card(List<Widget> children) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(children: children),
+    );
+  }
+
+  Widget _item({
+    required IconData icon,
+    required Color color,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return ListTile(
+      onTap: onTap,
+      leading: Container(
+        padding: const EdgeInsets.all(9),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.12),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Icon(icon, color: color, size: 22),
+      ),
+      title: Text(title,
+          style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+              color: Color(0xFF1A1A1A))),
+      subtitle: Text(subtitle,
+          style: const TextStyle(fontSize: 11, color: Color(0xFF555555)),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis),
+      trailing: const Icon(Icons.arrow_back_ios,
+          size: 14, color: Color(0xFF555555)),
+    );
+  }
+
+  Widget _divider() => const Divider(
+      height: 1, indent: 70, endIndent: 15, color: Color(0xFFF0F0F0));
+}
+
+// ============ Manage Muraqabat Screen ============
+class ManageMuraqabatScreen extends StatefulWidget {
+  const ManageMuraqabatScreen({super.key});
+  @override
+  State<ManageMuraqabatScreen> createState() =>
+      _ManageMuraqabatScreenState();
+}
+
+class _ManageMuraqabatScreenState extends State<ManageMuraqabatScreen> {
+  List<String> _muraqabat = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    try {
+      final data = await supabase
+          .from('app_settings')
+          .select('muraqabat')
+          .eq('id', 1)
+          .single();
+      final list = (data['muraqabat'] as List?) ?? [];
+      if (!mounted) return;
+      setState(() {
+        _muraqabat = list.map((e) => e.toString()).toList();
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _save() async {
+    try {
+      await supabase.from('app_settings').update({
+        'muraqabat': _muraqabat,
+        'updated_at': DateTime.now().toIso8601String(),
+      }).eq('id', 1);
+    } catch (e) {
+      debugPrint('Save error: $e');
+    }
+  }
+
+  Future<void> _add() async {
+    final ctrl = TextEditingController();
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20)),
+        title: const Text('إضافة مراقبة',
+            style: TextStyle(fontWeight: FontWeight.bold)),
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          decoration: InputDecoration(
+            labelText: 'اسم المراقبة',
+            hintText: 'مثال: مراقبة طرابلس',
+            border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12)),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (ctrl.text.trim().isNotEmpty) {
+                Navigator.pop(ctx, ctrl.text.trim());
+              }
+            },
+            style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF455A64),
+                foregroundColor: Colors.white),
+            child: const Text('إضافة'),
+          ),
+        ],
+      ),
+    );
+
+    if (result != null && result.isNotEmpty) {
+      setState(() => _muraqabat.add(result));
+      await _save();
+      if (!mounted) return;
+      showKitabiSnack(context, 'تمت الإضافة');
+    }
+  }
+
+  Future<void> _edit(int index) async {
+    final ctrl = TextEditingController(text: _muraqabat[index]);
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20)),
+        title: const Text('تعديل المراقبة',
+            style: TextStyle(fontWeight: FontWeight.bold)),
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          decoration: InputDecoration(
+            labelText: 'اسم المراقبة',
+            border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12)),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (ctrl.text.trim().isNotEmpty) {
+                Navigator.pop(ctx, ctrl.text.trim());
+              }
+            },
+            style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1565C0),
+                foregroundColor: Colors.white),
+            child: const Text('حفظ'),
+          ),
+        ],
+      ),
+    );
+
+    if (result != null && result.isNotEmpty) {
+      setState(() => _muraqabat[index] = result);
+      await _save();
+      if (!mounted) return;
+      showKitabiSnack(context, 'تم التعديل');
+    }
+  }
+
+  Future<void> _delete(int index) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20)),
+        title: const Text('حذف المراقبة'),
+        content: Text('هل تريد حذف "${_muraqabat[index]}"؟'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('لا'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white),
+            child: const Text('حذف'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      setState(() => _muraqabat.removeAt(index));
+      await _save();
+      if (!mounted) return;
+      showKitabiSnack(context, 'تم الحذف');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF1565C0),
+        foregroundColor: Colors.white,
+        elevation: 0,
+        title: Text('المراقبات (${_muraqabat.length})',
+            style: const TextStyle(fontWeight: FontWeight.bold)),
+        actions: [
+          IconButton(
+            onPressed: _add,
+            icon: const Icon(Icons.add_circle),
+            tooltip: 'إضافة',
+          ),
+        ],
+      ),
+      body: _loading
+          ? const Center(
+              child: CircularProgressIndicator(color: Color(0xFF1565C0)))
+          : _muraqabat.isEmpty
+              ? const Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.location_off,
+                          size: 80, color: Color(0xFF888888)),
+                      SizedBox(height: 15),
+                      Text('لا توجد مراقبات',
+                          style: TextStyle(
+                              fontSize: 16, color: Color(0xFF555555))),
+                    ],
+                  ),
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: _muraqabat.length,
+                  itemBuilder: (_, i) => _card(_muraqabat[i], i),
+                ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _add,
+        backgroundColor: const Color(0xFF1565C0),
+        icon: const Icon(Icons.add, color: Colors.white),
+        label: const Text('إضافة مراقبة',
+            style: TextStyle(
+                color: Colors.white, fontWeight: FontWeight.bold)),
+      ),
+    );
+  }
+
+  Widget _card(String name, int index) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1565C0).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(Icons.location_city,
+                color: Color(0xFF1565C0), size: 22),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(name,
+                style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF1A1A1A))),
+          ),
+          IconButton(
+            onPressed: () => _edit(index),
+            icon: const Icon(Icons.edit,
+                color: Color(0xFF1565C0), size: 20),
+          ),
+          IconButton(
+            onPressed: () => _delete(index),
+            icon: const Icon(Icons.delete,
+                color: Colors.red, size: 20),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class ControlRoomScreen extends StatefulWidget {
   final bool fromSplash;
   const ControlRoomScreen({super.key, this.fromSplash = false});
@@ -7763,6 +9762,15 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
                   context,
                   MaterialPageRoute(
                       builder: (_) => const ManageRolesScreen()),
+                );
+              }),
+              _divider(),
+              _listItem(Icons.settings_suggest, 'الإعدادات المتقدمة',
+                  const Color(0xFF455A64), () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const AdvancedSettingsScreen()),
                 );
               }),
               _divider(),
