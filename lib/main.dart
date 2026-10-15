@@ -85,7 +85,6 @@ Future<void> main() async {
   // نقرأ الوضع الليلي المحفوظ
   try {
     final prefs = await SharedPreferences.getInstance();
-    darkModeNotifier.value = prefs.getBool('dark_mode') ?? false;
   } catch (e) {
     debugPrint('Load dark mode error: $e');
   }
@@ -179,37 +178,84 @@ class SubscriptionHelper {
   }
 }
 
-// ValueNotifier للوضع الليلي
-final ValueNotifier<bool> darkModeNotifier = ValueNotifier(false);
+// GlobalKey للتحكم بالوضع الليلي من أي مكان
+final GlobalKey<_KitabiAppInnerState> kitabiAppKey =
+    GlobalKey<_KitabiAppInnerState>();
 
 class KitabiApp extends StatelessWidget {
   const KitabiApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<bool>(
-      valueListenable: darkModeNotifier,
-      builder: (context, dark, _) => MaterialApp(
-        title: 'Kitabi',
-        debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: const Color(0xFF1565C0),
-            brightness: Brightness.light,
+    return _KitabiAppInner(key: kitabiAppKey);
+  }
+}
+
+class _KitabiAppInner extends StatefulWidget {
+  const _KitabiAppInner({super.key});
+
+  @override
+  State<_KitabiAppInner> createState() => _KitabiAppInnerState();
+}
+
+class _KitabiAppInnerState extends State<_KitabiAppInner> {
+  bool _isDark = false;
+  bool _loaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() {
+      _isDark = prefs.getBool('dark_mode') ?? false;
+      _loaded = true;
+    });
+  }
+
+  void toggleDark(bool value) async {
+    setState(() => _isDark = value);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('dark_mode', value);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_loaded) {
+      return const MaterialApp(
+        home: Scaffold(
+          backgroundColor: Color(0xFF1565C0),
+          body: Center(
+            child: CircularProgressIndicator(color: Colors.white),
           ),
-          scaffoldBackgroundColor: const Color(0xFFF5F7FA),
-          useMaterial3: true,
         ),
-        darkTheme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: const Color(0xFF1565C0),
-            brightness: Brightness.dark,
-          ),
-          useMaterial3: true,
+      );
+    }
+    return MaterialApp(
+      title: 'Kitabi',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF1565C0),
+          brightness: Brightness.light,
         ),
-        themeMode: dark ? ThemeMode.dark : ThemeMode.light,
-        home: const SplashScreen(),
+        scaffoldBackgroundColor: const Color(0xFFF5F7FA),
+        useMaterial3: true,
       ),
+      darkTheme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF1565C0),
+          brightness: Brightness.dark,
+        ),
+        scaffoldBackgroundColor: const Color(0xFF121212),
+        useMaterial3: true,
+      ),
+      themeMode: _isDark ? ThemeMode.dark : ThemeMode.light,
+      home: const SplashScreen(),
     );
   }
 }
@@ -879,6 +925,423 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 }
 
+// ============ Onboarding Screen ============
+// ============ Privacy Policy Screen ============
+class PrivacyPolicyScreen extends StatelessWidget {
+  const PrivacyPolicyScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF1565C0),
+        foregroundColor: Colors.white,
+        elevation: 0,
+        title: const Text('سياسة الخصوصية',
+            style: TextStyle(fontWeight: FontWeight.bold)),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1565C0).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.update,
+                      color: Color(0xFF1565C0), size: 20),
+                  SizedBox(width: 10),
+                  Text('آخر تحديث: 15 أكتوبر 2026',
+                      style: TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.w600)),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            _section(
+              'مقدمة',
+              'مرحباً بك في تطبيق كتابي. نحن نحترم خصوصيتك ونلتزم بحماية بياناتك الشخصية. '
+                  'توضح هذه السياسة كيفية جمعنا واستخدامنا وحمايتنا لمعلوماتك عند استخدام التطبيق.',
+            ),
+            _section(
+              'المعلومات التي نجمعها',
+              '1. معلومات التسجيل:\n'
+                  '   • الاسم الكامل\n'
+                  '   • البريد الإلكتروني\n'
+                  '   • الصف الدراسي\n'
+                  '   • المراقبة التعليمية\n\n'
+                  '2. معلومات الاستخدام:\n'
+                  '   • الكتب التي تقرأها\n'
+                  '   • الاختبارات التي تحلها\n'
+                  '   • النقاط والإنجازات',
+            ),
+            _section(
+              'كيف نستخدم معلوماتك',
+              '• لتقديم خدمات التطبيق التعليمية\n'
+                  '• لتحسين تجربتك التعليمية\n'
+                  '• لإرسال الإشعارات المتعلقة بالتعليم\n'
+                  '• للتواصل معك بشأن حسابك\n'
+                  '• لحماية التطبيق من الاستخدام المسيء',
+            ),
+            _section(
+              'حماية البيانات',
+              'نستخدم تقنيات تشفير حديثة (SSL/TLS) لحماية بياناتك. '
+                  'يتم تخزين المعلومات على خوادم آمنة (Supabase) مع تطبيق سياسات صارمة للوصول.',
+            ),
+            _section(
+              'حقوقك',
+              '• الحق في الوصول إلى بياناتك\n'
+                  '• الحق في تعديل بياناتك\n'
+                  '• الحق في حذف حسابك\n'
+                  '• الحق في الاعتراض على معالجة بياناتك',
+            ),
+            _section(
+              'ملفات تعريف الارتباط',
+              'لا نستخدم ملفات تعريف الارتباط التقليدية. '
+                  'نستخدم تقنيات التخزين المحلي (SharedPreferences) '
+                  'لحفظ إعداداتك مثل الوضع الليلي وحالة التسجيل.',
+            ),
+            _section(
+              'خصوصية الأطفال',
+              'التطبيق مخصص للطلاب من جميع الأعمار. '
+                  'للطلاب تحت 13 عاماً، يجب الحصول على موافقة الوالدين.',
+            ),
+            _section(
+              'التغييرات على السياسة',
+              'قد نقوم بتحديث هذه السياسة من وقت لآخر. '
+                  'سنقوم بإشعارك بأي تغييرات جوهرية عبر التطبيق.',
+            ),
+            _section(
+              'تواصل معنا',
+              'لأي استفسار حول سياسة الخصوصية:\n\n'
+                  '📧 support@kitabi.ly\n'
+                  '📞 0922251374',
+            ),
+            const SizedBox(height: 30),
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF1565C0), Color(0xFF42A5F5)],
+                  begin: Alignment.topRight,
+                  end: Alignment.bottomLeft,
+                ),
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF1565C0).withOpacity(0.3),
+                    blurRadius: 20,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: const Column(
+                children: [
+                  Icon(Icons.shield, color: Colors.white, size: 45),
+                  SizedBox(height: 12),
+                  Text('خصوصيتك محمية',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold)),
+                  SizedBox(height: 6),
+                  Text('نلتزم بحماية بياناتك وأمانها',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                          color: Colors.white70, fontSize: 13)),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _section(String title, String content) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 4,
+                height: 22,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1565C0),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(title,
+                    style: const TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1A1A1A))),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(content,
+              style: const TextStyle(
+                  fontSize: 14,
+                  color: Color(0xFF555555),
+                  height: 1.7)),
+        ],
+      ),
+    );
+  }
+}
+
+class OnboardingScreen extends StatefulWidget {
+  const OnboardingScreen({super.key});
+  @override
+  State<OnboardingScreen> createState() => _OnboardingScreenState();
+}
+
+class _OnboardingScreenState extends State<OnboardingScreen> {
+  final PageController _pageCtrl = PageController();
+  int _currentPage = 0;
+
+  final List<Map<String, dynamic>> _pages = [
+    {
+      'icon': Icons.menu_book_rounded,
+      'title': 'مرحباً بك في كتابي',
+      'description':
+          'كل كتب المنهج الليبي في مكان واحد. من الابتدائي إلى الثانوي.',
+      'color': 0xFF1565C0,
+    },
+    {
+      'icon': Icons.smart_toy_rounded,
+      'title': 'معلم ذكي بالـ AI',
+      'description':
+          'اسأل أي سؤال في المنهج، وارفع صورة المسألة، واحصل على شرح مفصل.',
+      'color': 0xFF7B1FA2,
+    },
+    {
+      'icon': Icons.assignment_rounded,
+      'title': 'اختبارات ودورات',
+      'description':
+          'اختبر نفسك، تابع تقدمك، واكسب النقاط. ودورات تعليمية كاملة.',
+      'color': 0xFFEF6C00,
+    },
+    {
+      'icon': Icons.workspace_premium,
+      'title': 'اشترك في كتابي بلس',
+      'description':
+          'مزايا حصرية: دورات، بث تعليمي، وإمكانيات إضافية.',
+      'color': 0xFF00897B,
+    },
+  ];
+
+  Future<void> _finish() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('onboarding_done', true);
+    if (!mounted) return;
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+    );
+  }
+
+  @override
+  void dispose() {
+    _pageCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final page = _pages[_currentPage];
+    final color = Color(page['color']);
+
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: List.generate(
+                      _pages.length,
+                      (i) => AnimatedContainer(
+                        duration: const Duration(milliseconds: 300),
+                        margin: const EdgeInsets.only(left: 5),
+                        width: _currentPage == i ? 24 : 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: _currentPage == i
+                              ? color
+                              : const Color(0xFFE0E0E0),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: _finish,
+                    child: const Text('تخطي',
+                        style: TextStyle(
+                            fontSize: 15,
+                            color: Color(0xFF555555),
+                            fontWeight: FontWeight.w600)),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: PageView.builder(
+                controller: _pageCtrl,
+                itemCount: _pages.length,
+                onPageChanged: (i) =>
+                    setState(() => _currentPage = i),
+                itemBuilder: (_, i) {
+                  final p = _pages[i];
+                  final c = Color(p['color']);
+                  return Padding(
+                    padding: const EdgeInsets.all(30),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: 180,
+                          height: 180,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                c,
+                                c.withOpacity(0.6),
+                              ],
+                              begin: Alignment.topRight,
+                              end: Alignment.bottomLeft,
+                            ),
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: c.withOpacity(0.3),
+                                blurRadius: 30,
+                                offset: const Offset(0, 15),
+                              ),
+                            ],
+                          ),
+                          child: Icon(p['icon'],
+                              size: 80, color: Colors.white),
+                        ),
+                        const SizedBox(height: 45),
+                        Text(
+                          p['title'],
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 26,
+                            fontWeight: FontWeight.bold,
+                            color: c,
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        Text(
+                          p['description'],
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 15,
+                            color: Color(0xFF555555),
+                            height: 1.7,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(30),
+              child: Row(
+                children: [
+                  if (_currentPage > 0)
+                    IconButton(
+                      onPressed: () {
+                        _pageCtrl.previousPage(
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeOut,
+                        );
+                      },
+                      icon: const Icon(Icons.arrow_forward,
+                          size: 28, color: Color(0xFF555555)),
+                    ),
+                  const Spacer(),
+                  Expanded(
+                    flex: 2,
+                    child: SizedBox(
+                      height: 55,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          if (_currentPage < _pages.length - 1) {
+                            _pageCtrl.nextPage(
+                              duration:
+                                  const Duration(milliseconds: 300),
+                              curve: Curves.easeOut,
+                            );
+                          } else {
+                            _finish();
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: color,
+                          foregroundColor: Colors.white,
+                          elevation: 6,
+                          shadowColor: color.withOpacity(0.5),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                        child: Text(
+                          _currentPage < _pages.length - 1
+                              ? 'التالي'
+                              : 'ابدأ الآن',
+                          style: const TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
   @override
@@ -896,6 +1359,18 @@ class _SplashScreenState extends State<SplashScreen> {
     await Future.delayed(const Duration(seconds: 2));
 
     if (!mounted) return;
+
+    // 0) نفحص إذا شاف الـ Onboarding
+    final prefs = await SharedPreferences.getInstance();
+    final onboardingDone = prefs.getBool('onboarding_done') ?? false;
+    if (!onboardingDone) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+            builder: (_) => const OnboardingScreen()),
+      );
+      return;
+    }
 
     // 1) نفحص جلسة Supabase
     final session = supabase.auth.currentSession;
@@ -3105,8 +3580,6 @@ class _AccountTabState extends State<AccountTab> {
   Future<void> _loadDarkMode() async {
     final prefs = await SharedPreferences.getInstance();
     final saved = prefs.getBool('dark_mode') ?? false;
-    // نحدّث Notifier + State
-    darkModeNotifier.value = saved;
     if (!mounted) return;
     setState(() {
       _darkMode = saved;
@@ -3387,15 +3860,12 @@ class _AccountTabState extends State<AccountTab> {
                       value: _darkMode,
                       onChanged: (v) async {
                         setState(() => _darkMode = v);
-                        // نحدث التطبيق كامل فوراً
-                        darkModeNotifier.value = v;
-                        final prefs =
-                            await SharedPreferences.getInstance();
-                        await prefs.setBool('dark_mode', v);
+                        // نستخدم GlobalKey للوصول للـ State
+                        kitabiAppKey.currentState?.toggleDark(v);
                         if (!mounted) return;
                         showKitabiSnack(
                             context,
-                            v ? 'تم تفعيل الوضع الليلي' : 'تم إلغاء الوضع الليلي');
+                            v ? '🌙 تم تفعيل الوضع الليلي' : '☀️ تم تفعيل الوضع النهاري');
                       },
                       activeColor: const Color(0xFF7E57C2),
                     ),
@@ -3404,6 +3874,15 @@ class _AccountTabState extends State<AccountTab> {
                   _menuItem(Icons.help_outline, 'المساعدة والدعم',
                       const Color(0xFF26A69A), () {
                     _showHelpDialog();
+                  }),
+                  _menuDivider(),
+                  _menuItem(Icons.privacy_tip_outlined, 'سياسة الخصوصية',
+                      const Color(0xFF1565C0), () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const PrivacyPolicyScreen()),
+                    );
                   }),
                   _menuDivider(),
                   _menuItem(Icons.info_outline, 'عن التطبيق',
