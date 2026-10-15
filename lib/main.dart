@@ -1050,7 +1050,13 @@ class HomeTab extends StatelessWidget {
                 _quickBtn(context, 'ملاحظاتي', Icons.sticky_note_2_rounded,
                     const LinearGradient(
                         colors: [Color(0xFF00838F), Color(0xFF00ACC1)]),
-                    () => showKitabiSnack(context, 'ملاحظاتي — قريباً')),
+                    () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const NotesScreen()),
+                  );
+                }),
                 _quickBtn(context, 'فيديوهات', Icons.play_circle_fill_rounded,
                     const LinearGradient(
                         colors: [Color(0xFFD32F2F), Color(0xFFEF5350)]),
@@ -1074,7 +1080,7 @@ class HomeTab extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 5),
+          const SizedBox(height: 0),
           // ===== الصفوف الدراسية الليبية =====
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 20),
@@ -1084,7 +1090,7 @@ class HomeTab extends StatelessWidget {
                     fontWeight: FontWeight.bold,
                     color: Color(0xFF1A1A1A))),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 2),
 
           // المرحلة الابتدائية
           Padding(
@@ -1092,7 +1098,7 @@ class HomeTab extends StatelessWidget {
             child: _stageHeader('المرحلة الابتدائية', Color(0xFF42A5F5),
                 Icons.emoji_nature),
           ),
-          const SizedBox(height: 5),
+          const SizedBox(height: 0),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: _gradesGrid(context, const [
@@ -1100,7 +1106,7 @@ class HomeTab extends StatelessWidget {
               'رابع ابتدائي', 'خامس ابتدائي', 'سادس ابتدائي',
             ], Color(0xFF42A5F5)),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 0),
 
           // المرحلة الإعدادية
           Padding(
@@ -1108,14 +1114,14 @@ class HomeTab extends StatelessWidget {
             child: _stageHeader('المرحلة الإعدادية', Color(0xFFFFA726),
                 Icons.school),
           ),
-          const SizedBox(height: 5),
+          const SizedBox(height: 0),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: _gradesGrid(context, const [
               'أول إعدادي', 'ثاني إعدادي', 'ثالث إعدادي',
             ], Color(0xFFFFA726)),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 0),
 
           // المرحلة الثانوية
           Padding(
@@ -1123,7 +1129,7 @@ class HomeTab extends StatelessWidget {
             child: _stageHeader('المرحلة الثانوية', Color(0xFF7E57C2),
                 Icons.workspace_premium),
           ),
-          const SizedBox(height: 5),
+          const SizedBox(height: 0),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: _gradesGrid(context, const [
@@ -1167,9 +1173,9 @@ class HomeTab extends StatelessWidget {
       crossAxisCount: 3,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      crossAxisSpacing: 10,
-      mainAxisSpacing: 10,
-      childAspectRatio: 1.4,
+      crossAxisSpacing: 3,
+      mainAxisSpacing: 3,
+      childAspectRatio: 1.7,
       children: grades.map((grade) {
         return Material(
           color: Colors.transparent,
@@ -5780,9 +5786,21 @@ class _TeacherAIScreenState extends State<TeacherAIScreen> {
 
       final model = 'google/gemma-4-26b-a4b-it:free';
 
-      final sys = 'أنت معلم ذكي اسمك معلم كتابي، تعمل في تطبيق كتابي التعليمي الليبي. '
+      final sys = 'أنت "معلم كتابي"، معلم ذكي متخصص في المنهج الليبي الرسمي. '
+          'تعمل في تطبيق كتابي التعليمي الليبي. '
           'الطالب اسمه: $_userName. صفه: $_userGrade. '
-          'رد بالعربية الفصحى مع لمسة ليبية بسيطة. اشرح بلطف ووضوح.';
+          '\n\n'
+          'قواعد مهمة:\n'
+          '1. اشرح حسب المنهج الليبي الرسمي (من كتب وزارة التربية والتعليم الليبية).\n'
+          '2. استخدم المصطلحات الليبية المستخدمة في الكتب المدرسية.\n'
+          '3. إذا كان الدرس في كتاب الصف المحدد، اتبع ترتيب الكتاب وأمثلته.\n'
+          '4. اذكر رقم الباب/الفصل إذا أمكن.\n'
+          '5. رد بالعربية الفصحى المبسطة مع لمسة ليبية خفيفة.\n'
+          '6. اشرح خطوة بخطوة مع أمثلة عملية.\n'
+          '7. إذا لم تكن متأكداً من تفاصيل المنهج، قل ذلك بصراحة واقترح على الطالب مراجعة الكتاب.\n'
+          '8. لا تختلق معلومات غير موجودة في المنهج الليبي.\n'
+          '\n'
+          'ابدأ ردك بتحية لطيفة للطالب، ثم اشرح بلطف ووضوح. اجعل الإجابة منظمة ومختصرة.';
 
       final response = await http.post(
         Uri.parse('https://openrouter.ai/api/v1/chat/completions'),
@@ -9697,6 +9715,575 @@ class _ManageMuraqabatScreenState extends State<ManageMuraqabatScreen> {
                 color: Colors.red, size: 20),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ============ Notes Screen ============
+class NotesScreen extends StatefulWidget {
+  const NotesScreen({super.key});
+  @override
+  State<NotesScreen> createState() => _NotesScreenState();
+}
+
+class _NotesScreenState extends State<NotesScreen> {
+  List<Map<String, dynamic>> _notes = [];
+  bool _loading = true;
+  String _search = '';
+  String _userName = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _init();
+  }
+
+  Future<void> _init() async {
+    final prefs = await SharedPreferences.getInstance();
+    _userName = prefs.getString('user_name') ?? '';
+    await _load();
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    try {
+      final data = await supabase
+          .from('notes')
+          .select()
+          .eq('user_name', _userName)
+          .order('is_pinned', ascending: false)
+          .order('updated_at', ascending: false);
+      if (!mounted) return;
+      setState(() {
+        _notes = List<Map<String, dynamic>>.from(data);
+        _loading = false;
+      });
+    } catch (e) {
+      debugPrint('Load notes error: $e');
+      if (!mounted) return;
+      setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _deleteNote(Map<String, dynamic> note) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20)),
+        title: const Text('حذف الملاحظة'),
+        content: Text('هل تريد حذف "${note['title'] ?? 'بدون عنوان'}"؟'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white),
+            child: const Text('حذف'),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+
+    try {
+      await supabase.from('notes').delete().eq('id', note['id']);
+      if (!mounted) return;
+      showKitabiSnack(context, 'تم الحذف');
+      _load();
+    } catch (e) {
+      showKitabiSnack(context, 'فشل الحذف');
+    }
+  }
+
+  Future<void> _togglePin(Map<String, dynamic> note) async {
+    try {
+      await supabase.from('notes').update({
+        'is_pinned': !(note['is_pinned'] == true),
+      }).eq('id', note['id']);
+      _load();
+    } catch (e) {
+      debugPrint('Pin error: $e');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final filtered = _search.isEmpty
+        ? _notes
+        : _notes.where((n) {
+            final t = (n['title'] ?? '').toString();
+            final c = (n['content'] ?? '').toString();
+            return t.contains(_search) || c.contains(_search);
+          }).toList();
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF00838F),
+        foregroundColor: Colors.white,
+        elevation: 0,
+        title: const Row(
+          children: [
+            Icon(Icons.sticky_note_2),
+            SizedBox(width: 10),
+            Text('ملاحظاتي',
+                style: TextStyle(fontWeight: FontWeight.bold)),
+          ],
+        ),
+      ),
+      body: Column(
+        children: [
+          // البحث
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: TextField(
+              onChanged: (v) => setState(() => _search = v),
+              decoration: InputDecoration(
+                hintText: 'ابحث في ملاحظاتك...',
+                prefixIcon: const Icon(Icons.search),
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            child: _loading
+                ? const Center(
+                    child: CircularProgressIndicator(
+                        color: Color(0xFF00838F)))
+                : filtered.isEmpty
+                    ? _buildEmpty()
+                    : RefreshIndicator(
+                        onRefresh: _load,
+                        color: const Color(0xFF00838F),
+                        child: GridView.builder(
+                          padding: EdgeInsets.fromLTRB(12, 0, 12,
+                              MediaQuery.of(context).padding.bottom + 100),
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            crossAxisSpacing: 10,
+                            mainAxisSpacing: 10,
+                            childAspectRatio: 0.85,
+                          ),
+                          itemCount: filtered.length,
+                          itemBuilder: (_, i) =>
+                              _noteCard(filtered[i]),
+                        ),
+                      ),
+          ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () async {
+          final result = await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => CreateNoteScreen(userName: _userName),
+            ),
+          );
+          if (result == true) _load();
+        },
+        backgroundColor: const Color(0xFF00838F),
+        icon: const Icon(Icons.add, color: Colors.white),
+        label: const Text('ملاحظة جديدة',
+            style: TextStyle(
+                color: Colors.white, fontWeight: FontWeight.bold)),
+      ),
+    );
+  }
+
+  Widget _noteCard(Map<String, dynamic> note) {
+    final color = _colorFromHex(note['color'] ?? '#FFFFFF');
+    final isPinned = note['is_pinned'] == true;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isPinned
+              ? const Color(0xFFFFA000)
+              : Colors.black.withOpacity(0.05),
+          width: isPinned ? 2 : 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () async {
+            final result = await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => CreateNoteScreen(
+                  userName: _userName,
+                  existingNote: note,
+                ),
+              ),
+            );
+            if (result == true) _load();
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        note['title'] ?? 'بدون عنوان',
+                        style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF1A1A1A)),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: () => _togglePin(note),
+                      child: Icon(
+                        isPinned ? Icons.push_pin : Icons.push_pin_outlined,
+                        size: 18,
+                        color: isPinned
+                            ? const Color(0xFFFFA000)
+                            : const Color(0xFF888888),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Expanded(
+                  child: Text(
+                    note['content'] ?? '',
+                    style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF555555),
+                        height: 1.4),
+                    maxLines: 6,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    if ((note['subject'] ?? '').toString().isNotEmpty)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.06),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          note['subject'],
+                          style: const TextStyle(
+                              fontSize: 9,
+                              color: Color(0xFF555555),
+                              fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    const Spacer(),
+                    GestureDetector(
+                      onTap: () => _deleteNote(note),
+                      child: const Icon(Icons.delete_outline,
+                          size: 16, color: Colors.red),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Color _colorFromHex(String hex) {
+    try {
+      hex = hex.replaceAll('#', '');
+      return Color(int.parse('FF$hex', radix: 16));
+    } catch (_) {
+      return const Color(0xFFFFFFFF);
+    }
+  }
+
+  Widget _buildEmpty() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(28),
+            decoration: BoxDecoration(
+              color: const Color(0xFF00838F).withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.sticky_note_2_outlined,
+                size: 60, color: Color(0xFF00838F)),
+          ),
+          const SizedBox(height: 20),
+          const Text('لا توجد ملاحظات بعد',
+              style: TextStyle(fontSize: 16, color: Color(0xFF555555))),
+          const SizedBox(height: 10),
+          const Text('اضغط + لإضافة ملاحظة جديدة',
+              style: TextStyle(fontSize: 13, color: Color(0xFF888888))),
+        ],
+      ),
+    );
+  }
+}
+
+// ============ Create/Edit Note Screen ============
+class CreateNoteScreen extends StatefulWidget {
+  final String userName;
+  final Map<String, dynamic>? existingNote;
+
+  const CreateNoteScreen({
+    super.key,
+    required this.userName,
+    this.existingNote,
+  });
+
+  @override
+  State<CreateNoteScreen> createState() => _CreateNoteScreenState();
+}
+
+class _CreateNoteScreenState extends State<CreateNoteScreen> {
+  final _titleCtrl = TextEditingController();
+  final _contentCtrl = TextEditingController();
+  String _color = '#FFFFFF';
+  String? _subject;
+  bool _isPinned = false;
+  bool _saving = false;
+
+  final List<String> _colors = [
+    '#FFFFFF', '#FFF9C4', '#C8E6C9', '#BBDEFB',
+    '#F8BBD0', '#FFE0B2', '#D1C4E9', '#B2DFDB',
+  ];
+
+  final List<String> _subjects = [
+    'الرياضيات', 'اللغة العربية', 'اللغة الإنجليزية',
+    'التربية الإسلامية', 'العلوم', 'الفيزياء',
+    'الكيمياء', 'الأحياء', 'التاريخ', 'الجغرافيا',
+    'الحاسوب', 'أخرى',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.existingNote != null) {
+      _titleCtrl.text = widget.existingNote!['title'] ?? '';
+      _contentCtrl.text = widget.existingNote!['content'] ?? '';
+      _color = widget.existingNote!['color'] ?? '#FFFFFF';
+      _subject = widget.existingNote!['subject'];
+      _isPinned = widget.existingNote!['is_pinned'] == true;
+    }
+  }
+
+  Future<void> _save() async {
+    if (_contentCtrl.text.trim().isEmpty) {
+      showKitabiSnack(context, 'اكتب محتوى الملاحظة');
+      return;
+    }
+
+    setState(() => _saving = true);
+    try {
+      final data = {
+        'user_name': widget.userName,
+        'title': _titleCtrl.text.trim(),
+        'content': _contentCtrl.text.trim(),
+        'color': _color,
+        'subject': _subject,
+        'is_pinned': _isPinned,
+        'updated_at': DateTime.now().toIso8601String(),
+      };
+
+      if (widget.existingNote != null) {
+        await supabase
+            .from('notes')
+            .update(data)
+            .eq('id', widget.existingNote!['id']);
+      } else {
+        await supabase.from('notes').insert(data);
+      }
+
+      if (!mounted) return;
+      Navigator.pop(context, true);
+    } catch (e) {
+      debugPrint('Save note error: $e');
+      if (!mounted) return;
+      setState(() => _saving = false);
+      showKitabiSnack(context, 'فشل الحفظ');
+    }
+  }
+
+  @override
+  void dispose() {
+    _titleCtrl.dispose();
+    _contentCtrl.dispose();
+    super.dispose();
+  }
+
+  Color _hexToColor(String hex) {
+    hex = hex.replaceAll('#', '');
+    return Color(int.parse('FF$hex', radix: 16));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: _hexToColor(_color),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF00838F),
+        foregroundColor: Colors.white,
+        elevation: 0,
+        title: Text(
+          widget.existingNote == null ? 'ملاحظة جديدة' : 'تعديل الملاحظة',
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+        actions: [
+          IconButton(
+            onPressed: () => setState(() => _isPinned = !_isPinned),
+            icon: Icon(_isPinned ? Icons.push_pin : Icons.push_pin_outlined),
+            tooltip: 'تثبيت',
+          ),
+          TextButton(
+            onPressed: _saving ? null : _save,
+            child: _saving
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                        color: Colors.white, strokeWidth: 2))
+                : const Text('حفظ',
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16)),
+          ),
+        ],
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // العنوان
+            TextField(
+              controller: _titleCtrl,
+              style: const TextStyle(
+                  fontSize: 20, fontWeight: FontWeight.bold),
+              decoration: const InputDecoration(
+                hintText: 'العنوان (اختياري)',
+                border: InputBorder.none,
+              ),
+            ),
+            const Divider(),
+            // المحتوى
+            TextField(
+              controller: _contentCtrl,
+              maxLines: 15,
+              style: const TextStyle(fontSize: 15, height: 1.6),
+              decoration: const InputDecoration(
+                hintText: 'اكتب ملاحظتك هنا...',
+                border: InputBorder.none,
+              ),
+            ),
+            const SizedBox(height: 20),
+            // المادة
+            const Text('المادة:',
+                style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF555555))),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: _subjects.map((s) {
+                final selected = _subject == s;
+                return GestureDetector(
+                  onTap: () => setState(() => _subject = selected ? null : s),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: selected
+                          ? const Color(0xFF00838F)
+                          : Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                          color: const Color(0xFF00838F).withOpacity(0.3)),
+                    ),
+                    child: Text(s,
+                        style: TextStyle(
+                            fontSize: 11,
+                            color: selected
+                                ? Colors.white
+                                : const Color(0xFF00838F),
+                            fontWeight: FontWeight.bold)),
+                  ),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 20),
+            // الألوان
+            const Text('اللون:',
+                style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF555555))),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: _colors.map((c) {
+                final selected = _color == c;
+                return GestureDetector(
+                  onTap: () => setState(() => _color = c),
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: _hexToColor(c),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: selected
+                            ? const Color(0xFF00838F)
+                            : Colors.black.withOpacity(0.1),
+                        width: selected ? 3 : 1,
+                      ),
+                    ),
+                    child: selected
+                        ? const Icon(Icons.check,
+                            size: 20, color: Color(0xFF00838F))
+                        : null,
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
+        ),
       ),
     );
   }
