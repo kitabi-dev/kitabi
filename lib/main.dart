@@ -214,6 +214,671 @@ class KitabiApp extends StatelessWidget {
   }
 }
 
+// ============ Signup Screen (تسجيل جديد) ============
+class SignupScreen extends StatefulWidget {
+  const SignupScreen({super.key});
+  @override
+  State<SignupScreen> createState() => _SignupScreenState();
+}
+
+class _SignupScreenState extends State<SignupScreen> {
+  final _nameCtrl = TextEditingController();
+  final _emailCtrl = TextEditingController();
+  final _passCtrl = TextEditingController();
+  final _confirmCtrl = TextEditingController();
+  String? _selectedGrade;
+  String? _selectedMuraqaba;
+  bool _showPass = false;
+  bool _showConfirm = false;
+  bool _saving = false;
+
+  final List<String> _grades = [
+    'أول ابتدائي', 'ثاني ابتدائي', 'ثالث ابتدائي',
+    'رابع ابتدائي', 'خامس ابتدائي', 'سادس ابتدائي',
+    'أول إعدادي', 'ثاني إعدادي', 'ثالث إعدادي',
+    'أولى ثانوي', 'ثانية ثانوي', 'ثالثة ثانوي',
+  ];
+
+  final List<String> _muraqabat = [
+    'مراقبة طرابلس', 'مراقبة بنغازي', 'مراقبة مصراتة',
+    'مراقبة الزاوية', 'مراقبة قصر الأخيار', 'مراقبة الخمس',
+    'مراقبة زليتن', 'مراقبة سبها', 'مراقبة البيضاء', 'مراقبة درنة',
+  ];
+
+  Future<void> _signup() async {
+    // التحقق
+    if (_nameCtrl.text.trim().isEmpty) {
+      showKitabiSnack(context, 'اكتب اسمك');
+      return;
+    }
+    if (_emailCtrl.text.trim().isEmpty ||
+        !_emailCtrl.text.contains('@')) {
+      showKitabiSnack(context, 'اكتب بريد صحيح');
+      return;
+    }
+    if (_passCtrl.text.length < 6) {
+      showKitabiSnack(context, 'كلمة السر 6 أحرف على الأقل');
+      return;
+    }
+    if (_passCtrl.text != _confirmCtrl.text) {
+      showKitabiSnack(context, 'كلمتا السر غير متطابقتين');
+      return;
+    }
+    if (_selectedGrade == null) {
+      showKitabiSnack(context, 'اختر صفك');
+      return;
+    }
+    if (_selectedMuraqaba == null) {
+      showKitabiSnack(context, 'اختر مراقبتك');
+      return;
+    }
+
+    setState(() => _saving = true);
+
+    try {
+      // 1) ننشئ الحساب في Supabase Auth
+      final response = await supabase.auth.signUp(
+        email: _emailCtrl.text.trim(),
+        password: _passCtrl.text,
+        data: {
+          'name': _nameCtrl.text.trim(),
+          'grade': _selectedGrade,
+          'muraqaba': _selectedMuraqaba,
+        },
+      );
+
+      if (response.user == null) {
+        if (!mounted) return;
+        setState(() => _saving = false);
+        showKitabiSnack(context, 'فشل التسجيل، حاول لاحقاً');
+        return;
+      }
+
+      // 2) نحفظ البيانات في جدول users
+      try {
+        final existing = await supabase
+            .from('users')
+            .select('id')
+            .eq('email', _emailCtrl.text.trim())
+            .limit(1);
+
+        if (existing.isEmpty) {
+          await supabase.from('users').insert({
+            'name': _nameCtrl.text.trim(),
+            'email': _emailCtrl.text.trim(),
+            'grade': _selectedGrade,
+            'muraqaba': _selectedMuraqaba,
+            'points': 50,
+            'level': 1,
+            'achievements': 0,
+            'role': 'student',
+          });
+        }
+      } catch (e) {
+        debugPrint('Insert user error: $e');
+      }
+
+      // 3) نحفظ في SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('user_name', _nameCtrl.text.trim());
+      await prefs.setString('user_grade', _selectedGrade!);
+      await prefs.setString('user_muraqaba', _selectedMuraqaba!);
+      await prefs.setString('user_email', _emailCtrl.text.trim());
+      await prefs.setInt('user_points', 50);
+      await prefs.setInt('user_level', 1);
+      await prefs.setInt('user_achievements', 0);
+
+      if (!mounted) return;
+      showKitabiSnack(context, '✅ تم إنشاء الحساب بنجاح');
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const HomeShell()),
+      );
+    } catch (e) {
+      debugPrint('Signup error: $e');
+      if (!mounted) return;
+      setState(() => _saving = false);
+      String msg = 'فشل التسجيل';
+      if (e.toString().contains('already registered')) {
+        msg = 'هذا الإيميل مسجل من قبل';
+      } else if (e.toString().contains('invalid')) {
+        msg = 'بيانات غير صحيحة';
+      }
+      showKitabiSnack(context, msg);
+    }
+  }
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _emailCtrl.dispose();
+    _passCtrl.dispose();
+    _confirmCtrl.dispose();
+    super.dispose();
+  }
+
+  InputDecoration _deco(String label, IconData icon, {Widget? suffix}) {
+    return InputDecoration(
+      labelText: label,
+      prefixIcon: Icon(icon, color: const Color(0xFF1565C0)),
+      suffixIcon: suffix,
+      filled: true,
+      fillColor: Colors.white,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide.none,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide(color: Colors.grey.shade200),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: const BorderSide(color: Color(0xFF1565C0), width: 2),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        foregroundColor: const Color(0xFF1A1A1A),
+        elevation: 0,
+        title: const Text('إنشاء حساب جديد',
+            style: TextStyle(fontWeight: FontWeight.bold)),
+      ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // الشعار
+              Center(
+                child: Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF1565C0), Color(0xFF42A5F5)],
+                    ),
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF1565C0).withOpacity(0.3),
+                        blurRadius: 20,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(Icons.person_add_alt_1,
+                      size: 40, color: Colors.white),
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Center(
+                child: Text('انضم إلى كتابي',
+                    style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1A1A1A))),
+              ),
+              const SizedBox(height: 8),
+              const Center(
+                child: Text('أنشئ حسابك المجاني الآن',
+                    style: TextStyle(
+                        fontSize: 13, color: Color(0xFF555555))),
+              ),
+              const SizedBox(height: 30),
+
+              // الاسم
+              TextField(
+                controller: _nameCtrl,
+                decoration: _deco('الاسم الكامل', Icons.person),
+              ),
+              const SizedBox(height: 14),
+
+              // الإيميل
+              TextField(
+                controller: _emailCtrl,
+                keyboardType: TextInputType.emailAddress,
+                textDirection: TextDirection.ltr,
+                decoration: _deco('البريد الإلكتروني', Icons.email),
+              ),
+              const SizedBox(height: 14),
+
+              // كلمة السر
+              TextField(
+                controller: _passCtrl,
+                obscureText: !_showPass,
+                decoration: _deco(
+                  'كلمة السر',
+                  Icons.lock,
+                  suffix: IconButton(
+                    onPressed: () =>
+                        setState(() => _showPass = !_showPass),
+                    icon: Icon(
+                      _showPass
+                          ? Icons.visibility
+                          : Icons.visibility_off,
+                      color: const Color(0xFF555555),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+
+              // تأكيد كلمة السر
+              TextField(
+                controller: _confirmCtrl,
+                obscureText: !_showConfirm,
+                decoration: _deco(
+                  'تأكيد كلمة السر',
+                  Icons.lock_outline,
+                  suffix: IconButton(
+                    onPressed: () =>
+                        setState(() => _showConfirm = !_showConfirm),
+                    icon: Icon(
+                      _showConfirm
+                          ? Icons.visibility
+                          : Icons.visibility_off,
+                      color: const Color(0xFF555555),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+
+              // الصف
+              DropdownButtonFormField<String>(
+                value: _selectedGrade,
+                decoration: _deco('الصف الدراسي', Icons.school),
+                items: _grades
+                    .map((g) =>
+                        DropdownMenuItem(value: g, child: Text(g)))
+                    .toList(),
+                onChanged: (v) =>
+                    setState(() => _selectedGrade = v),
+              ),
+              const SizedBox(height: 14),
+
+              // المراقبة
+              DropdownButtonFormField<String>(
+                value: _selectedMuraqaba,
+                decoration: _deco('المراقبة', Icons.location_city),
+                items: _muraqabat
+                    .map((m) =>
+                        DropdownMenuItem(value: m, child: Text(m)))
+                    .toList(),
+                onChanged: (v) =>
+                    setState(() => _selectedMuraqaba = v),
+              ),
+              const SizedBox(height: 25),
+
+              // زر التسجيل
+              SizedBox(
+                height: 58,
+                child: ElevatedButton(
+                  onPressed: _saving ? null : _signup,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1565C0),
+                    foregroundColor: Colors.white,
+                    elevation: 4,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  child: _saving
+                      ? const CircularProgressIndicator(
+                          color: Colors.white)
+                      : const Text('إنشاء الحساب',
+                          style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold)),
+                ),
+              ),
+              const SizedBox(height: 15),
+
+              // زر الرجوع للدخول
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text('عندك حساب بالفعل؟ ',
+                      style: TextStyle(fontSize: 14)),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const LoginScreen()),
+                      );
+                    },
+                    child: const Text('سجل دخول',
+                        style: TextStyle(
+                            fontSize: 14,
+                            color: Color(0xFF1565C0),
+                            fontWeight: FontWeight.bold)),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ============ Login Screen (تسجيل دخول) ============
+class LoginScreen extends StatefulWidget {
+  const LoginScreen({super.key});
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  final _emailCtrl = TextEditingController();
+  final _passCtrl = TextEditingController();
+  bool _showPass = false;
+  bool _saving = false;
+
+  Future<void> _login() async {
+    if (_emailCtrl.text.trim().isEmpty) {
+      showKitabiSnack(context, 'اكتب بريدك');
+      return;
+    }
+    if (_passCtrl.text.isEmpty) {
+      showKitabiSnack(context, 'اكتب كلمة السر');
+      return;
+    }
+
+    setState(() => _saving = true);
+
+    try {
+      final response = await supabase.auth.signInWithPassword(
+        email: _emailCtrl.text.trim(),
+        password: _passCtrl.text,
+      );
+
+      if (response.user == null) {
+        if (!mounted) return;
+        setState(() => _saving = false);
+        showKitabiSnack(context, 'بيانات خاطئة');
+        return;
+      }
+
+      // نجيب بيانات المستخدم من جدول users
+      try {
+        final data = await supabase
+            .from('users')
+            .select()
+            .eq('email', _emailCtrl.text.trim())
+            .limit(1);
+
+        if (data.isNotEmpty) {
+          final user = data[0];
+
+          // نفحص الحظر
+          if (user['is_banned'] == true) {
+            await supabase.auth.signOut();
+            if (!mounted) return;
+            showKitabiSnack(context, 'حسابك محظور');
+            setState(() => _saving = false);
+            return;
+          }
+
+          // نحفظ في SharedPreferences
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('user_name', user['name'] ?? '');
+          await prefs.setString('user_grade', user['grade'] ?? '');
+          await prefs.setString(
+              'user_muraqaba', user['muraqaba'] ?? '');
+          await prefs.setString(
+              'user_email', _emailCtrl.text.trim());
+          await prefs.setInt('user_points', user['points'] ?? 0);
+          await prefs.setInt('user_level', user['level'] ?? 1);
+          await prefs.setInt(
+              'user_achievements', user['achievements'] ?? 0);
+
+          // نتحقق من الدور
+          final role = (user['role'] ?? 'student').toString();
+          if (!mounted) return;
+          if (role == 'admin' || role == 'moderator') {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                  builder: (_) => const ControlRoomScreen(
+                      fromSplash: true)),
+            );
+          } else {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const HomeShell()),
+            );
+          }
+          return;
+        }
+      } catch (e) {
+        debugPrint('Load user error: $e');
+      }
+
+      // لو ما لقينا المستخدم في users
+      if (!mounted) return;
+      showKitabiSnack(context, 'لم يتم العثور على بياناتك');
+      setState(() => _saving = false);
+    } catch (e) {
+      debugPrint('Login error: $e');
+      if (!mounted) return;
+      setState(() => _saving = false);
+      String msg = 'فشل تسجيل الدخول';
+      if (e.toString().contains('Invalid login')) {
+        msg = 'الإيميل أو كلمة السر خاطئة';
+      } else if (e.toString().contains('Email not confirmed')) {
+        msg = 'الإيميل غير مؤكد';
+      }
+      showKitabiSnack(context, msg);
+    }
+  }
+
+  Future<void> _forgotPassword() async {
+    if (_emailCtrl.text.trim().isEmpty ||
+        !_emailCtrl.text.contains('@')) {
+      showKitabiSnack(context, 'اكتب بريدك أولاً');
+      return;
+    }
+
+    try {
+      await supabase.auth.resetPasswordForEmail(
+        _emailCtrl.text.trim(),
+      );
+      if (!mounted) return;
+      showKitabiSnack(context,
+          '✅ تم إرسال رابط تغيير كلمة السر إلى بريدك');
+    } catch (e) {
+      debugPrint('Forgot error: $e');
+      if (!mounted) return;
+      showKitabiSnack(context, 'فشل الإرسال');
+    }
+  }
+
+  @override
+  void dispose() {
+    _emailCtrl.dispose();
+    _passCtrl.dispose();
+    super.dispose();
+  }
+
+  InputDecoration _deco(String label, IconData icon, {Widget? suffix}) {
+    return InputDecoration(
+      labelText: label,
+      prefixIcon: Icon(icon, color: const Color(0xFF1565C0)),
+      suffixIcon: suffix,
+      filled: true,
+      fillColor: Colors.white,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide.none,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide(color: Colors.grey.shade200),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: const BorderSide(color: Color(0xFF1565C0), width: 2),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const SizedBox(height: 30),
+              // الشعار
+              Center(
+                child: Container(
+                  width: 100,
+                  height: 100,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF1565C0), Color(0xFF42A5F5)],
+                    ),
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF1565C0).withOpacity(0.3),
+                        blurRadius: 25,
+                        offset: const Offset(0, 10),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(Icons.menu_book,
+                      size: 50, color: Colors.white),
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Center(
+                child: Text('KITABI',
+                    style: TextStyle(
+                        fontSize: 32,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 4,
+                        color: Color(0xFF1A1A1A))),
+              ),
+              const SizedBox(height: 8),
+              const Center(
+                child: Text('مرحباً بعودتك 👋',
+                    style: TextStyle(
+                        fontSize: 14, color: Color(0xFF555555))),
+              ),
+              const SizedBox(height: 40),
+
+              // الإيميل
+              TextField(
+                controller: _emailCtrl,
+                keyboardType: TextInputType.emailAddress,
+                textDirection: TextDirection.ltr,
+                decoration: _deco('البريد الإلكتروني', Icons.email),
+              ),
+              const SizedBox(height: 14),
+
+              // كلمة السر
+              TextField(
+                controller: _passCtrl,
+                obscureText: !_showPass,
+                decoration: _deco(
+                  'كلمة السر',
+                  Icons.lock,
+                  suffix: IconButton(
+                    onPressed: () =>
+                        setState(() => _showPass = !_showPass),
+                    icon: Icon(
+                      _showPass
+                          ? Icons.visibility
+                          : Icons.visibility_off,
+                      color: const Color(0xFF555555),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+
+              // نسيت كلمة السر
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton(
+                  onPressed: _forgotPassword,
+                  child: const Text('نسيت كلمة السر؟',
+                      style: TextStyle(
+                          fontSize: 13, color: Color(0xFF1565C0))),
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // زر الدخول
+              SizedBox(
+                height: 58,
+                child: ElevatedButton(
+                  onPressed: _saving ? null : _login,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1565C0),
+                    foregroundColor: Colors.white,
+                    elevation: 4,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  child: _saving
+                      ? const CircularProgressIndicator(
+                          color: Colors.white)
+                      : const Text('تسجيل الدخول',
+                          style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold)),
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // إنشاء حساب
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text('ما عندك حساب؟ ',
+                      style: TextStyle(fontSize: 14)),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const SignupScreen()),
+                      );
+                    },
+                    child: const Text('أنشئ حساب',
+                        style: TextStyle(
+                            fontSize: 14,
+                            color: Color(0xFF1565C0),
+                            fontWeight: FontWeight.bold)),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
   @override
@@ -229,29 +894,63 @@ class _SplashScreenState extends State<SplashScreen> {
 
   Future<void> _checkUser() async {
     await Future.delayed(const Duration(seconds: 2));
-    final prefs = await SharedPreferences.getInstance();
-    final name = prefs.getString('user_name');
+
     if (!mounted) return;
-    if (name == null || name.isEmpty) {
+
+    // 1) نفحص جلسة Supabase
+    final session = supabase.auth.currentSession;
+    if (session == null) {
+      // ما فيه جلسة → Login
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const RegisterScreen()),
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
       );
       return;
     }
 
-    // نفحص الحظر + الدور
+    final userEmail = session.user.email ?? '';
+    if (userEmail.isEmpty) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+      );
+      return;
+    }
+
+    // 2) نفحص بيانات المستخدم + الحظر
     bool banned = false;
     String role = 'student';
     try {
       final data = await supabase
           .from('users')
-          .select('is_banned, role')
-          .eq('name', name)
+          .select('is_banned, name, grade, muraqaba, role')
+          .eq('email', userEmail)
           .limit(1);
+
       if (data.isNotEmpty) {
-        if (data[0]['is_banned'] == true) banned = true;
-        role = (data[0]['role'] ?? 'student').toString();
+        final user = data[0];
+        if (user['is_banned'] == true) banned = true;
+        role = (user['role'] ?? 'student').toString();
+
+        // نحفظ في SharedPreferences
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('user_name', user['name'] ?? '');
+        await prefs.setString('user_grade', user['grade'] ?? '');
+        await prefs.setString('user_muraqaba', user['muraqaba'] ?? '');
+        await prefs.setString('user_email', userEmail);
+        await prefs.setInt('user_points', user['points'] ?? 0);
+        await prefs.setInt('user_level', user['level'] ?? 1);
+        await prefs.setInt('user_achievements', user['achievements'] ?? 0);
+      } else {
+        // المستخدم موجود في Auth لكن ما عنده بيانات في users
+        // → نخرجه ونطلب منه يسجل من جديد
+        await supabase.auth.signOut();
+        if (!mounted) return;
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const SignupScreen()),
+        );
+        return;
       }
     } catch (e) {
       debugPrint('Check error: $e');
@@ -260,6 +959,8 @@ class _SplashScreenState extends State<SplashScreen> {
     if (!mounted) return;
 
     if (banned) {
+      await supabase.auth.signOut();
+      final prefs = await SharedPreferences.getInstance();
       await prefs.clear();
       if (!mounted) return;
       Navigator.pushReplacement(
@@ -269,7 +970,7 @@ class _SplashScreenState extends State<SplashScreen> {
       return;
     }
 
-    // المدير/المشرف → لوحة التحكم
+    // 3) نتحقق من الدور
     if (role == 'admin' || role == 'moderator') {
       Navigator.pushReplacement(
         context,
@@ -280,7 +981,7 @@ class _SplashScreenState extends State<SplashScreen> {
       return;
     }
 
-    // الطلاب/المعلمون → HomeShell
+    // 4) الطالب العادي → HomeShell
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(builder: (_) => const HomeShell()),
@@ -422,213 +1123,7 @@ class BannedScreen extends StatelessWidget {
   }
 }
 
-// ============ Register Screen ============
-class RegisterScreen extends StatefulWidget {
-  const RegisterScreen({super.key});
-  @override
-  State<RegisterScreen> createState() => _RegisterScreenState();
-}
 
-class _RegisterScreenState extends State<RegisterScreen> {
-  final _nameController = TextEditingController();
-  String? _selectedGrade;
-  String? _selectedMuraqaba;
-  bool _saving = false;
-
-  final List<String> _grades = [
-    'أول ابتدائي', 'ثاني ابتدائي', 'ثالث ابتدائي',
-    'رابع ابتدائي', 'خامس ابتدائي', 'سادس ابتدائي',
-    'أول إعدادي', 'ثاني إعدادي', 'ثالث إعدادي',
-    'أولى ثانوي', 'ثانية ثانوي', 'ثالثة ثانوي',
-  ];
-
-  final List<String> _muraqabat = [
-    'مراقبة طرابلس', 'مراقبة بنغازي', 'مراقبة مصراتة',
-    'مراقبة الزاوية', 'مراقبة قصر الأخيار', 'مراقبة الخمس',
-    'مراقبة زليتن', 'مراقبة سبها', 'مراقبة البيضاء', 'مراقبة درنة',
-  ];
-
-  Future<void> _save() async {
-    if (_nameController.text.trim().isEmpty) {
-      showKitabiSnack(context, 'اكتب اسمك');
-      return;
-    }
-    if (_selectedGrade == null) {
-      showKitabiSnack(context, 'اختر صفك');
-      return;
-    }
-    if (_selectedMuraqaba == null) {
-      showKitabiSnack(context, 'اختر مراقبتك');
-      return;
-    }
-
-    setState(() => _saving = true);
-
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('user_name', _nameController.text.trim());
-    await prefs.setString('user_grade', _selectedGrade!);
-    await prefs.setString('user_muraqaba', _selectedMuraqaba!);
-
-    final currentPts = prefs.getInt('user_points') ?? 0;
-    if (currentPts == 0) {
-      await prefs.setInt('user_points', 50);
-      await prefs.setInt('user_level', 1);
-      await prefs.setInt('user_achievements', 0);
-    }
-
-    // حفظ في Supabase
-    try {
-      final existing = await supabase
-          .from('users')
-          .select('id')
-          .eq('name', _nameController.text.trim())
-          .limit(1);
-      if (existing.isEmpty) {
-        await supabase.from('users').insert({
-          'name': _nameController.text.trim(),
-          'grade': _selectedGrade,
-          'muraqaba': _selectedMuraqaba,
-          'points': 50,
-          'level': 1,
-          'achievements': 0,
-        });
-      } else {
-        await supabase.from('users').update({
-          'name': _nameController.text.trim(),
-          'grade': _selectedGrade,
-          'muraqaba': _selectedMuraqaba,
-        }).eq('name', _nameController.text.trim());
-      }
-    } catch (e) {
-      debugPrint('Supabase insert error: $e');
-    }
-
-    if (!mounted) return;
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => const HomeShell()),
-    );
-  }
-
-  InputDecoration _inputDeco(String label, IconData icon) {
-    return InputDecoration(
-      labelText: label,
-      prefixIcon: Icon(icon, color: const Color(0xFF1565C0)),
-      filled: true,
-      fillColor: Colors.white,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide.none,
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide(color: Colors.grey.shade200),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: const BorderSide(color: Color(0xFF1565C0), width: 2),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: 30),
-              Center(
-                child: Container(
-                  width: 100,
-                  height: 100,
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF1565C0), Color(0xFF42A5F5)],
-                      begin: Alignment.topRight,
-                      end: Alignment.bottomLeft,
-                    ),
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.blue.withOpacity(0.35),
-                        blurRadius: 20,
-                        spreadRadius: 3,
-                      ),
-                    ],
-                  ),
-                  child: const Icon(Icons.person_add_alt_1,
-                      size: 50, color: Colors.white),
-                ),
-              ),
-              const SizedBox(height: 25),
-              const Center(
-                child: Text('مرحباً بك في كتابي',
-                    style: TextStyle(
-                        fontSize: 26,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF1A1A1A))),
-              ),
-              const SizedBox(height: 10),
-              const Center(
-                child: Text('سجل بياناتك لتبدأ رحلتك التعليمية',
-                    style: TextStyle(
-                        fontSize: 15, color: Color(0xFF555555))),
-              ),
-              const SizedBox(height: 40),
-              TextField(
-                controller: _nameController,
-                decoration: _inputDeco('الاسم الكامل', Icons.person),
-              ),
-              const SizedBox(height: 18),
-              DropdownButtonFormField<String>(
-                value: _selectedGrade,
-                decoration: _inputDeco('الصف الدراسي', Icons.school),
-                items: _grades
-                    .map((g) => DropdownMenuItem(value: g, child: Text(g)))
-                    .toList(),
-                onChanged: (v) => setState(() => _selectedGrade = v),
-              ),
-              const SizedBox(height: 18),
-              DropdownButtonFormField<String>(
-                value: _selectedMuraqaba,
-                decoration: _inputDeco('المراقبة', Icons.location_city),
-                items: _muraqabat
-                    .map((m) => DropdownMenuItem(value: m, child: Text(m)))
-                    .toList(),
-                onChanged: (v) => setState(() => _selectedMuraqaba = v),
-              ),
-              const SizedBox(height: 35),
-              SizedBox(
-                height: 58,
-                child: ElevatedButton(
-                  onPressed: _saving ? null : _save,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1565C0),
-                    foregroundColor: Colors.white,
-                    elevation: 4,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                  child: _saving
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text('دخول',
-                          style: TextStyle(
-                              fontSize: 20, fontWeight: FontWeight.bold)),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 // ============ Home Shell ============
 class HomeShell extends StatefulWidget {
@@ -2674,12 +3169,18 @@ class _AccountTabState extends State<AccountTab> {
 
     if (confirm != true) return;
 
+    try {
+      await supabase.auth.signOut();
+    } catch (e) {
+      debugPrint('SignOut error: $e');
+    }
+
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
 
     if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const RegisterScreen()),
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
       (route) => false,
     );
   }
