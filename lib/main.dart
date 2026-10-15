@@ -6421,43 +6421,9 @@ class _ManageVideosScreenState extends State<ManageVideosScreen> {
                         .toList(),
                     onChanged: uploading
                         ? null
-                        : (v) => setSt(() {
-                              selectedGrade = v ?? selectedGrade;
-                              // إذا اختر صف ثانوي → نعرض القسم
-                              if (selectedGrade == 'ثانية ثانوي' ||
-                                  selectedGrade == 'ثالثة ثانوي') {
-                                if (selectedSection.isEmpty) {
-                                  selectedSection = 'علمي';
-                                }
-                              } else {
-                                selectedSection = '';
-                              }
-                            }),
+                        : (v) => setSt(
+                            () => selectedGrade = v ?? selectedGrade),
                   ),
-                  if (selectedGrade == 'ثانية ثانوي' ||
-                      selectedGrade == 'ثالثة ثانوي') ...[
-                    const SizedBox(height: 12),
-                    DropdownButtonFormField<String>(
-                      value: selectedSection.isEmpty
-                          ? 'علمي'
-                          : selectedSection,
-                      decoration: InputDecoration(
-                        labelText: 'القسم',
-                        border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                      ),
-                      items: const [
-                        DropdownMenuItem(
-                            value: 'علمي', child: Text('القسم العلمي')),
-                        DropdownMenuItem(
-                            value: 'أدبي', child: Text('القسم الأدبي')),
-                      ],
-                      onChanged: uploading
-                          ? null
-                          : (v) => setSt(
-                              () => selectedSection = v ?? 'علمي'),
-                    ),
-                  ],
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
                     value: selectedSubject,
@@ -10963,9 +10929,42 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
                         .toList(),
                     onChanged: uploading
                         ? null
-                        : (v) =>
-                            setSt(() => selectedGrade = v ?? selectedGrade),
+                        : (v) => setSt(() {
+                              selectedGrade = v ?? selectedGrade;
+                              if (selectedGrade == 'ثانية ثانوي' ||
+                                  selectedGrade == 'ثالثة ثانوي') {
+                                if (selectedSection.isEmpty) {
+                                  selectedSection = 'علمي';
+                                }
+                              } else {
+                                selectedSection = '';
+                              }
+                            }),
                   ),
+                  if (selectedGrade == 'ثانية ثانوي' ||
+                      selectedGrade == 'ثالثة ثانوي') ...[
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      value: selectedSection.isEmpty
+                          ? 'علمي'
+                          : selectedSection,
+                      decoration: InputDecoration(
+                        labelText: 'القسم',
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                      ),
+                      items: const [
+                        DropdownMenuItem(
+                            value: 'علمي', child: Text('القسم العلمي')),
+                        DropdownMenuItem(
+                            value: 'أدبي', child: Text('القسم الأدبي')),
+                      ],
+                      onChanged: uploading
+                          ? null
+                          : (v) => setSt(
+                              () => selectedSection = v ?? 'علمي'),
+                    ),
+                  ],
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
                     value: selectedSubject,
