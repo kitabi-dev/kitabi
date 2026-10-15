@@ -229,20 +229,24 @@ class _SplashScreenState extends State<SplashScreen> {
       return;
     }
 
-    // نفحص الحظر
+    // نفحص الحظر + الدور
     bool banned = false;
+    String role = 'student';
     try {
       final data = await supabase
           .from('users')
-          .select('is_banned')
+          .select('is_banned, role')
           .eq('name', name)
           .limit(1);
-      if (data.isNotEmpty && data[0]['is_banned'] == true) {
-        banned = true;
+      if (data.isNotEmpty) {
+        if (data[0]['is_banned'] == true) banned = true;
+        role = (data[0]['role'] ?? 'student').toString();
       }
     } catch (e) {
-      debugPrint('Check banned error: $e');
+      debugPrint('Check error: $e');
     }
+
+    if (!mounted) return;
 
     if (banned) {
       await prefs.clear();
@@ -254,7 +258,18 @@ class _SplashScreenState extends State<SplashScreen> {
       return;
     }
 
-    if (!mounted) return;
+    // المدير/المشرف → لوحة التحكم
+    if (role == 'admin' || role == 'moderator') {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const ControlRoomScreen(fromSplash: true),
+        ),
+      );
+      return;
+    }
+
+    // الطلاب/المعلمون → HomeShell
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(builder: (_) => const HomeShell()),
@@ -613,6 +628,37 @@ class HomeShell extends StatefulWidget {
 
 class _HomeShellState extends State<HomeShell> {
   int _index = 0;
+  String _userRole = 'student';
+
+  @override
+  void initState() {
+    super.initState();
+    _checkRole();
+  }
+
+  Future<void> _checkRole() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final name = prefs.getString('user_name') ?? '';
+      if (name.isEmpty) return;
+      final data = await supabase
+          .from('users')
+          .select('role')
+          .eq('name', name)
+          .limit(1);
+      if (data.isNotEmpty && mounted) {
+        setState(() {
+          _userRole = (data[0]['role'] ?? 'student').toString();
+        });
+      }
+    } catch (e) {
+      debugPrint('Role check error: $e');
+    }
+  }
+
+  bool _isAdminOrModerator() {
+    return _userRole == 'admin' || _userRole == 'moderator';
+  }
 
   void _goToTab(int i) => setState(() => _index = i);
 
@@ -631,6 +677,23 @@ class _HomeShellState extends State<HomeShell> {
       extendBody: true,
       backgroundColor: const Color(0xFFF5F7FA),
       body: tabs[_index],
+      floatingActionButton: _isAdminOrModerator()
+          ? FloatingActionButton.small(
+              heroTag: 'back_to_control',
+              onPressed: () {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const ControlRoomScreen(
+                          fromSplash: true)),
+                );
+              },
+              backgroundColor: const Color(0xFF1565C0),
+              tooltip: 'رجوع للوحة التحكم',
+              child: const Icon(Icons.arrow_back,
+                  color: Colors.white, size: 20),
+            )
+          : null,
       bottomNavigationBar: Padding(
         padding: EdgeInsets.fromLTRB(24, 0, 24, bottomInset + 14),
         child: Container(
@@ -952,7 +1015,33 @@ class HomeTab extends StatelessWidget {
                 _quickBtn(context, 'المنتدى', Icons.forum_rounded,
                     const LinearGradient(
                         colors: [Color(0xFF283593), Color(0xFF3F51B5)]),
-                    () => showKitabiSnack(context, 'المنتدى — قريباً')),
+                    () async {
+                  final prefs = await SharedPreferences.getInstance();
+                  final name = prefs.getString('user_name') ?? '';
+                  final grade = prefs.getString('user_grade') ?? '';
+                  String role = 'student';
+                  try {
+                    final data = await supabase
+                        .from('users')
+                        .select('role')
+                        .eq('name', name)
+                        .limit(1);
+                    if (data.isNotEmpty) {
+                      role = (data[0]['role'] ?? 'student').toString();
+                    }
+                  } catch (_) {}
+                  if (!context.mounted) return;
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ForumScreen(
+                        userName: name,
+                        userGrade: grade,
+                        userRole: role,
+                      ),
+                    ),
+                  );
+                }),
                 _quickBtn(context, 'الاختبارات', Icons.assignment_rounded,
                     const LinearGradient(
                         colors: [Color(0xFFEF6C00), Color(0xFFFFA726)]),
@@ -2234,11 +2323,27 @@ class _AccountTabState extends State<AccountTab> {
   int _points = 0;
   int _level = 1;
   int _achievements = 0;
+  int _pendingRequests = 0;
 
   @override
   void initState() {
     super.initState();
     _load();
+  }
+
+  Future<void> _loadPendingRequests() async {
+    if (_name.isEmpty) return;
+    try {
+      final data = await supabase
+          .from('role_requests')
+          .select('id')
+          .eq('user_name', _name)
+          .eq('status', 'pending');
+      if (!mounted) return;
+      setState(() => _pendingRequests = data.length);
+    } catch (e) {
+      debugPrint('Load pending error: $e');
+    }
   }
 
   Future<void> _load() async {
@@ -2253,6 +2358,7 @@ class _AccountTabState extends State<AccountTab> {
       _level = stats['level'] ?? 1;
       _achievements = stats['achievements'] ?? 0;
     });
+    await _loadPendingRequests();
   }
 
   Future<void> _logout() async {
@@ -2500,16 +2606,58 @@ class _AccountTabState extends State<AccountTab> {
                     );
                   }),
                   _menuDivider(),
-                  _menuItem(Icons.mail_outline, 'طلبات الصلاحيات',
-                      const Color(0xFF7B1FA2), () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
+                  ListTile(
+                    leading: Container(
+                      padding: const EdgeInsets.all(9),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF7B1FA2).withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.mail_outline,
+                          color: Color(0xFF7B1FA2), size: 22),
+                    ),
+                    title: const Text('طلبات الصلاحيات',
+                        style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                            color: Color(0xFF1A1A1A))),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (_pendingRequests > 0)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 3),
+                            margin: const EdgeInsets.only(left: 6),
+                            decoration: BoxDecoration(
+                              color: Colors.red,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              '$_pendingRequests',
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        const SizedBox(width: 6),
+                        const Icon(Icons.arrow_back_ios,
+                            size: 14, color: Color(0xFF555555)),
+                      ],
+                    ),
+                    onTap: () async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
                           builder: (_) =>
                               RoleRequestsScreen(userName: _name),
-                      ),
-                    );
-                  }),
+                        ),
+                      );
+                      // نحدث العدد بعد الرجوع
+                      _loadPendingRequests();
+                    },
+                  ),
                 ],
               ),
             ),
@@ -4000,6 +4148,1219 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ============ Forum Screen ============
+// ============ Post Detail Screen ============
+class PostDetailScreen extends StatefulWidget {
+  final Map<String, dynamic> post;
+  final String userName;
+  final String userRole;
+
+  const PostDetailScreen({
+    super.key,
+    required this.post,
+    required this.userName,
+    required this.userRole,
+  });
+
+  @override
+  State<PostDetailScreen> createState() => _PostDetailScreenState();
+}
+
+class _PostDetailScreenState extends State<PostDetailScreen> {
+  final _commentCtrl = TextEditingController();
+  List<Map<String, dynamic>> _comments = [];
+  bool _loading = true;
+  bool _sending = false;
+  bool _liked = false;
+  int _likesCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _likesCount = (widget.post['likes'] ?? 0) as int;
+    _loadComments();
+    _checkLiked();
+  }
+
+  Future<void> _loadComments() async {
+    setState(() => _loading = true);
+    try {
+      final data = await supabase
+          .from('post_comments')
+          .select()
+          .eq('post_id', widget.post['id'])
+          .order('created_at', ascending: true);
+      if (!mounted) return;
+      setState(() {
+        _comments = List<Map<String, dynamic>>.from(data);
+        _loading = false;
+      });
+    } catch (e) {
+      debugPrint('Load comments error: $e');
+      if (!mounted) return;
+      setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _checkLiked() async {
+    try {
+      final data = await supabase
+          .from('post_likes')
+          .select('id')
+          .eq('post_id', widget.post['id'])
+          .eq('user_name', widget.userName)
+          .limit(1);
+      if (!mounted) return;
+      setState(() => _liked = data.isNotEmpty);
+    } catch (_) {}
+  }
+
+  Future<void> _toggleLike() async {
+    try {
+      if (_liked) {
+        await supabase
+            .from('post_likes')
+            .delete()
+            .eq('post_id', widget.post['id'])
+            .eq('user_name', widget.userName);
+        setState(() {
+          _liked = false;
+          _likesCount = (_likesCount - 1).clamp(0, 99999);
+        });
+      } else {
+        await supabase.from('post_likes').insert({
+          'post_id': widget.post['id'],
+          'user_name': widget.userName,
+        });
+        setState(() {
+          _liked = true;
+          _likesCount++;
+        });
+      }
+      await supabase.from('posts').update({
+        'likes': _likesCount,
+      }).eq('id', widget.post['id']);
+    } catch (e) {
+      debugPrint('Like error: $e');
+    }
+  }
+
+  Future<void> _sendComment() async {
+    final text = _commentCtrl.text.trim();
+    if (text.isEmpty) return;
+
+    setState(() => _sending = true);
+    try {
+      await supabase.from('post_comments').insert({
+        'post_id': widget.post['id'],
+        'author_name': widget.userName,
+        'author_role': widget.userRole,
+        'content': text,
+      });
+      final currentCount = widget.post['comments_count'] ?? 0;
+      await supabase.from('posts').update({
+        'comments_count': (currentCount as int) + 1,
+      }).eq('id', widget.post['id']);
+
+      _commentCtrl.clear();
+      await _loadComments();
+      if (!mounted) return;
+      setState(() => _sending = false);
+    } catch (e) {
+      debugPrint('Send comment error: $e');
+      if (!mounted) return;
+      setState(() => _sending = false);
+      showKitabiSnack(context, 'فشل الإرسال');
+    }
+  }
+
+  bool get _canDelete {
+    return widget.userRole == 'admin' ||
+        widget.userRole == 'moderator';
+  }
+
+  Future<void> _deletePost() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20)),
+        title: const Text('حذف المنشور'),
+        content: const Text('هل تريد حذف المنشور؟'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white),
+            child: const Text('حذف'),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+
+    try {
+      await supabase.from('posts').delete().eq('id', widget.post['id']);
+      if (!mounted) return;
+      Navigator.pop(context);
+      showKitabiSnack(context, 'تم الحذف');
+    } catch (e) {
+      showKitabiSnack(context, 'فشل الحذف');
+    }
+  }
+
+  Future<void> _deleteComment(Map<String, dynamic> comment) async {
+    try {
+      await supabase
+          .from('post_comments')
+          .delete()
+          .eq('id', comment['id']);
+      await _loadComments();
+    } catch (e) {
+      showKitabiSnack(context, 'فشل الحذف');
+    }
+  }
+
+  String _formatDate(String? iso) {
+    if (iso == null) return '';
+    try {
+      final d = DateTime.parse(iso).toLocal();
+      final now = DateTime.now();
+      final diff = now.difference(d);
+      if (diff.inMinutes < 1) return 'الآن';
+      if (diff.inMinutes < 60) return 'منذ ${diff.inMinutes} د';
+      if (diff.inHours < 24) return 'منذ ${diff.inHours} س';
+      if (diff.inDays < 30) return 'منذ ${diff.inDays} ي';
+      return '${d.year}/${d.month}/${d.day}';
+    } catch (_) {
+      return '';
+    }
+  }
+
+  @override
+  void dispose() {
+    _commentCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final role = widget.post['author_role'] ?? 'student';
+    final roleColor = RoleHelper.roleColor(role);
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF1565C0),
+        foregroundColor: Colors.white,
+        elevation: 0,
+        title: const Text('المنشور',
+            style: TextStyle(fontWeight: FontWeight.bold)),
+        actions: [
+          if (_canDelete)
+            IconButton(
+              onPressed: _deletePost,
+              icon: const Icon(Icons.delete_outline),
+            ),
+        ],
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(18),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            CircleAvatar(
+                              backgroundColor: roleColor,
+                              radius: 22,
+                              child: Text(
+                                (widget.post['author_name'] ?? '؟')
+                                    .toString()
+                                    .substring(0, 1),
+                                style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment:
+                                    CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Flexible(
+                                        child: Text(
+                                            widget.post['author_name'] ?? '',
+                                            style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 15),
+                                            overflow:
+                                                TextOverflow.ellipsis),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Container(
+                                        padding:
+                                            const EdgeInsets.symmetric(
+                                                horizontal: 6,
+                                                vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color:
+                                              roleColor.withOpacity(0.15),
+                                          borderRadius:
+                                              BorderRadius.circular(6),
+                                        ),
+                                        child: Text(
+                                          RoleHelper.roleLabel(role),
+                                          style: TextStyle(
+                                              color: roleColor,
+                                              fontSize: 9,
+                                              fontWeight: FontWeight.bold),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  Text(
+                                      _formatDate(widget.post['created_at']),
+                                      style: const TextStyle(
+                                          fontSize: 11,
+                                          color: Color(0xFF888888))),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 15),
+                        if (widget.post['title'] != null &&
+                            widget.post['title'].toString().isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: Text(widget.post['title'],
+                                style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF1A1A1A))),
+                          ),
+                        Text(
+                          widget.post['content'] ?? '',
+                          style: const TextStyle(
+                              fontSize: 15,
+                              color: Color(0xFF333333),
+                              height: 1.6),
+                        ),
+                        const Divider(height: 25),
+                        Row(
+                          children: [
+                            GestureDetector(
+                              onTap: _toggleLike,
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    _liked
+                                        ? Icons.favorite
+                                        : Icons.favorite_border,
+                                    color: _liked
+                                        ? Colors.red
+                                        : const Color(0xFF888888),
+                                    size: 22,
+                                  ),
+                                  const SizedBox(width: 5),
+                                  Text('$_likesCount',
+                                      style: TextStyle(
+                                          fontSize: 14,
+                                          color: _liked
+                                              ? Colors.red
+                                              : const Color(0xFF888888),
+                                          fontWeight: FontWeight.bold)),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 20),
+                            const Icon(Icons.comment_outlined,
+                                size: 22, color: Color(0xFF888888)),
+                            const SizedBox(width: 5),
+                            Text('${_comments.length}',
+                                style: const TextStyle(
+                                    fontSize: 14,
+                                    color: Color(0xFF888888),
+                                    fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      const Icon(Icons.comment,
+                          color: Color(0xFF1565C0), size: 22),
+                      const SizedBox(width: 8),
+                      Text('التعليقات (${_comments.length})',
+                          style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF1A1A1A))),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  if (_loading)
+                    const Center(
+                      child: CircularProgressIndicator(
+                          color: Color(0xFF1565C0)))
+                  else if (_comments.isEmpty)
+                    Container(
+                      padding: const EdgeInsets.all(30),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: const Column(
+                        children: [
+                          Icon(Icons.chat_bubble_outline,
+                              size: 50, color: Color(0xFF888888)),
+                          SizedBox(height: 10),
+                          Text('لا توجد تعليقات بعد',
+                              style: TextStyle(
+                                  color: Color(0xFF888888),
+                                  fontSize: 14)),
+                        ],
+                      ),
+                    )
+                  else
+                    ..._comments.map((c) => _commentCard(c)),
+                ],
+              ),
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.all(12),
+            color: Colors.white,
+            child: SafeArea(
+              top: false,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _commentCtrl,
+                      maxLines: null,
+                      decoration: InputDecoration(
+                        hintText: 'اكتب تعليقاً...',
+                        filled: true,
+                        fillColor: const Color(0xFFF5F7FA),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 10),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(24),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    decoration: const BoxDecoration(
+                      color: Color(0xFF1565C0),
+                      shape: BoxShape.circle,
+                    ),
+                    child: IconButton(
+                      onPressed: _sending ? null : _sendComment,
+                      icon: _sending
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                  color: Colors.white, strokeWidth: 2))
+                          : const Icon(Icons.send_rounded,
+                              color: Colors.white),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _commentCard(Map<String, dynamic> comment) {
+    final role = comment['author_role'] ?? 'student';
+    final color = RoleHelper.roleColor(role);
+    final canDelete = widget.userRole == 'admin' ||
+        widget.userRole == 'moderator' ||
+        comment['author_name'] == widget.userName;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          CircleAvatar(
+            radius: 18,
+            backgroundColor: color,
+            child: Text(
+              (comment['author_name'] ?? '؟').toString().substring(0, 1),
+              style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(comment['author_name'] ?? '',
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13),
+                          overflow: TextOverflow.ellipsis),
+                    ),
+                    const SizedBox(width: 5),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 5, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: color.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(5),
+                      ),
+                      child: Text(RoleHelper.roleLabel(role),
+                          style: TextStyle(
+                              color: color,
+                              fontSize: 8,
+                              fontWeight: FontWeight.bold)),
+                    ),
+                    const Spacer(),
+                    Text(_formatDate(comment['created_at']),
+                        style: const TextStyle(
+                            fontSize: 10, color: Color(0xFF888888))),
+                    if (canDelete)
+                      GestureDetector(
+                        onTap: () => _deleteComment(comment),
+                        child: const Padding(
+                          padding: EdgeInsets.only(left: 6),
+                          child: Icon(Icons.close,
+                              size: 14, color: Colors.red),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 5),
+                Text(comment['content'] ?? '',
+                    style: const TextStyle(
+                        fontSize: 13,
+                        color: Color(0xFF333333),
+                        height: 1.4)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class ForumScreen extends StatefulWidget {
+  final String userName;
+  final String userGrade;
+  final String userRole;
+
+  const ForumScreen({
+    super.key,
+    required this.userName,
+    required this.userGrade,
+    required this.userRole,
+  });
+
+  @override
+  State<ForumScreen> createState() => _ForumScreenState();
+}
+
+class _ForumScreenState extends State<ForumScreen> {
+  List<Map<String, dynamic>> _posts = [];
+  bool _loading = true;
+  String _filter = 'all'; // all / mygrade / general
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    try {
+      var query = supabase.from('posts').select();
+      final data = await query.order('is_pinned', ascending: false).order('created_at', ascending: false).limit(100);
+      
+      if (!mounted) return;
+      final allPosts = List<Map<String, dynamic>>.from(data);
+      
+      // نفلتر حسب الفلتر
+      List<Map<String, dynamic>> filtered;
+      if (_filter == 'mygrade') {
+        filtered = allPosts.where((p) {
+          return p['post_type'] == 'grade' && p['target_grade'] == widget.userGrade;
+        }).toList();
+      } else if (_filter == 'general') {
+        filtered = allPosts.where((p) => p['post_type'] == 'general').toList();
+      } else {
+        // all: منشورات صفي + العامة
+        filtered = allPosts.where((p) {
+          if (p['post_type'] == 'general') return true;
+          if (p['post_type'] == 'grade' && p['target_grade'] == widget.userGrade) return true;
+          return false;
+        }).toList();
+      }
+      
+      setState(() {
+        _posts = filtered;
+        _loading = false;
+      });
+    } catch (e) {
+      debugPrint('Load posts error: $e');
+      if (!mounted) return;
+      setState(() => _loading = false);
+    }
+  }
+
+  bool get _canPost {
+    return widget.userRole == 'admin' ||
+        widget.userRole == 'moderator' ||
+        widget.userRole == 'teacher';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF1565C0),
+        foregroundColor: Colors.white,
+        elevation: 0,
+        title: const Row(
+          children: [
+            Icon(Icons.forum),
+            SizedBox(width: 10),
+            Text('المنتدى',
+                style: TextStyle(fontWeight: FontWeight.bold)),
+          ],
+        ),
+        actions: [
+          IconButton(
+            onPressed: _load,
+            icon: const Icon(Icons.refresh),
+            tooltip: 'تحديث',
+          ),
+        ],
+      ),
+      floatingActionButton: _canPost
+          ? FloatingActionButton.extended(
+              onPressed: () async {
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => CreatePostScreen(
+                      userName: widget.userName,
+                      userRole: widget.userRole,
+                      userGrade: widget.userGrade,
+                    ),
+                  ),
+                );
+                if (result == true) _load();
+              },
+              backgroundColor: const Color(0xFF1565C0),
+              icon: const Icon(Icons.add, color: Colors.white),
+              label: const Text('منشور جديد',
+                  style: TextStyle(
+                      color: Colors.white, fontWeight: FontWeight.bold)),
+            )
+          : null,
+      body: Column(
+        children: [
+          // الفلاتر
+          Container(
+            padding: const EdgeInsets.all(12),
+            color: Colors.white,
+            child: Row(
+              children: [
+                Expanded(child: _filterBtn('الكل', 'all')),
+                const SizedBox(width: 8),
+                Expanded(child: _filterBtn('صفّي', 'mygrade')),
+                const SizedBox(width: 8),
+                Expanded(child: _filterBtn('عام', 'general')),
+              ],
+            ),
+          ),
+          Expanded(
+            child: _loading
+                ? const Center(
+                    child: CircularProgressIndicator(
+                        color: Color(0xFF1565C0)))
+                : _posts.isEmpty
+                    ? _buildEmpty()
+                    : RefreshIndicator(
+                        onRefresh: _load,
+                        color: const Color(0xFF1565C0),
+                        child: ListView.builder(
+                          padding: const EdgeInsets.all(12),
+                          itemCount: _posts.length,
+                          itemBuilder: (_, i) => _postCard(_posts[i]),
+                        ),
+                      ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _filterBtn(String label, String value) {
+    final active = _filter == value;
+    return GestureDetector(
+      onTap: () {
+        setState(() => _filter = value);
+        _load();
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          color: active
+              ? const Color(0xFF1565C0)
+              : const Color(0xFFF0F0F0),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Text(label,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: active ? Colors.white : const Color(0xFF555555),
+              fontWeight: FontWeight.bold,
+              fontSize: 13,
+            )),
+      ),
+    );
+  }
+
+  Widget _postCard(Map<String, dynamic> post) {
+    final role = post['author_role'] ?? 'student';
+    final roleColor = RoleHelper.roleColor(role);
+    final isPinned = post['is_pinned'] == true;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: isPinned
+            ? Border.all(color: const Color(0xFFFFA000), width: 2)
+            : null,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: () async {
+            await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => PostDetailScreen(
+                  post: post,
+                  userName: widget.userName,
+                  userRole: widget.userRole,
+                ),
+              ),
+            );
+            _load();
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // رأس المنشور
+                Row(
+                  children: [
+                    CircleAvatar(
+                      backgroundColor: roleColor,
+                      radius: 20,
+                      child: Text(
+                        (post['author_name'] ?? '؟').toString().substring(0, 1),
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Flexible(
+                                child: Text(post['author_name'] ?? '',
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14),
+                                    overflow: TextOverflow.ellipsis),
+                              ),
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: roleColor.withOpacity(0.15),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  RoleHelper.roleLabel(role),
+                                  style: TextStyle(
+                                      color: roleColor,
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                              if (isPinned) ...[
+                                const SizedBox(width: 6),
+                                const Icon(Icons.push_pin,
+                                    color: Color(0xFFFFA000), size: 14),
+                              ],
+                            ],
+                          ),
+                          Text(_formatDate(post['created_at']),
+                              style: const TextStyle(
+                                  fontSize: 11,
+                                  color: Color(0xFF888888))),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                // العنوان
+                if (post['title'] != null &&
+                    post['title'].toString().isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Text(post['title'],
+                        style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF1A1A1A))),
+                  ),
+                // المحتوى
+                Text(
+                  post['content'] ?? '',
+                  maxLines: 4,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                      fontSize: 14,
+                      color: Color(0xFF333333),
+                      height: 1.5),
+                ),
+                const SizedBox(height: 10),
+                // التصنيف
+                Row(
+                  children: [
+                    if (post['post_type'] == 'grade')
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF42A5F5).withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '📚 ${post['target_grade'] ?? ''}',
+                          style: const TextStyle(
+                              fontSize: 10,
+                              color: Color(0xFF1565C0),
+                              fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    if (post['post_type'] == 'general') ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF7E57C2).withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Text('📣 عام',
+                            style: TextStyle(
+                                fontSize: 10,
+                                color: Color(0xFF7E57C2),
+                                fontWeight: FontWeight.bold)),
+                      ),
+                    ],
+                  ],
+                ),
+                const Divider(height: 20),
+                // التفاعلات
+                Row(
+                  children: [
+                    const Icon(Icons.favorite_border,
+                        size: 18, color: Color(0xFF888888)),
+                    const SizedBox(width: 4),
+                    Text('${post['likes'] ?? 0}',
+                        style: const TextStyle(
+                            fontSize: 12, color: Color(0xFF888888))),
+                    const SizedBox(width: 20),
+                    const Icon(Icons.comment_outlined,
+                        size: 18, color: Color(0xFF888888)),
+                    const SizedBox(width: 4),
+                    Text('${post['comments_count'] ?? 0}',
+                        style: const TextStyle(
+                            fontSize: 12, color: Color(0xFF888888))),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _formatDate(String? iso) {
+    if (iso == null) return '';
+    try {
+      final d = DateTime.parse(iso).toLocal();
+      final now = DateTime.now();
+      final diff = now.difference(d);
+      if (diff.inMinutes < 1) return 'الآن';
+      if (diff.inMinutes < 60) return 'منذ ${diff.inMinutes} د';
+      if (diff.inHours < 24) return 'منذ ${diff.inHours} س';
+      if (diff.inDays < 30) return 'منذ ${diff.inDays} ي';
+      return '${d.year}/${d.month}/${d.day}';
+    } catch (_) {
+      return '';
+    }
+  }
+
+  Widget _buildEmpty() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(28),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1565C0).withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.forum_outlined,
+                size: 60, color: Color(0xFF1565C0)),
+          ),
+          const SizedBox(height: 20),
+          const Text('لا توجد منشورات بعد',
+              style: TextStyle(fontSize: 16, color: Color(0xFF555555))),
+          if (_canPost) ...[
+            const SizedBox(height: 10),
+            const Text('اضغط زر + لإضافة أول منشور',
+                style: TextStyle(fontSize: 13, color: Color(0xFF888888))),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+// ============ Create Post Screen ============
+class CreatePostScreen extends StatefulWidget {
+  final String userName;
+  final String userRole;
+  final String userGrade;
+
+  const CreatePostScreen({
+    super.key,
+    required this.userName,
+    required this.userRole,
+    required this.userGrade,
+  });
+
+  @override
+  State<CreatePostScreen> createState() => _CreatePostScreenState();
+}
+
+class _CreatePostScreenState extends State<CreatePostScreen> {
+  final _titleCtrl = TextEditingController();
+  final _contentCtrl = TextEditingController();
+  String _postType = 'general';
+  String? _targetGrade;
+  bool _isPinned = false;
+  bool _saving = false;
+
+  final List<String> _grades = [
+    'أول ابتدائي', 'ثاني ابتدائي', 'ثالث ابتدائي',
+    'رابع ابتدائي', 'خامس ابتدائي', 'سادس ابتدائي',
+    'أول إعدادي', 'ثاني إعدادي', 'ثالث إعدادي',
+    'أولى ثانوي', 'ثانية ثانوي', 'ثالثة ثانوي',
+  ];
+
+  Future<void> _save() async {
+    if (_contentCtrl.text.trim().isEmpty) {
+      showKitabiSnack(context, 'اكتب محتوى المنشور');
+      return;
+    }
+    if (_postType == 'grade' && _targetGrade == null) {
+      showKitabiSnack(context, 'اختر الصف');
+      return;
+    }
+
+    setState(() => _saving = true);
+
+    try {
+      await supabase.from('posts').insert({
+        'author_name': widget.userName,
+        'author_role': widget.userRole,
+        'title': _titleCtrl.text.trim(),
+        'content': _contentCtrl.text.trim(),
+        'post_type': _postType,
+        'target_grade': _postType == 'grade' ? _targetGrade : null,
+        'is_pinned': _isPinned,
+      });
+      if (!mounted) return;
+      Navigator.pop(context, true);
+    } catch (e) {
+      debugPrint('Create post error: $e');
+      if (!mounted) return;
+      setState(() => _saving = false);
+      showKitabiSnack(context, 'فشل النشر');
+    }
+  }
+
+  @override
+  void dispose() {
+    _titleCtrl.dispose();
+    _contentCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF1565C0),
+        foregroundColor: Colors.white,
+        elevation: 0,
+        title: const Text('منشور جديد',
+            style: TextStyle(fontWeight: FontWeight.bold)),
+        actions: [
+          TextButton(
+            onPressed: _saving ? null : _save,
+            child: _saving
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                        color: Colors.white, strokeWidth: 2))
+                : const Text('نشر',
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16)),
+          ),
+        ],
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // نوع المنشور
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('نوع المنشور:',
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 14)),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _typeBtn('📣 عام', 'general',
+                            'للجميع'),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _typeBtn('📚 لصف معين', 'grade',
+                            'لصف واحد'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            // اختيار الصف
+            if (_postType == 'grade') ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: DropdownButtonFormField<String>(
+                  value: _targetGrade,
+                  decoration: InputDecoration(
+                    labelText: 'الصف',
+                    prefixIcon: const Icon(Icons.school,
+                        color: Color(0xFF1565C0)),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                  items: _grades
+                      .map((g) => DropdownMenuItem(
+                          value: g, child: Text(g)))
+                      .toList(),
+                  onChanged: (v) => setState(() => _targetGrade = v),
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
+            // العنوان
+            TextField(
+              controller: _titleCtrl,
+              decoration: InputDecoration(
+                labelText: 'عنوان (اختياري)',
+                prefixIcon: const Icon(Icons.title),
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            // المحتوى
+            TextField(
+              controller: _contentCtrl,
+              maxLines: 10,
+              decoration: InputDecoration(
+                labelText: 'محتوى المنشور',
+                alignLabelWithHint: true,
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            // تثبيت
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.push_pin, color: Color(0xFFFFA000)),
+                  const SizedBox(width: 10),
+                  const Expanded(
+                    child: Text('تثبيت المنشور في الأعلى',
+                        style: TextStyle(
+                            fontWeight: FontWeight.w600, fontSize: 13)),
+                  ),
+                  Switch(
+                    value: _isPinned,
+                    onChanged: (v) => setState(() => _isPinned = v),
+                    activeColor: const Color(0xFFFFA000),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _typeBtn(String label, String value, String sub) {
+    final active = _postType == value;
+    return GestureDetector(
+      onTap: () => setState(() => _postType = value),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color: active
+              ? const Color(0xFF1565C0)
+              : const Color(0xFFF0F0F0),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          children: [
+            Text(label,
+                style: TextStyle(
+                    color: active ? Colors.white : const Color(0xFF555555),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13)),
+            Text(sub,
+                style: TextStyle(
+                    color: active
+                        ? Colors.white70
+                        : const Color(0xFF888888),
+                    fontSize: 10)),
+          ],
+        ),
       ),
     );
   }
@@ -6041,7 +7402,8 @@ class _RoleRequestsScreenState extends State<RoleRequestsScreen> {
 }
 
 class ControlRoomScreen extends StatefulWidget {
-  const ControlRoomScreen({super.key});
+  final bool fromSplash;
+  const ControlRoomScreen({super.key, this.fromSplash = false});
   @override
   State<ControlRoomScreen> createState() => _ControlRoomScreenState();
 }
@@ -6083,6 +7445,22 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
         backgroundColor: const Color(0xFF1565C0),
         foregroundColor: Colors.white,
         elevation: 0,
+        automaticallyImplyLeading: false,
+        actions: [
+          if (_logged)
+            IconButton(
+              tooltip: 'التطبيق',
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const HomeShell()),
+                );
+              },
+              icon: const Icon(Icons.apps),
+            ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: _logged ? _panel() : _loginUi(),
     );
