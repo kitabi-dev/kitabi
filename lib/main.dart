@@ -321,6 +321,7 @@ class _SignupScreenState extends State<SignupScreen> {
   final _emailCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
   final _confirmCtrl = TextEditingController();
+  bool _agreed = false;
   String? _selectedGrade;
   String? _selectedMuraqaba;
   bool _showPass = false;
@@ -365,6 +366,11 @@ class _SignupScreenState extends State<SignupScreen> {
     }
     if (_selectedMuraqaba == null) {
       showKitabiSnack(context, 'اختر مراقبتك');
+      return;
+    }
+
+    if (!_agreed) {
+      showKitabiSnack(context, 'يجب الموافقة على الشروط');
       return;
     }
 
@@ -697,10 +703,82 @@ class _SignupScreenState extends State<SignupScreen> {
                 onChanged: (v) =>
                     setState(() => _selectedMuraqaba = v),
               ),
-              const SizedBox(height: 25),
-
+              const SizedBox(height: 20),
+              
+              // Checkbox الموافقة على الشروط
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: _agreed
+                      ? const Color(0xFF00897B).withOpacity(0.08)
+                      : Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: _agreed
+                        ? const Color(0xFF00897B).withOpacity(0.3)
+                        : Colors.grey.shade200,
+                    width: 1.5,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Checkbox(
+                      value: _agreed,
+                      onChanged: (v) =>
+                          setState(() => _agreed = v ?? false),
+                      activeColor: const Color(0xFF00897B),
+                    ),
+                    Expanded(
+                      child: Wrap(
+                        children: [
+                          const Text('أوافق على ',
+                              style: TextStyle(fontSize: 13)),
+                          GestureDetector(
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) =>
+                                      const TermsOfServiceScreen()),
+                            ),
+                            child: const Text(
+                              'شروط الاستخدام',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF00897B),
+                                decoration: TextDecoration.underline,
+                              ),
+                            ),
+                          ),
+                          const Text(' و ',
+                              style: TextStyle(fontSize: 13)),
+                          GestureDetector(
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) =>
+                                      const PrivacyPolicyScreen()),
+                            ),
+                            child: const Text(
+                              'سياسة الخصوصية',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF1565C0),
+                                decoration: TextDecoration.underline,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              
               // زر التسجيل
-              SizedBox(
+SizedBox(
                 height: 58,
                 child: ElevatedButton(
                   onPressed: _saving ? null : _signup,
@@ -1204,9 +1282,28 @@ class PrivacyPolicyScreen extends StatelessWidget {
                   'سنقوم بإشعارك بأي تغييرات جوهرية عبر التطبيق.',
             ),
             _section(
+              'مشاركة البيانات مع أطراف ثالثة',
+              '• لا نبيع بياناتك الشخصية لأي طرف.\n'
+                  '• نستخدم Supabase (مزود استضافة آمن) لتخزين البيانات.\n'
+                  '• لا نشارك بياناتك مع أي جهة خارجية لأغراض تجارية.\n'
+                  '• قد نكشف عن البيانات إذا طُلب منا قانونياً.',
+            ),
+            _section(
+              'حقوق الملكية الفكرية',
+              '• جميع محتويات التطبيق (الشعار، التصميم، الكود) مملوكة لفريق كتابي.\n'
+                  '• الكتب التعليمية حقوقها محفوظة لوزارة التعليم الليبية.\n'
+                  '• يمنع نسخ أو إعادة نشر أي محتوى بدون إذن.',
+            ),
+            _section(
+              'حذف الحساب',
+              'يمكنك حذف حسابك في أي وقت من:\n\n'
+                  'الإعدادات → حسابي → حذف الحساب\n\n'
+                  'سيتم حذف جميع بياناتك نهائياً ولا يمكن استرجاعها.',
+            ),
+            _section(
               'تواصل معنا',
               'لأي استفسار حول سياسة الخصوصية:\n\n'
-                  '📧 support@kitabi.ly\n'
+                  '📧 mhmdkfkwfalqmaty@gmail.com\n'
                   '📞 0922251374',
             ),
             const SizedBox(height: 30),
@@ -4129,6 +4226,15 @@ class _AccountTabState extends State<AccountTab> {
                       context,
                       MaterialPageRoute(
                           builder: (_) => const PrivacyPolicyScreen()),
+                    );
+                  }),
+                  _menuDivider(),
+                  _menuItem(Icons.gavel, 'شروط الاستخدام',
+                      const Color(0xFF00897B), () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const TermsOfServiceScreen()),
                     );
                   }),
                   _menuDivider(),
@@ -18453,6 +18559,208 @@ class EmailVerifiedScreen extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+// ==================================================
+// TermsOfServiceScreen — شروط الاستخدام
+// ==================================================
+class TermsOfServiceScreen extends StatelessWidget {
+  const TermsOfServiceScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF1565C0),
+        foregroundColor: Colors.white,
+        elevation: 0,
+        title: const Text('شروط الاستخدام',
+            style: TextStyle(fontWeight: FontWeight.bold)),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1565C0).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.update,
+                      color: Color(0xFF1565C0), size: 20),
+                  SizedBox(width: 10),
+                  Text('آخر تحديث: 16 أكتوبر 2026',
+                      style: TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.w600)),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            _section(
+              'قبول الشروط',
+              'باستخدامك تطبيق كتابي، فإنك توافق على هذه الشروط. '
+                  'إذا لم توافق على أي جزء منها، يُرجى عدم استخدام التطبيق.',
+            ),
+            _section(
+              'وصف الخدمة',
+              'كتابي تطبيق تعليمي مجاني للطلاب الليبيين. '
+                  'يوفر:\n\n'
+                  '• مكتبة كتب رقمية\n'
+                  '• اختبارات تعليمية\n'
+                  '• معلم ذكي (AI)\n'
+                  '• منتدى للتفاعل\n'
+                  '• أدوات تعليمية إضافية',
+            ),
+            _section(
+              'شروط الاستخدام',
+              '1. يجب أن تكون طالباً أو معلماً في ليبيا.\n'
+                  '2. يجب تقديم معلومات صحيحة عند التسجيل.\n'
+                  '3. يجب الحفاظ على سرية كلمة السر.\n'
+                  '4. يُمنع استخدام التطبيق لأغراض تجارية.\n'
+                  '5. يُمنع محاولة اختراق التطبيق أو إساءة استخدامه.',
+            ),
+            _section(
+              'السلوك المحظور',
+              'يُمنع منعاً باتاً:\n\n'
+                  '❌ نشر محتوى مسيء أو مخالف للأخلاق.\n'
+                  '❌ التنمر أو التحرش بالآخرين.\n'
+                  '❌ نشر معلومات مضللة.\n'
+                  '❌ انتحال شخصية الآخرين.\n'
+                  '❌ نشر رسائل دعائية (Spam).\n'
+                  '❌ محاولة اختراق أو تعطيل التطبيق.',
+            ),
+            _section(
+              'ملكية المحتوى',
+              '• جميع محتويات التطبيق محمية بحقوق النشر.\n'
+                  '• لا يمكنك نسخ أو إعادة نشر أي محتوى.\n'
+                  '• المحتوى الذي تنشره (منشورات، تعليقات) يبقى ملكك.\n'
+                  '• بموجب هذه الشروط، تمنحنا حق عرض المحتوى داخل التطبيق.',
+            ),
+            _section(
+              'إيقاف الحساب',
+              'نحتفظ بالحق في:\n\n'
+                  '• إيقاف أو حظر أي حساب يخالف الشروط.\n'
+                  '• حذف أي محتوى مخالف.\n'
+                  '• رفض الخدمة لأي مستخدم دون إشعار مسبق.',
+            ),
+            _section(
+              'إخلاء المسؤولية',
+              'التطبيق يُقدَّم "كما هو". '
+                  'رغم حرصنا على دقة المحتوى، لا نتحمل مسؤولية:\n\n'
+                  '• أي أخطاء في المحتوى التعليمي.\n'
+                  '• أي خسارة ناتجة عن استخدام التطبيق.\n'
+                  '• أي انقطاع في الخدمة.',
+            ),
+            _section(
+              'الأشتراكات Plus',
+              '• الاشتراكات Plus اختيارية وتمنح مميزات إضافية.\n'
+                  '• الاشتراك الحالي مجاني بالكامل.\n'
+                  '• في المستقبل، قد تُضاف اشتراكات مدفوعة مع إشعار مسبق.',
+            ),
+            _section(
+              'التعديلات',
+              'نحتفظ بالحق في تعديل هذه الشروط في أي وقت. '
+                  'سنُعلمك بالتغييرات الجوهرية عبر التطبيق. '
+                  'استمرارك في استخدام التطبيق يعني موافقتك على الشروط المعدّلة.',
+            ),
+            _section(
+              'القانون المطبق',
+              'تخضع هذه الشروط للقوانين الليبية. '
+                  'أي نزاع يُحلّ ودياً أولاً، ثم أمام المحاكم المختصة في ليبيا.',
+            ),
+            _section(
+              'تواصل معنا',
+              'لأي استفسار حول شروط الاستخدام:\n\n'
+                  '📧 mhmdkfkwfalqmaty@gmail.com\n'
+                  '📞 0922251374',
+            ),
+            const SizedBox(height: 30),
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF1565C0), Color(0xFF42A5F5)],
+                  begin: Alignment.topRight,
+                  end: Alignment.bottomLeft,
+                ),
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF1565C0).withOpacity(0.3),
+                    blurRadius: 20,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: const Column(
+                children: [
+                  Icon(Icons.gavel, color: Colors.white, size: 45),
+                  SizedBox(height: 12),
+                  Text('استخدامك = موافقتك',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold)),
+                  SizedBox(height: 6),
+                  Text('يرجى قراءة الشروط بعناية قبل الاستخدام',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                          color: Colors.white70, fontSize: 13)),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _section(String title, String content) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 4,
+                height: 18,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1565C0),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1565C0),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            content,
+            style: const TextStyle(
+              fontSize: 14,
+              height: 1.7,
+              color: Color(0xFF333333),
+            ),
+          ),
+        ],
       ),
     );
   }
