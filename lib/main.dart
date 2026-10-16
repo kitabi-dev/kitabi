@@ -1610,6 +1610,8 @@ class HomeShell extends StatefulWidget {
 class _HomeShellState extends State<HomeShell> {
   int _index = 0;
   String _userRole = 'student';
+  String _userName = 'طالب';
+  String _userGrade = '';
 
   @override
   void initState() {
@@ -1621,6 +1623,13 @@ class _HomeShellState extends State<HomeShell> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final name = prefs.getString('user_name') ?? '';
+      final grade = prefs.getString('user_grade') ?? '';
+      if (mounted) {
+        setState(() {
+          _userName = name.isEmpty ? 'طالب' : name;
+          _userGrade = grade;
+        });
+      }
       if (name.isEmpty) return;
       final data = await supabase
           .from('users')
@@ -1646,7 +1655,12 @@ class _HomeShellState extends State<HomeShell> {
   @override
   Widget build(BuildContext context) {
     final tabs = [
-      HomeTab(onStartLearning: () => _goToTab(1)),
+      HomeTab(
+        onStartLearning: () => _goToTab(1),
+        userName: _userName,
+        userGrade: _userGrade,
+        userRole: _userRole,
+      ),
       const LibraryTab(),
       const NotificationsTab(),
       const AccountTab(),
@@ -1758,7 +1772,16 @@ class _HomeShellState extends State<HomeShell> {
 // ============ Home Tab ============
 class HomeTab extends StatelessWidget {
   final VoidCallback onStartLearning;
-  const HomeTab({super.key, required this.onStartLearning});
+  final String userName;
+  final String userGrade;
+  final String userRole;
+  const HomeTab({
+    super.key,
+    required this.onStartLearning,
+    this.userName = 'طالب',
+    this.userGrade = '',
+    this.userRole = 'student',
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1993,7 +2016,11 @@ class HomeTab extends StatelessWidget {
                     Expanded(child: _quickBtn(context, 'المنتدى', Icons.forum_rounded,
                         const LinearGradient(colors: [Color(0xFF283593), Color(0xFF5C6BC0)]),
                         () => Navigator.push(context, MaterialPageRoute(
-                            builder: (_) => const ForumScreen())))),
+                            builder: (_) => ForumScreen(
+                            userName: userName,
+                            userGrade: userGrade,
+                            userRole: userRole,
+                        )))))),
                     const SizedBox(width: 10),
                     Expanded(child: _quickBtn(context, 'الاختبارات', Icons.assignment_rounded,
                         const LinearGradient(colors: [Color(0xFFEF6C00), Color(0xFFFFA726)]),
