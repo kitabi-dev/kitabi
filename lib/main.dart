@@ -224,6 +224,28 @@ class _KitabiAppInnerState extends State<_KitabiAppInner> {
               builder: (_) => const ResetPasswordScreen()),
           (route) => false,
         );
+        return;
+      }
+      
+      // عند تأكيد الإيميل (signedIn من رابط التأكيد)
+      if (event == AuthChangeEvent.signedIn) {
+        // نتحقق من metadata
+        final user = data.session?.user;
+        if (user != null && user.emailConfirmedAt != null) {
+          final createdAt = user.createdAt;
+          // إذا كان الحساب جديداً (خلال آخر 5 دقائق)
+          try {
+            final created = DateTime.parse(createdAt);
+            final diff = DateTime.now().difference(created);
+            if (diff.inMinutes < 5) {
+              _navKey.currentState?.pushAndRemoveUntil(
+                MaterialPageRoute(
+                    builder: (_) => const EmailVerifiedScreen()),
+                (route) => false,
+              );
+            }
+          } catch (_) {}
+        }
       }
     });
   }
@@ -353,6 +375,7 @@ class _SignupScreenState extends State<SignupScreen> {
       final response = await supabase.auth.signUp(
         email: _emailCtrl.text.trim(),
         password: _passCtrl.text,
+        emailRedirectTo: 'kitabi://email-verified',
         data: {
           'name': _nameCtrl.text.trim(),
           'grade': _selectedGrade,
@@ -402,10 +425,95 @@ class _SignupScreenState extends State<SignupScreen> {
       await prefs.setInt('user_achievements', 0);
 
       if (!mounted) return;
-      showKitabiSnack(context, '✅ تم إنشاء الحساب بنجاح');
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const HomeShell()),
+      setState(() => _saving = false);
+      
+      // نعرض dialog "تحقق من إيميلك"
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => WillPopScope(
+          onWillPop: () async => false,
+          child: AlertDialog(
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20)),
+            title: const Row(
+              children: [
+                Icon(Icons.mark_email_unread,
+                    color: Color(0xFF1565C0), size: 28),
+                SizedBox(width: 10),
+                Text('تحقق من بريدك'),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  '🎉 تم إنشاء حسابك بنجاح!',
+                  style: TextStyle(
+                      fontWeight: FontWeight.bold, fontSize: 15),
+                ),
+                const SizedBox(height: 12),
+                const Text('أرسلنا رابط تأكيد إلى:'),
+                const SizedBox(height: 6),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF5F7FA),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    _emailCtrl.text.trim(),
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'افتح الرابط من إيميلك لتفعيل حسابك ثم سجّل دخولك.',
+                  style: TextStyle(fontSize: 13),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF3E0),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.info_outline,
+                          color: Color(0xFFEF6C00), size: 18),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'تحقق من مجلد الرسائل غير المرغوب فيها',
+                          style: TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFFEF6C00)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const LoginScreen()),
+                  );
+                },
+                child: const Text('حسناً، سجّل الدخول',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
+        ),
       );
     } catch (e) {
       debugPrint('Signup error: $e');
@@ -18244,3 +18352,108 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
 // ==================================================
 // ResetPasswordScreen — شاشة إعادة تعيين كلمة السر
 // ==================================================
+
+// ==================================================
+// EmailVerifiedScreen — شاشة تأكيد الإيميل بنجاح
+// ==================================================
+class EmailVerifiedScreen extends StatelessWidget {
+  const EmailVerifiedScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // أيقونة النجاح
+              Container(
+                padding: const EdgeInsets.all(30),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF00897B), Color(0xFF26A69A)],
+                  ),
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF00897B).withOpacity(0.4),
+                      blurRadius: 30,
+                      offset: const Offset(0, 10),
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.check_circle,
+                  size: 80,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 30),
+
+              // العنوان
+              const Text(
+                '🎉 تم تأكيد حسابك!',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1A1A1A),
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              // الوصف
+              const Text(
+                'حسابك مفعّل الآن. يمكنك تسجيل الدخول والاستفادة من جميع مميزات تطبيق كتابي.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 15,
+                  color: Color(0xFF555555),
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 40),
+
+              // زر تسجيل الدخول
+              SizedBox(
+                width: double.infinity,
+                height: 55,
+                child: ElevatedButton.icon(
+                  onPressed: () async {
+                    // نضمن تسجيل الخروج
+                    try {
+                      await supabase.auth.signOut();
+                    } catch (_) {}
+
+                    if (!context.mounted) return;
+                    Navigator.of(context).pushAndRemoveUntil(
+                      MaterialPageRoute(
+                          builder: (_) => const LoginScreen()),
+                      (route) => false,
+                    );
+                  },
+                  icon: const Icon(Icons.login),
+                  label: const Text(
+                    'تسجيل الدخول',
+                    style: TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1565C0),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
