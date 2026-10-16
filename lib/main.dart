@@ -2082,7 +2082,7 @@ class HomeTab extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 8),
           // ===== الصفوف الدراسية الليبية =====
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 20),
@@ -2092,7 +2092,7 @@ class HomeTab extends StatelessWidget {
                     fontWeight: FontWeight.bold,
                     color: Color(0xFF1A1A1A))),
           ),
-          const SizedBox(height: 2),
+          const SizedBox(height: 8),
 
           // المرحلة الابتدائية
           Padding(
@@ -2100,7 +2100,7 @@ class HomeTab extends StatelessWidget {
             child: _stageHeader('المرحلة الابتدائية', Color(0xFF42A5F5),
                 Icons.emoji_nature),
           ),
-          const SizedBox(height: 0),
+          const SizedBox(height: 6),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: _gradesGrid(context, const [
@@ -2108,7 +2108,7 @@ class HomeTab extends StatelessWidget {
               'رابع ابتدائي', 'خامس ابتدائي', 'سادس ابتدائي',
             ], Color(0xFF42A5F5)),
           ),
-          const SizedBox(height: 0),
+          const SizedBox(height: 14),
 
           // المرحلة الإعدادية
           Padding(
@@ -2116,14 +2116,14 @@ class HomeTab extends StatelessWidget {
             child: _stageHeader('المرحلة الإعدادية', Color(0xFFFFA726),
                 Icons.school),
           ),
-          const SizedBox(height: 0),
+          const SizedBox(height: 6),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: _gradesGrid(context, const [
               'أول إعدادي', 'ثاني إعدادي', 'ثالث إعدادي',
             ], Color(0xFFFFA726)),
           ),
-          const SizedBox(height: 0),
+          const SizedBox(height: 14),
 
           // المرحلة الثانوية
           Padding(
@@ -2131,14 +2131,14 @@ class HomeTab extends StatelessWidget {
             child: _stageHeader('المرحلة الثانوية', Color(0xFF7E57C2),
                 Icons.workspace_premium),
           ),
-          const SizedBox(height: 0),
+          const SizedBox(height: 6),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: _gradesGrid(context, const [
               'أولى ثانوي', 'ثانية ثانوي', 'ثالثة ثانوي',
             ], Color(0xFF7E57C2)),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 10),
         ],
       ),
     );
