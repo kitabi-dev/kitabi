@@ -4,6 +4,9 @@
 
 import 'package:flutter/material.dart';
 import 'dart:async';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:timezone/data/latest_all.dart' as tz;
+import 'package:timezone/timezone.dart' as tz;
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -24,6 +27,9 @@ final supabase = Supabase.instance.client;
 
 // ValueNotifier للوضع الليلي (يُحدّث التطبيق فورياً)
 final ValueNotifier<bool> darkModeNotifier = ValueNotifier<bool>(false);
+
+// ValueNotifier لحجم الخط (يُحدّث التطبيق فورياً)
+final ValueNotifier<double> fontScaleNotifier = ValueNotifier<double>(1.0);
 
 // ============ نموذج إحصائيات المستخدم ============
 class UserStats {
@@ -80,6 +86,9 @@ void showKitabiSnack(BuildContext context, String message) {
 // ============ Main ============
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // تهيئة الإشعارات المحلية
+  await NotificationService().init();
 
   await Supabase.initialize(
     url: kSupabaseUrl,
@@ -263,7 +272,9 @@ class _KitabiAppInnerState extends State<_KitabiAppInner> {
     final prefs = await SharedPreferences.getInstance();
     if (!mounted) return;
     final dark = prefs.getBool('dark_mode') ?? false;
+    final fontScale = prefs.getDouble('font_scale') ?? 1.0;
     darkModeNotifier.value = dark;
+    fontScaleNotifier.value = fontScale;
     setState(() {
       _isDark = dark;
       _loaded = true;
@@ -313,6 +324,19 @@ class _KitabiAppInnerState extends State<_KitabiAppInner> {
             useMaterial3: true,
           ),
           themeMode: isDark ? ThemeMode.dark : ThemeMode.light,
+          builder: (context, child) {
+            return ValueListenableBuilder<double>(
+              valueListenable: fontScaleNotifier,
+              builder: (context, scale, _) {
+                return MediaQuery(
+                  data: MediaQuery.of(context).copyWith(
+                    textScaler: TextScaler.linear(scale),
+                  ),
+                  child: child ?? const SizedBox.shrink(),
+                );
+              },
+            );
+          },
           home: const SplashScreen(),
         );
       },
@@ -4383,6 +4407,24 @@ class _AccountTabState extends State<AccountTab> {
                   }),
                   _menuDivider(),
 
+                  _menuItem(Icons.timer_outlined, 'مؤقت الدراسة',
+                      const Color(0xFFE91E63), () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const PomodoroScreen()),
+                    );
+                  }),
+                  _menuDivider(),
+                  _menuItem(Icons.calendar_month, 'جدول الحصص',
+                      const Color(0xFF1565C0), () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const ScheduleScreen()),
+                    );
+                  }),
+                  _menuDivider(),
                   _menuItem(Icons.settings_outlined, 'الإعدادات',
                       const Color(0xFF7E57C2), () async {
                     await Navigator.push(
@@ -19345,7 +19387,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                _fontScale == 0.9
+                _fontScale == 0.85
                     ? 'صغير'
                     : _fontScale == 1.0
                         ? 'عادي'
@@ -19359,7 +19401,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               Wrap(
                 spacing: 8,
                 children: [
-                  _sizeChip(ctx, 0.9, 'صغير', setDlg),
+                  _sizeChip(ctx, 0.85, 'صغير', setDlg),
                   _sizeChip(ctx, 1.0, 'عادي', setDlg),
                   _sizeChip(ctx, 1.15, 'كبير', setDlg),
                   _sizeChip(ctx, 1.3, 'كبير جداً', setDlg),
@@ -19379,6 +19421,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (result != null) {
       setState(() => _fontScale = result);
       await _savePref('font_scale', result);
+      // التحديث الفوري عبر ValueNotifier
+      fontScaleNotifier.value = result;
       if (!mounted) return;
       showKitabiSnack(context, 'تم تغيير حجم الخط');
     }
@@ -19929,6 +19973,1361 @@ class _SettingsScreenState extends State<SettingsScreen> {
               fontSize: 11, color: Color(0xFF888888))),
       trailing: const Icon(Icons.arrow_back_ios,
           size: 14, color: Color(0xFF555555)),
+    );
+  }
+}
+
+// ==================================================
+// PomodoroScreen — مؤقت الدراسة (Pomodoro)
+// ==================================================
+class PomodoroScreen extends StatefulWidget {
+  const PomodoroScreen({super.key});
+
+  @override
+  State<PomodoroScreen> createState() => _PomodoroScreenState();
+}
+
+class _PomodoroScreenState extends State<PomodoroScreen> {
+  // إعدادات
+  int _focusMinutes = 25;
+  int _breakMinutes = 5;
+
+  // الحالة
+  int _remainingSeconds = 25 * 60;
+  bool _isRunning = false;
+  bool _isBreak = false;
+  Timer? _timer;
+
+  // إحصائيات
+  int _todaySessions = 0;
+  int _todayMinutes = 0;
+  int _totalSessions = 0;
+  int _longestSession = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadStats();
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _loadStats() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() {
+      _todaySessions = prefs.getInt('pomodoro_today_sessions') ?? 0;
+      _todayMinutes = prefs.getInt('pomodoro_today_minutes') ?? 0;
+      _totalSessions = prefs.getInt('pomodoro_total_sessions') ?? 0;
+      _longestSession = prefs.getInt('pomodoro_longest_session') ?? 0;
+      _focusMinutes = prefs.getInt('pomodoro_focus_minutes') ?? 25;
+      _breakMinutes = prefs.getInt('pomodoro_break_minutes') ?? 5;
+    });
+    _resetTimer();
+  }
+
+  void _resetTimer() {
+    _timer?.cancel();
+    setState(() {
+      _isRunning = false;
+      _isBreak = false;
+      _remainingSeconds = _focusMinutes * 60;
+    });
+  }
+
+  void _toggleTimer() {
+    if (_isRunning) {
+      _timer?.cancel();
+      setState(() => _isRunning = false);
+    } else {
+      setState(() => _isRunning = true);
+      _timer = Timer.periodic(const Duration(seconds: 1), (t) {
+        if (_remainingSeconds <= 1) {
+          _onTimerComplete();
+        } else {
+          setState(() => _remainingSeconds--);
+        }
+      });
+    }
+  }
+
+  Future<void> _onTimerComplete() async {
+    _timer?.cancel();
+    setState(() => _isRunning = false);
+
+    // صوت/اهتزاز
+    HapticFeedback.heavyImpact();
+
+    if (!_isBreak) {
+      // انتهت جلسة تركيز
+      final prefs = await SharedPreferences.getInstance();
+      final sessions = (prefs.getInt('pomodoro_today_sessions') ?? 0) + 1;
+      final minutes =
+          (prefs.getInt('pomodoro_today_minutes') ?? 0) + _focusMinutes;
+      final total = (prefs.getInt('pomodoro_total_sessions') ?? 0) + 1;
+      final longest = prefs.getInt('pomodoro_longest_session') ?? 0;
+
+      await prefs.setInt('pomodoro_today_sessions', sessions);
+      await prefs.setInt('pomodoro_today_minutes', minutes);
+      await prefs.setInt('pomodoro_total_sessions', total);
+      if (_focusMinutes > longest) {
+        await prefs.setInt('pomodoro_longest_session', _focusMinutes);
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _todaySessions = sessions;
+        _todayMinutes = minutes;
+        _totalSessions = total;
+        _longestSession = _focusMinutes > longest ? _focusMinutes : longest;
+        _isBreak = true;
+        _remainingSeconds = _breakMinutes * 60;
+      });
+
+      showKitabiSnack(context, '🎉 أكملت جلسة! وقت الراحة');
+    } else {
+      // انتهت الراحة
+      if (!mounted) return;
+      setState(() {
+        _isBreak = false;
+        _remainingSeconds = _focusMinutes * 60;
+      });
+      showKitabiSnack(context, '💪 وقت التركيز من جديد!');
+    }
+  }
+
+  Future<void> _changeFocusMinutes() async {
+    final values = [15, 20, 25, 30, 45, 60];
+    final result = await showDialog<int>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20)),
+        title: const Text('مدة التركيز'),
+        content: Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: values.map((v) {
+            return GestureDetector(
+              onTap: () => Navigator.pop(ctx, v),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 16, vertical: 10),
+                decoration: BoxDecoration(
+                  color: v == _focusMinutes
+                      ? const Color(0xFFE91E63)
+                      : Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '$v د',
+                  style: TextStyle(
+                    color: v == _focusMinutes
+                        ? Colors.white
+                        : Colors.black87,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('إلغاء'),
+          ),
+        ],
+      ),
+    );
+
+    if (result != null) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt('pomodoro_focus_minutes', result);
+      if (!mounted) return;
+      setState(() {
+        _focusMinutes = result;
+        _remainingSeconds = result * 60;
+      });
+      _resetTimer();
+    }
+  }
+
+  Future<void> _changeBreakMinutes() async {
+    final values = [3, 5, 10, 15];
+    final result = await showDialog<int>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20)),
+        title: const Text('مدة الراحة'),
+        content: Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: values.map((v) {
+            return GestureDetector(
+              onTap: () => Navigator.pop(ctx, v),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 16, vertical: 10),
+                decoration: BoxDecoration(
+                  color: v == _breakMinutes
+                      ? const Color(0xFF00897B)
+                      : Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '$v د',
+                  style: TextStyle(
+                    color: v == _breakMinutes
+                        ? Colors.white
+                        : Colors.black87,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('إلغاء'),
+          ),
+        ],
+      ),
+    );
+
+    if (result != null) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt('pomodoro_break_minutes', result);
+      if (!mounted) return;
+      setState(() => _breakMinutes = result);
+    }
+  }
+
+  Future<void> _resetStats() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20)),
+        title: const Text('إعادة تعيين الإحصائيات'),
+        content: const Text('هل تريد مسح إحصائيات اليوم؟'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white),
+            child: const Text('مسح'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('pomodoro_today_sessions');
+    await prefs.remove('pomodoro_today_minutes');
+    if (!mounted) return;
+    setState(() {
+      _todaySessions = 0;
+      _todayMinutes = 0;
+    });
+    showKitabiSnack(context, '✅ تم مسح إحصائيات اليوم');
+  }
+
+  String _formatTime(int seconds) {
+    final m = (seconds ~/ 60).toString().padLeft(2, '0');
+    final s = (seconds % 60).toString().padLeft(2, '0');
+    return '$m:$s';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final total = _isBreak ? _breakMinutes * 60 : _focusMinutes * 60;
+    final progress = total > 0 ? 1 - (_remainingSeconds / total) : 0.0;
+    final accentColor =
+        _isBreak ? const Color(0xFF00897B) : const Color(0xFFE91E63);
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
+      appBar: AppBar(
+        backgroundColor: accentColor,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        title: const Text('مؤقت الدراسة ⏱️',
+            style: TextStyle(fontWeight: FontWeight.bold)),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: 'إعادة تعيين',
+            onPressed: _resetTimer,
+          ),
+        ],
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            const SizedBox(height: 20),
+
+            // الحالة
+            Container(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 20, vertical: 8),
+              decoration: BoxDecoration(
+                color: accentColor.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                _isBreak ? '☕ وقت الراحة' : '🎯 وقت التركيز',
+                style: TextStyle(
+                  color: accentColor,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 30),
+
+            // الدائرة
+            SizedBox(
+              width: 260,
+              height: 260,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  SizedBox(
+                    width: 260,
+                    height: 260,
+                    child: CircularProgressIndicator(
+                      value: progress,
+                      strokeWidth: 12,
+                      backgroundColor: Colors.grey.shade200,
+                      valueColor:
+                          AlwaysStoppedAnimation<Color>(accentColor),
+                    ),
+                  ),
+                  Container(
+                    width: 220,
+                    height: 220,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: accentColor.withOpacity(0.2),
+                          blurRadius: 20,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          _formatTime(_remainingSeconds),
+                          style: TextStyle(
+                            fontSize: 56,
+                            fontWeight: FontWeight.bold,
+                            color: accentColor,
+                            fontFeatures: const [
+                              FontFeature.tabularFigures()
+                            ],
+                          ),
+                        ),
+                        Text(
+                          _isBreak
+                              ? '$_breakMinutes دقيقة راحة'
+                              : '$_focusMinutes دقيقة تركيز',
+                          style: const TextStyle(
+                              fontSize: 13, color: Color(0xFF555555)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 40),
+
+            // الأزرار
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // إعادة
+                _circleBtn(
+                  icon: Icons.refresh,
+                  color: Colors.grey,
+                  onTap: _resetTimer,
+                ),
+                const SizedBox(width: 20),
+
+                // ابدأ/إيقاف
+                GestureDetector(
+                  onTap: _toggleTimer,
+                  child: Container(
+                    width: 90,
+                    height: 90,
+                    decoration: BoxDecoration(
+                      color: accentColor,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: accentColor.withOpacity(0.4),
+                          blurRadius: 20,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                    ),
+                    child: Icon(
+                      _isRunning ? Icons.pause : Icons.play_arrow,
+                      color: Colors.white,
+                      size: 50,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 20),
+
+                // تخطي
+                _circleBtn(
+                  icon: Icons.skip_next,
+                  color: Colors.grey,
+                  onTap: _onTimerComplete,
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 40),
+
+            // الإعدادات
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(18),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.settings,
+                          color: Color(0xFF1565C0), size: 22),
+                      SizedBox(width: 10),
+                      Text('الإعدادات',
+                          style: TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.timer,
+                        color: Color(0xFFE91E63)),
+                    title: const Text('مدة التركيز'),
+                    trailing: Text('$_focusMinutes دقيقة',
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFFE91E63))),
+                    onTap: _changeFocusMinutes,
+                  ),
+                  const Divider(height: 1),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.coffee,
+                        color: Color(0xFF00897B)),
+                    title: const Text('مدة الراحة'),
+                    trailing: Text('$_breakMinutes دقائق',
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF00897B))),
+                    onTap: _changeBreakMinutes,
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            // الإحصائيات
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(18),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.bar_chart,
+                          color: Color(0xFF1565C0), size: 22),
+                      const SizedBox(width: 10),
+                      const Expanded(
+                        child: Text('الإحصائيات',
+                            style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold)),
+                      ),
+                      TextButton(
+                        onPressed: _resetStats,
+                        child: const Text('مسح اليوم',
+                            style: TextStyle(
+                                color: Colors.red, fontSize: 12)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      _statCard('جلسات اليوم', '$_todaySessions',
+                          Icons.today, const Color(0xFFE91E63)),
+                      const SizedBox(width: 8),
+                      _statCard('دقائق اليوم', '$_todayMinutes',
+                          Icons.timer, const Color(0xFF00897B)),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      _statCard('إجمالي الجلسات', '$_totalSessions',
+                          Icons.trending_up, const Color(0xFF7B1FA2)),
+                      const SizedBox(width: 8),
+                      _statCard('أطول جلسة', '$_longestSession د',
+                          Icons.emoji_events, const Color(0xFFFFA000)),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _circleBtn({
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 55,
+        height: 55,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: color.withOpacity(0.2),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Icon(icon, color: color, size: 28),
+      ),
+    );
+  }
+
+  Widget _statCard(String label, String value, IconData icon, Color color) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: color, size: 22),
+            const SizedBox(height: 6),
+            Text(value,
+                style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: color)),
+            const SizedBox(height: 2),
+            Text(label,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    fontSize: 11,
+                    color: color.withOpacity(0.8))),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ==================================================
+// NotificationService — خدمة الإشعارات المحلية
+// ==================================================
+class NotificationService {
+  static final NotificationService _instance =
+      NotificationService._internal();
+  factory NotificationService() => _instance;
+  NotificationService._internal();
+
+  final FlutterLocalNotificationsPlugin _plugin =
+      FlutterLocalNotificationsPlugin();
+  bool _initialized = false;
+
+  Future<void> init() async {
+    if (_initialized) return;
+
+    // تهيئة المنطقة الزمنية
+    tz.initializeTimeZones();
+    tz.setLocalLocation(tz.getLocation('Africa/Tripoli'));
+
+    // إعدادات Android
+    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+
+    // إعدادات iOS
+    const iosSettings = DarwinInitializationSettings(
+      requestAlertPermission: true,
+      requestBadgePermission: true,
+      requestSoundPermission: true,
+    );
+
+    const initSettings = InitializationSettings(
+      android: androidSettings,
+      iOS: iosSettings,
+    );
+
+    await _plugin.initialize(
+      initSettings,
+      onDidReceiveNotificationResponse: (response) {
+        debugPrint('Notification tapped: ${response.payload}');
+      },
+    );
+
+    // طلب إذن على Android 13+
+    final androidPlugin =
+        _plugin.resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>();
+    if (androidPlugin != null) {
+      await androidPlugin.requestNotificationsPermission();
+      await androidPlugin.requestExactAlarmsPermission();
+    }
+
+    _initialized = true;
+    debugPrint('NotificationService initialized');
+  }
+
+  /// جدولة إشعار
+  Future<int> scheduleNotification({
+    required String title,
+    required String body,
+    required DateTime scheduledDate,
+    int? id,
+  }) async {
+    await init();
+
+    final notificationId =
+        id ?? DateTime.now().millisecondsSinceEpoch ~/ 1000;
+
+    const androidDetails = AndroidNotificationDetails(
+      'kitabi_schedule',
+      'جدول الحصص',
+      channelDescription: 'إشعارات جدول الحصص والامتحانات',
+      importance: Importance.max,
+      priority: Priority.high,
+      playSound: true,
+      enableVibration: true,
+      icon: '@mipmap/ic_launcher',
+    );
+
+    const iosDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    );
+
+    const details = NotificationDetails(
+      android: androidDetails,
+      iOS: iosDetails,
+    );
+
+    await _plugin.zonedSchedule(
+      notificationId,
+      title,
+      body,
+      tz.TZDateTime.from(scheduledDate, tz.local),
+      details,
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
+      payload: 'schedule_$notificationId',
+    );
+
+    debugPrint('✅ Scheduled notification $notificationId at $scheduledDate');
+    return notificationId;
+  }
+
+  /// جدولة إشعار متكرر (يومياً)
+  Future<int> scheduleDailyNotification({
+    required String title,
+    required String body,
+    required int hour,
+    required int minute,
+    int? id,
+  }) async {
+    await init();
+
+    final notificationId =
+        id ?? DateTime.now().millisecondsSinceEpoch ~/ 1000;
+
+    const androidDetails = AndroidNotificationDetails(
+      'kitabi_daily',
+      'تذكيرات يومية',
+      channelDescription: 'تذكيرات يومية للدراسة',
+      importance: Importance.high,
+      priority: Priority.high,
+      playSound: true,
+      enableVibration: true,
+    );
+
+    const details = NotificationDetails(android: androidDetails);
+
+    await _plugin.zonedSchedule(
+      notificationId,
+      title,
+      body,
+      _nextInstanceOfTime(hour, minute),
+      details,
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
+      matchDateTimeComponents: DateTimeComponents.time,
+    );
+
+    return notificationId;
+  }
+
+  tz.TZDateTime _nextInstanceOfTime(int hour, int minute) {
+    final now = tz.TZDateTime.now(tz.local);
+    var scheduled = tz.TZDateTime(
+        tz.local, now.year, now.month, now.day, hour, minute);
+    if (scheduled.isBefore(now)) {
+      scheduled = scheduled.add(const Duration(days: 1));
+    }
+    return scheduled;
+  }
+
+  /// إلغاء إشعار
+  Future<void> cancelNotification(int id) async {
+    await _plugin.cancel(id);
+    debugPrint('❌ Cancelled notification $id');
+  }
+
+  /// إلغاء جميع الإشعارات
+  Future<void> cancelAll() async {
+    await _plugin.cancelAll();
+    debugPrint('❌ Cancelled all notifications');
+  }
+
+  /// عرض إشعار فوري (اختبار)
+  Future<void> showInstantNotification({
+    required String title,
+    required String body,
+  }) async {
+    await init();
+
+    const androidDetails = AndroidNotificationDetails(
+      'kitabi_instant',
+      'إشعارات فورية',
+      importance: Importance.high,
+      priority: Priority.high,
+    );
+
+    const details = NotificationDetails(android: androidDetails);
+
+    await _plugin.show(
+      DateTime.now().millisecondsSinceEpoch ~/ 1000,
+      title,
+      body,
+      details,
+    );
+  }
+}
+
+// ==================================================
+// ScheduleScreen — جدول الحصص الأسبوعي
+// ==================================================
+class ScheduleScreen extends StatefulWidget {
+  const ScheduleScreen({super.key});
+  @override
+  State<ScheduleScreen> createState() => _ScheduleScreenState();
+}
+
+class _ScheduleScreenState extends State<ScheduleScreen>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+  int _selectedDay = DateTime.now().weekday - 1; // 0 = الأحد
+
+  // جدول: {day: {period: {subject, time, event, eventType, notifId}}}
+  Map<String, Map<String, Map<String, dynamic>>> _schedule = {};
+
+  final List<String> _days = [
+    'الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء',
+    'الخميس', 'الجمعة', 'السبت',
+  ];
+
+  final List<String> _periods = [
+    '1', '2', '3', '4', '5', '6', '7',
+  ];
+
+  final List<String> _defaultTimes = [
+    '08:00', '09:00', '10:00', '11:00',
+    '12:00', '13:00', '14:00',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(
+        length: 7, vsync: this, initialIndex: _selectedDay);
+    _tabController.addListener(() {
+      if (!_tabController.indexIsChanging) {
+        setState(() => _selectedDay = _tabController.index);
+      }
+    });
+    _loadSchedule();
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadSchedule() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString('schedule_data') ?? '{}';
+    try {
+      final decoded = jsonDecode(raw) as Map<String, dynamic>;
+      if (!mounted) return;
+      setState(() {
+        _schedule = decoded.map((day, periods) => MapEntry(
+              day,
+              (periods as Map<String, dynamic>).map((period, data) =>
+                  MapEntry(period, Map<String, dynamic>.from(data))),
+            ));
+      });
+    } catch (e) {
+      debugPrint('Load schedule error: $e');
+    }
+  }
+
+  Future<void> _saveSchedule() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('schedule_data', jsonEncode(_schedule));
+  }
+
+  Map<String, dynamic>? _getPeriod(String day, String period) {
+    return _schedule[day]?[period];
+  }
+
+  bool _hasEvent(String day, String period) {
+    final data = _getPeriod(day, period);
+    return data != null && (data['event'] ?? '').toString().isNotEmpty;
+  }
+
+  Future<void> _openPeriodDialog(String day, String period) async {
+    final existing = _getPeriod(day, period) ?? {};
+    final subjectCtrl =
+        TextEditingController(text: existing['subject'] ?? '');
+    final timeCtrl = TextEditingController(
+        text: existing['time'] ?? _defaultTimes[int.parse(period) - 1]);
+    final eventCtrl =
+        TextEditingController(text: existing['event'] ?? '');
+    String eventType = existing['eventType'] ?? 'امتحان';
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDlg) => AlertDialog(
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20)),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1565C0).withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text('$period',
+                    style: const TextStyle(
+                        color: Color(0xFF1565C0),
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18)),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text('$day — الحصة $period',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 16)),
+              ),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: subjectCtrl,
+                  decoration: InputDecoration(
+                    labelText: 'اسم المادة',
+                    prefixIcon: const Icon(Icons.book),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: timeCtrl,
+                  decoration: InputDecoration(
+                    labelText: 'وقت الحصة',
+                    prefixIcon: const Icon(Icons.access_time),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Divider(),
+                const SizedBox(height: 8),
+                const Text('🔔 إضافة حدث (اختياري)',
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 14)),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: eventCtrl,
+                  decoration: InputDecoration(
+                    labelText: 'نوع الحدث (امتحان / واجب / ...)',
+                    prefixIcon: const Icon(Icons.event),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 6,
+                  children: ['امتحان', 'واجب', 'مراجعة', 'اختبار قصير']
+                      .map((t) => ChoiceChip(
+                            label: Text(t),
+                            selected: eventType == t,
+                            onSelected: (v) => setDlg(() => eventType = t),
+                          ))
+                      .toList(),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('إلغاء'),
+            ),
+            ElevatedButton.icon(
+              onPressed: () async {
+                final data = {
+                  'subject': subjectCtrl.text.trim(),
+                  'time': timeCtrl.text.trim(),
+                  'event': eventCtrl.text.trim(),
+                  'eventType': eventType,
+                };
+                _schedule.putIfAbsent(day, () => {});
+                _schedule[day]![period] = data;
+                await _saveSchedule();
+                if (ctx.mounted) Navigator.pop(ctx, true);
+              },
+              icon: const Icon(Icons.save),
+              label: const Text('حفظ'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1565C0),
+                foregroundColor: Colors.white,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (result == true && mounted) {
+      setState(() {});
+      final eventText = eventCtrl.text.trim();
+      if (eventText.isNotEmpty) {
+        _promptNotification(
+          day: day,
+          period: period,
+          subject: subjectCtrl.text.trim(),
+          event: eventText,
+        );
+      }
+    }
+  }
+
+  Future<void> _promptNotification({
+    required String day,
+    required String period,
+    required String subject,
+    required String event,
+  }) async {
+    final choice = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.notifications_active,
+                color: Color(0xFFE91E63), size: 28),
+            SizedBox(width: 10),
+            Text('تذكير بالحدث'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('$event — $subject',
+                style: const TextStyle(
+                    fontWeight: FontWeight.bold, fontSize: 15)),
+            const SizedBox(height: 8),
+            const Text('متى تريد التذكير؟',
+                style: TextStyle(fontSize: 13)),
+            const SizedBox(height: 12),
+            _choiceBtn(ctx, 'بعد ساعة', '1h'),
+            _choiceBtn(ctx, 'بعد 24 ساعة', '24h'),
+            _choiceBtn(ctx, 'بعد 3 أيام', '3d'),
+            _choiceBtn(ctx, 'بعد أسبوع', '1w'),
+            _choiceBtn(ctx, 'وقت مخصص', 'custom'),
+            _choiceBtn(ctx, 'بدون تذكير', 'skip'),
+          ],
+        ),
+      ),
+    );
+
+    if (choice == null || choice == 'skip') return;
+
+    DateTime scheduled;
+
+    if (choice == 'custom') {
+      final picked = await showDatePicker(
+        context: context,
+        initialDate: DateTime.now().add(const Duration(days: 1)),
+        firstDate: DateTime.now(),
+        lastDate: DateTime.now().add(const Duration(days: 365)),
+      );
+      if (picked == null) return;
+      if (!mounted) return;
+
+      final time = await showTimePicker(
+        context: context,
+        initialTime: TimeOfDay.now(),
+      );
+      if (time == null) return;
+
+      scheduled =
+          DateTime(picked.year, picked.month, picked.day, time.hour, time.minute);
+    } else if (choice == '1h') {
+      scheduled = DateTime.now().add(const Duration(hours: 1));
+    } else if (choice == '24h') {
+      scheduled = DateTime.now().add(const Duration(hours: 24));
+    } else if (choice == '3d') {
+      scheduled = DateTime.now().add(const Duration(days: 3));
+    } else {
+      scheduled = DateTime.now().add(const Duration(days: 7));
+    }
+
+    final id = await NotificationService().scheduleNotification(
+      title: '🔔 $event — $subject',
+      body: 'تذكير: $event في مادة $subject (حصة $period، $day)',
+      scheduledDate: scheduled,
+    );
+
+    // حفظ الإشعار
+    _schedule[day]![period]!['notifId'] = id;
+    _schedule[day]![period]!['notifTime'] = scheduled.toIso8601String();
+    await _saveSchedule();
+
+    if (!mounted) return;
+    showKitabiSnack(
+      context,
+      '✅ سيصلك إشعار في ${_formatDateTime(scheduled)}',
+    );
+  }
+
+  Widget _choiceBtn(BuildContext ctx, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: SizedBox(
+        width: double.infinity,
+        child: OutlinedButton(
+          onPressed: () => Navigator.pop(ctx, value),
+          style: OutlinedButton.styleFrom(
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12)),
+            alignment: Alignment.centerRight,
+          ),
+          child: Text(label),
+        ),
+      ),
+    );
+  }
+
+  String _formatDateTime(DateTime d) {
+    final months = [
+      'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
+      'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر',
+    ];
+    return '${d.day} ${months[d.month - 1]} - ${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+  }
+
+  Future<void> _clearPeriod(String day, String period) async {
+    _schedule[day]?.remove(period);
+    await _saveSchedule();
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _clearDay(String day) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20)),
+        title: Text('مسح جدول $day؟'),
+        content: const Text('سيتم مسح جميع الحصص لهذا اليوم.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white),
+            child: const Text('مسح'),
+          ),
+        ],
+      ),
+    );
+    if (confirm == true) {
+      _schedule.remove(day);
+      await _saveSchedule();
+      if (mounted) setState(() {});
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF1565C0),
+        foregroundColor: Colors.white,
+        elevation: 0,
+        title: const Text('جدول الحصص 📅',
+            style: TextStyle(fontWeight: FontWeight.bold)),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.delete_sweep),
+            tooltip: 'مسح اليوم',
+            onPressed: () => _clearDay(_days[_selectedDay]),
+          ),
+        ],
+        bottom: TabBar(
+          controller: _tabController,
+          isScrollable: true,
+          indicatorColor: Colors.white,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white70,
+          tabs: _days.map((d) => Tab(text: d)).toList(),
+        ),
+      ),
+      body: TabBarView(
+        controller: _tabController,
+        children: _days.map((day) => _buildDayView(day)).toList(),
+      ),
+    );
+  }
+
+  Widget _buildDayView(String day) {
+    return ListView.separated(
+      padding: const EdgeInsets.all(12),
+      itemCount: _periods.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 8),
+      itemBuilder: (_, i) {
+        final period = _periods[i];
+        return _buildPeriodCard(day, period);
+      },
+    );
+  }
+
+  Widget _buildPeriodCard(String day, String period) {
+    final data = _getPeriod(day, period);
+    final subject = data?['subject']?.toString() ?? '';
+    final time = data?['time']?.toString() ??
+        _defaultTimes[int.parse(period) - 1];
+    final event = data?['event']?.toString() ?? '';
+    final hasEvent = event.isNotEmpty;
+    final isEmpty = subject.isEmpty;
+
+    return GestureDetector(
+      onTap: () => _openPeriodDialog(day, period),
+      onLongPress: () => _clearPeriod(day, period),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: isEmpty
+              ? Colors.grey.shade50
+              : (hasEvent ? const Color(0xFFFFF3E0) : Colors.white),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isEmpty
+                ? Colors.grey.shade200
+                : (hasEvent
+                    ? const Color(0xFFEF6C00)
+                    : const Color(0xFF1565C0).withOpacity(0.2)),
+            width: isEmpty ? 1 : 1.5,
+          ),
+          boxShadow: isEmpty
+              ? []
+              : [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                gradient: isEmpty
+                    ? LinearGradient(colors: [
+                        Colors.grey.shade300,
+                        Colors.grey.shade400,
+                      ])
+                    : const LinearGradient(
+                        colors: [Color(0xFF1565C0), Color(0xFF42A5F5)],
+                      ),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                period,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.access_time,
+                          size: 14, color: Colors.grey.shade600),
+                      const SizedBox(width: 4),
+                      Text(time,
+                          style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade700,
+                              fontWeight: FontWeight.w600)),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    isEmpty ? 'اضغط لإضافة مادة' : subject,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: isEmpty
+                          ? Colors.grey.shade500
+                          : const Color(0xFF1A1A1A),
+                    ),
+                  ),
+                  if (hasEvent) ...[
+                    const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEF6C00).withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.event,
+                              size: 12, color: Color(0xFFEF6C00)),
+                          const SizedBox(width: 4),
+                          Text(
+                            event,
+                            style: const TextStyle(
+                                fontSize: 11,
+                                color: Color(0xFFEF6C00),
+                                fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            if (data?['notifId'] != null)
+              const Icon(Icons.notifications_active,
+                  color: Color(0xFFE91E63), size: 22)
+            else if (isEmpty)
+              const Icon(Icons.add_circle_outline,
+                  color: Color(0xFF1565C0), size: 24)
+            else
+              const Icon(Icons.edit,
+                  color: Color(0xFF999999), size: 20),
+          ],
+        ),
+      ),
     );
   }
 }

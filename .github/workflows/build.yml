@@ -2,7 +2,7 @@ name: Build APK
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   workflow_dispatch:
 
 jobs:
@@ -16,39 +16,87 @@ jobs:
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
-          distribution: 'zulu'
+          distribution: zulu
           java-version: '17'
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.27.0'
-          channel: 'stable'
+          channel: stable
           cache: true
 
       - name: Generate Android platform files
-        run: |
-          flutter create . --platforms android --org com.kitabi --project-name kitabi
+        run: flutter create . --platforms android --org com.kitabi --project-name kitabi
 
-      - name: Add permissions and cleartext to AndroidManifest
+      - name: Add Android permissions
         run: |
-          MANIFEST="android/app/src/main/AndroidManifest.xml"
-          if ! grep -q "READ_MEDIA_IMAGES" "$MANIFEST"; then
-            sed -i 's|<application|<uses-permission android:name="android.permission.INTERNET"/>\n    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>\n    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>\n    <uses-permission android:name="android.permission.CAMERA"/>\n    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO"/>\n    <application|' "$MANIFEST"
-          fi
-          if ! grep -q "usesCleartextTraffic" "$MANIFEST"; then
-            sed -i 's|<application|<application android:usesCleartextTraffic="true"|' "$MANIFEST"
-          fi
+          python3 - <<'PY'
+          from pathlib import Path
 
-      - name: Add deep link intent filter
-        run: |
-          MANIFEST="android/app/src/main/AndroidManifest.xml"
-          if ! grep -q "kitabi://auth" "$MANIFEST"; then
-            INTENT='<intent-filter android:autoVerify="true">\n                <action android:name="android.intent.action.VIEW" />\n                <category android:name="android.intent.category.DEFAULT" />\n                <category android:name="android.intent.category.BROWSABLE" />\n                <data android:scheme="kitabi" android:host="auth" />\n            </intent-filter>\n        </activity>'
-            sed -i "s|</activity>|$INTENT|" "$MANIFEST"
-          fi
-          echo "--- AndroidManifest after edit ---"
-          cat "$MANIFEST"
+          p = Path("android/app/src/main/AndroidManifest.xml")
+          if not p.exists():
+              raise SystemExit("AndroidManifest.xml غير موجود")
+
+          s = p.read_text()
+          permissions = [
+              '    <uses-permission android:name="android.permission.INTERNET"/>',
+              '    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>',
+              '    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>',
+              '    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO"/>',
+              '    <uses-permission android:name="android.permission.CAMERA"/>',
+              '    <uses-permission android:name="android.permission.VIBRATE"/>',
+              '    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>',
+              '    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>',
+              '    <uses-permission android:name="android.permission.USE_EXACT_ALARM"/>',
+              '    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>',
+              '    <uses-permission android:name="android.permission.WAKE_LOCK"/>',
+          ]
+          missing = [x for x in permissions if x not in s]
+          if missing:
+              marker = '<application'
+              if marker not in s:
+                  raise SystemExit("لم أجد application داخل AndroidManifest.xml")
+              s = s.replace(marker, '\n'.join(missing) + '\n    ' + marker, 1)
+
+          if 'usesCleartextTraffic=' not in s:
+              s = s.replace('<application', '<application android:usesCleartextTraffic="true"', 1)
+
+          if 'android:scheme="kitabi"' not in s:
+              intent = '''
+                  <intent-filter>
+                      <action android:name="android.intent.action.VIEW" />
+                      <category android:name="android.intent.category.DEFAULT" />
+                      <category android:name="android.intent.category.BROWSABLE" />
+                      <data android:scheme="kitabi" android:host="auth" />
+                  </intent-filter>
+              '''
+              marker = '</activity>'
+              if marker not in s:
+                  raise SystemExit("لم أجد activity لإضافة رابط تسجيل الدخول")
+              s = s.replace(marker, intent + '\n        </activity>', 1)
+
+          # إضافة receivers للإشعارات المجدولة
+          if 'ScheduledNotificationReceiver' not in s:
+              receivers = '''
+        <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver" />
+        <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+                <action android:name="com.htc.intent.action.QUICKBOOT_POWERON"/>
+            </intent-filter>
+        </receiver>
+'''
+              marker = '</application>'
+              if marker not in s:
+                  raise SystemExit("لم أجد application لإضافة receivers")
+              s = s.replace(marker, receivers + '\n    ' + marker, 1)
+
+          p.write_text(s)
+          print("تم تجهيز AndroidManifest.xml مع أذونات الإشعارات")
+          PY
 
       - name: Get dependencies
         run: flutter pub get
@@ -59,5 +107,5 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: kitabi-apk-v0.3
+          name: kitabi-apk-v1.0
           path: build/app/outputs/flutter-apk/app-release.apk
