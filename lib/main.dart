@@ -8262,7 +8262,7 @@ class _AddSubscriptionScreenState extends State<AddSubscriptionScreen> {
                       ),
                     ),
                     child: Text(
-                      'تفعيل بلس لـ $_selectedUser',
+                      'تفعيل بلس لـ $_selectedUserName',
                       style: const TextStyle(
                           fontSize: 16, fontWeight: FontWeight.bold),
                     ),
@@ -8307,6 +8307,7 @@ class _AddSubscriptionScreenState extends State<AddSubscriptionScreen> {
     final email = (user['email'] ?? '').toString();
     final hasEmail = email.isNotEmpty && email != 'null';
     final isSelected = _selectedUserEmail == email;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
@@ -8328,7 +8329,7 @@ class _AddSubscriptionScreenState extends State<AddSubscriptionScreen> {
                   _selectedUserName = name;
                 })
             : () => showKitabiSnack(context,
-                'هذا المستخدم لا يملك إيميل — لا يمكن إضافة اشتراك'),
+                'هذا المستخدم لا يملك إيميل'),
         leading: CircleAvatar(
           backgroundColor: hasEmail
               ? const Color(0xFF1565C0)
@@ -8344,18 +8345,13 @@ class _AddSubscriptionScreenState extends State<AddSubscriptionScreen> {
           style: TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 14,
-              color: hasEmail ? const Color(0xFF1A1A1A) : Colors.grey),
+              color: hasEmail
+                  ? const Color(0xFF1A1A1A)
+                  : Colors.grey),
         ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('\${user['grade']} • \${user['muraqaba']}',
-                style: const TextStyle(fontSize: 11)),
-            if (hasEmail)
-              Text(email,
-                  style: const TextStyle(
-                      fontSize: 10, color: Color(0xFF666666))),
-          ],
+        subtitle: Text(
+          '${user['grade']} • ${user['muraqaba']}',
+          style: const TextStyle(fontSize: 11),
         ),
         trailing: isSelected
             ? const Icon(Icons.check_circle,
