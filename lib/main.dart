@@ -1971,9 +1971,9 @@ class HomeTab extends StatelessWidget {
               crossAxisCount: 3,
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              crossAxisSpacing: 8,
-              mainAxisSpacing: 8,
-              childAspectRatio: 1.15,
+              crossAxisSpacing: 10,
+              mainAxisSpacing: 10,
+              childAspectRatio: 1.0,
               children: [
                 _quickBtn(context, 'المكتبة', Icons.menu_book_rounded,
                     const LinearGradient(
@@ -2175,9 +2175,9 @@ class HomeTab extends StatelessWidget {
       crossAxisCount: 3,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      crossAxisSpacing: 6,
-      mainAxisSpacing: 6,
-      childAspectRatio: 2.6,
+      crossAxisSpacing: 8,
+      mainAxisSpacing: 8,
+      childAspectRatio: 2.0,
       children: grades.map((grade) {
         return Material(
           color: Colors.transparent,
