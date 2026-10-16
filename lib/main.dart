@@ -25,6 +25,61 @@ final supabase = Supabase.instance.client;
 // ValueNotifier للوضع الليلي (يُحدّث التطبيق فورياً)
 final ValueNotifier<bool> darkModeNotifier = ValueNotifier<bool>(false);
 
+// ============================================
+// AppColors — نظام ألوان ديناميكي للوضع الليلي
+// ============================================
+class AppColors {
+  static bool get isDark => darkModeNotifier.value;
+
+  // خلفية الصفحة
+  static Color bg(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark
+          ? const Color(0xFF121212)
+          : AppColors.bg(context);
+
+  // البطاقات
+  static Color card(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark
+          ? const Color(0xFF1E1E1E)
+          : Colors.white;
+
+  // النصوص الرئيسية
+  static Color text(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark
+          ? Colors.white
+          : AppColors.text(context);
+
+  // النصوص الثانوية
+  static Color textSub(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark
+          ? const Color(0xFFB0B0B0)
+          : AppColors.textSub(context);
+
+  // النصوص الرمادية
+  static Color textHint(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark
+          ? AppColors.textHint(context)
+          : AppColors.textHint(context);
+
+  // الحواف
+  static Color border(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark
+          ? const Color(0xFF333333)
+          : const Color(0xFFE5E5E5);
+
+  // الفواصل
+  static Color divider(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark
+          ? const Color(0xFF2A2A2A)
+          : const Color(0xFFF0F0F0);
+
+  // الأسطح الثانوية (input fields)
+  static Color surface(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark
+          ? const Color(0xFF2A2A2A)
+          : Colors.white;
+}
+
 // ============ نموذج إحصائيات المستخدم ============
 class UserStats {
   static Future<Map<String, int>> get() async {
@@ -284,7 +339,7 @@ class _KitabiAppInnerState extends State<_KitabiAppInner> {
         home: Scaffold(
           backgroundColor: Color(0xFF1565C0),
           body: Center(
-            child: CircularProgressIndicator(color: Colors.white),
+            child: CircularProgressIndicator(color: AppColors.card(context)),
           ),
         ),
       );
@@ -301,7 +356,7 @@ class _KitabiAppInnerState extends State<_KitabiAppInner> {
               seedColor: const Color(0xFF1565C0),
               brightness: Brightness.light,
             ),
-            scaffoldBackgroundColor: const Color(0xFFF5F7FA),
+            scaffoldBackgroundColor: AppColors.bg(context),
             useMaterial3: true,
           ),
           darkTheme: ThemeData(
@@ -476,7 +531,7 @@ class _SignupScreenState extends State<SignupScreen> {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF5F7FA),
+                    color: AppColors.bg(context),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(
@@ -580,10 +635,10 @@ class _SignupScreenState extends State<SignupScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: AppColors.bg(context),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
-        foregroundColor: const Color(0xFF1A1A1A),
+        foregroundColor: AppColors.text(context),
         elevation: 0,
         title: const Text('إنشاء حساب جديد',
             style: TextStyle(fontWeight: FontWeight.bold)),
@@ -613,7 +668,7 @@ class _SignupScreenState extends State<SignupScreen> {
                     ],
                   ),
                   child: const Icon(Icons.person_add_alt_1,
-                      size: 40, color: Colors.white),
+                      size: 40, color: AppColors.card(context)),
                 ),
               ),
               const SizedBox(height: 20),
@@ -622,13 +677,13 @@ class _SignupScreenState extends State<SignupScreen> {
                     style: TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF1A1A1A))),
+                        color: AppColors.text(context))),
               ),
               const SizedBox(height: 8),
               const Center(
                 child: Text('أنشئ حسابك المجاني الآن',
                     style: TextStyle(
-                        fontSize: 13, color: Color(0xFF555555))),
+                        fontSize: 13, color: AppColors.textSub(context))),
               ),
               const SizedBox(height: 30),
 
@@ -662,7 +717,7 @@ class _SignupScreenState extends State<SignupScreen> {
                       _showPass
                           ? Icons.visibility
                           : Icons.visibility_off,
-                      color: const Color(0xFF555555),
+                      color: AppColors.textSub(context),
                     ),
                   ),
                 ),
@@ -683,7 +738,7 @@ class _SignupScreenState extends State<SignupScreen> {
                       _showConfirm
                           ? Icons.visibility
                           : Icons.visibility_off,
-                      color: const Color(0xFF555555),
+                      color: AppColors.textSub(context),
                     ),
                   ),
                 ),
@@ -802,8 +857,8 @@ SizedBox(
                     ),
                   ),
                   child: _saving
-                      ? const CircularProgressIndicator(
-                          color: Colors.white)
+                      ? CircularProgressIndicator(
+                          color: AppColors.card(context))
                       : const Text('إنشاء الحساب',
                           style: TextStyle(
                               fontSize: 18,
@@ -989,7 +1044,7 @@ class _LoginScreenState extends State<LoginScreen> {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF5F7FA),
+                  color: AppColors.bg(context),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
@@ -1001,7 +1056,7 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 12),
               const Text(
                 'افتح الرابط من إيميلك لتغيير كلمة السر.',
-                style: TextStyle(fontSize: 13, color: Color(0xFF555555)),
+                style: TextStyle(fontSize: 13, color: AppColors.textSub(context)),
               ),
               const SizedBox(height: 8),
               const Text(
@@ -1057,7 +1112,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: AppColors.bg(context),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
@@ -1084,7 +1139,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ],
                   ),
                   child: const Icon(Icons.menu_book,
-                      size: 50, color: Colors.white),
+                      size: 50, color: AppColors.card(context)),
                 ),
               ),
               const SizedBox(height: 20),
@@ -1094,13 +1149,13 @@ class _LoginScreenState extends State<LoginScreen> {
                         fontSize: 32,
                         fontWeight: FontWeight.w900,
                         letterSpacing: 4,
-                        color: Color(0xFF1A1A1A))),
+                        color: AppColors.text(context))),
               ),
               const SizedBox(height: 8),
               const Center(
                 child: Text('مرحباً بعودتك 👋',
                     style: TextStyle(
-                        fontSize: 14, color: Color(0xFF555555))),
+                        fontSize: 14, color: AppColors.textSub(context))),
               ),
               const SizedBox(height: 40),
 
@@ -1127,7 +1182,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       _showPass
                           ? Icons.visibility
                           : Icons.visibility_off,
-                      color: const Color(0xFF555555),
+                      color: AppColors.textSub(context),
                     ),
                   ),
                 ),
@@ -1160,8 +1215,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                   child: _saving
-                      ? const CircularProgressIndicator(
-                          color: Colors.white)
+                      ? CircularProgressIndicator(
+                          color: AppColors.card(context))
                       : const Text('تسجيل الدخول',
                           style: TextStyle(
                               fontSize: 18,
@@ -1208,7 +1263,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: AppColors.bg(context),
       appBar: AppBar(
         backgroundColor: const Color(0xFF1565C0),
         foregroundColor: Colors.white,
@@ -1337,7 +1392,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
               ),
               child: const Column(
                 children: [
-                  Icon(Icons.shield, color: Colors.white, size: 45),
+                  Icon(Icons.shield, color: AppColors.card(context), size: 45),
                   SizedBox(height: 12),
                   Text('خصوصيتك محمية',
                       style: TextStyle(
@@ -1364,7 +1419,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -1393,7 +1448,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
                     style: const TextStyle(
                         fontSize: 17,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF1A1A1A))),
+                        color: AppColors.text(context))),
               ),
             ],
           ),
@@ -1401,7 +1456,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
           Text(content,
               style: const TextStyle(
                   fontSize: 14,
-                  color: Color(0xFF555555),
+                  color: AppColors.textSub(context),
                   height: 1.7)),
         ],
       ),
@@ -1503,7 +1558,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     child: const Text('تخطي',
                         style: TextStyle(
                             fontSize: 15,
-                            color: Color(0xFF555555),
+                            color: AppColors.textSub(context),
                             fontWeight: FontWeight.w600)),
                   ),
                 ],
@@ -1545,7 +1600,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                             ],
                           ),
                           child: Icon(p['icon'],
-                              size: 80, color: Colors.white),
+                              size: 80, color: AppColors.card(context)),
                         ),
                         const SizedBox(height: 45),
                         Text(
@@ -1563,7 +1618,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           textAlign: TextAlign.center,
                           style: const TextStyle(
                             fontSize: 15,
-                            color: Color(0xFF555555),
+                            color: AppColors.textSub(context),
                             height: 1.7,
                           ),
                         ),
@@ -1586,7 +1641,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         );
                       },
                       icon: const Icon(Icons.arrow_forward,
-                          size: 28, color: Color(0xFF555555)),
+                          size: 28, color: AppColors.textSub(context)),
                     ),
                   const Spacer(),
                   Expanded(
@@ -1769,7 +1824,7 @@ class _SplashScreenState extends State<SplashScreen> {
               width: 140,
               height: 140,
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppColors.card(context),
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
@@ -1813,7 +1868,7 @@ class BannedScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: AppColors.bg(context),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -1834,20 +1889,20 @@ class BannedScreen extends StatelessWidget {
                   style: TextStyle(
                       fontSize: 26,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF1A1A1A))),
+                      color: AppColors.text(context))),
               const SizedBox(height: 15),
               const Text(
                   'تم إيقاف حسابك من قبل إدارة التطبيق\nلأسباب تتعلق بمخالفة السياسات',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                       fontSize: 15,
-                      color: Color(0xFF555555),
+                      color: AppColors.textSub(context),
                       height: 1.6)),
               const SizedBox(height: 40),
               Container(
                 padding: const EdgeInsets.all(18),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: AppColors.card(context),
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: [
                     BoxShadow(
@@ -1862,7 +1917,7 @@ class BannedScreen extends StatelessWidget {
                     Expanded(
                       child: Text('للتواصل مع الإدارة: support@kitabi.ly',
                           style: TextStyle(
-                              fontSize: 13, color: Color(0xFF555555))),
+                              fontSize: 13, color: AppColors.textSub(context))),
                     ),
                   ],
                 ),
@@ -1876,7 +1931,7 @@ class BannedScreen extends StatelessWidget {
                   icon: const Icon(Icons.refresh),
                   label: const Text('إعادة المحاولة لاحقاً'),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF555555),
+                    foregroundColor: AppColors.textSub(context),
                     side: const BorderSide(color: Color(0xFFE5E5E5)),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
@@ -1972,7 +2027,7 @@ class _HomeShellState extends State<HomeShell> {
 
     return Scaffold(
       extendBody: true,
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: AppColors.bg(context),
       body: tabs[_index],
       floatingActionButton: _isAdminOrModerator()
           ? FloatingActionButton.small(
@@ -1988,7 +2043,7 @@ class _HomeShellState extends State<HomeShell> {
               backgroundColor: const Color(0xFF1565C0),
               tooltip: 'رجوع للوحة التحكم',
               child: const Icon(Icons.arrow_back,
-                  color: Colors.white, size: 20),
+                  color: AppColors.card(context), size: 20),
             )
           : null,
       bottomNavigationBar: Padding(
@@ -2122,7 +2177,7 @@ class HomeTab extends StatelessWidget {
                     ],
                   ),
                   child: const Icon(Icons.menu_book,
-                      color: Colors.white, size: 24),
+                      color: AppColors.card(context), size: 24),
                 ),
                 const SizedBox(width: 12),
                 const Expanded(
@@ -2134,11 +2189,11 @@ class HomeTab extends StatelessWidget {
                               fontSize: 20,
                               fontWeight: FontWeight.w900,
                               letterSpacing: 3,
-                              color: Color(0xFF1A1A1A))),
+                              color: AppColors.text(context))),
                       Text('كتابي',
                           style: TextStyle(
                               fontSize: 12,
-                              color: Color(0xFF555555),
+                              color: AppColors.textSub(context),
                               fontWeight: FontWeight.w500)),
                     ],
                   ),
@@ -2196,7 +2251,7 @@ class HomeTab extends StatelessWidget {
                             ? child
                             : const Center(
                                 child: CircularProgressIndicator(
-                                    color: Colors.white)),
+                                    color: AppColors.card(context))),
                       ),
                       errorBuilder: (c, e, s) => Container(
                         decoration: const BoxDecoration(
@@ -2207,7 +2262,7 @@ class HomeTab extends StatelessWidget {
                           ),
                         ),
                         child: const Icon(Icons.school,
-                            size: 100, color: Colors.white54),
+                            size: 100, color: AppColors.card(context)54),
                       ),
                     ),
                     Container(
@@ -2375,7 +2430,7 @@ class HomeTab extends StatelessWidget {
                 style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF1A1A1A))),
+                    color: AppColors.text(context))),
           ),
           const SizedBox(height: 8),
 
@@ -2501,7 +2556,7 @@ class HomeTab extends StatelessWidget {
               },
               child: Container(
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: AppColors.card(context),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: color.withOpacity(0.25), width: 1.5),
                   boxShadow: [
@@ -2521,7 +2576,7 @@ class HomeTab extends StatelessWidget {
                       style: const TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF1A1A1A),
+                        color: AppColors.text(context),
                       ),
                     ),
                   ),
@@ -2558,7 +2613,7 @@ class HomeTab extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(icon, color: Colors.white, size: 30),
+                Icon(icon, color: AppColors.card(context), size: 30),
                 const SizedBox(height: 8),
                 Text(label,
                     textAlign: TextAlign.center,
@@ -2579,7 +2634,7 @@ class HomeTab extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(22),
         boxShadow: [
           BoxShadow(
@@ -2598,7 +2653,7 @@ class HomeTab extends StatelessWidget {
               gradient: grad,
               borderRadius: BorderRadius.circular(18),
             ),
-            child: Icon(icon, color: Colors.white, size: 34),
+            child: Icon(icon, color: AppColors.card(context), size: 34),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -2609,11 +2664,11 @@ class HomeTab extends StatelessWidget {
                     style: const TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF1A1A1A))),
+                        color: AppColors.text(context))),
                 const SizedBox(height: 5),
                 Text(subtitle,
-                    style: const TextStyle(
-                        fontSize: 12, color: Color(0xFF555555))),
+                    style: TextStyle(
+                        fontSize: 12, color: AppColors.textSub(context))),
               ],
             ),
           ),
@@ -2676,14 +2731,14 @@ class _LibraryTabState extends State<LibraryTab> {
                   style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF1A1A1A))),
+                      color: AppColors.text(context))),
             ],
           ),
         ),
         const Padding(
           padding: EdgeInsets.symmetric(horizontal: 20),
           child: Text('اختر صفك الدراسي لعرض المواد',
-              style: TextStyle(color: Color(0xFF555555), fontSize: 13)),
+              style: TextStyle(color: AppColors.textSub(context), fontSize: 13)),
         ),
         const SizedBox(height: 15),
         // تبويبين: كتب / شيتات
@@ -2691,7 +2746,7 @@ class _LibraryTabState extends State<LibraryTab> {
           margin: const EdgeInsets.symmetric(horizontal: 20),
           padding: const EdgeInsets.all(4),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: AppColors.card(context),
             borderRadius: BorderRadius.circular(16),
           ),
           child: Row(
@@ -2724,7 +2779,7 @@ class _LibraryTabState extends State<LibraryTab> {
                     child: const Text('الشيتات',
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                            color: Color(0xFF555555),
+                            color: AppColors.textSub(context),
                             fontWeight: FontWeight.w600)),
                   ),
                 ),
@@ -2750,7 +2805,7 @@ class _LibraryTabState extends State<LibraryTab> {
     return Container(
       height: 82,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(26),
         boxShadow: [
           BoxShadow(
@@ -2786,7 +2841,7 @@ class _LibraryTabState extends State<LibraryTab> {
                       style: const TextStyle(
                           fontSize: 17,
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFF1A1A1A))),
+                          color: AppColors.text(context))),
                 ),
                 Container(
                   width: 34,
@@ -2925,7 +2980,7 @@ class SectionSelectScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: AppColors.bg(context),
       appBar: AppBar(
         backgroundColor: const Color(0xFF5E35B1),
         foregroundColor: Colors.white,
@@ -2952,11 +3007,11 @@ class SectionSelectScreen extends StatelessWidget {
                 style: TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF1A1A1A))),
+                    color: AppColors.text(context))),
             const SizedBox(height: 8),
             Text('صف $gradeName يحتوي على أكثر من قسم',
-                style: const TextStyle(
-                    fontSize: 14, color: Color(0xFF555555))),
+                style: TextStyle(
+                    fontSize: 14, color: AppColors.textSub(context))),
             const SizedBox(height: 30),
             ...sections.map((section) => _sectionCard(context, section)),
           ],
@@ -2975,7 +3030,7 @@ class SectionSelectScreen extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
@@ -3067,7 +3122,7 @@ class SectionSelectScreen extends StatelessWidget {
                             : 'الآداب + اللغات + الفلسفة',
                         style: const TextStyle(
                             fontSize: 12,
-                            color: Color(0xFF555555)),
+                            color: AppColors.textSub(context)),
                       ),
                     ],
                   ),
@@ -3131,7 +3186,7 @@ class GradeSubjectsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: AppColors.bg(context),
       appBar: AppBar(
         title: Text(gradeName,
             style: const TextStyle(fontWeight: FontWeight.bold)),
@@ -3142,7 +3197,7 @@ class GradeSubjectsScreen extends StatelessWidget {
       body: subjects.isEmpty
           ? const Center(
               child: Text('لا توجد مواد',
-                  style: TextStyle(fontSize: 16, color: Color(0xFF555555))),
+                  style: TextStyle(fontSize: 16, color: AppColors.textSub(context))),
             )
           : ListView.separated(
               padding: const EdgeInsets.all(20),
@@ -3155,7 +3210,7 @@ class GradeSubjectsScreen extends StatelessWidget {
                 return Container(
                   height: 78,
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: AppColors.card(context),
                     borderRadius: BorderRadius.circular(24),
                     boxShadow: [
                       BoxShadow(
@@ -3202,7 +3257,7 @@ class GradeSubjectsScreen extends StatelessWidget {
                                   style: const TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.bold,
-                                      color: Color(0xFF1A1A1A))),
+                                      color: AppColors.text(context))),
                             ),
                             Container(
                               width: 32,
@@ -3279,7 +3334,7 @@ class _SubjectBooksScreenState extends State<SubjectBooksScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: AppColors.bg(context),
       appBar: AppBar(
         title: Text(widget.subjectName,
             style: const TextStyle(fontWeight: FontWeight.bold)),
@@ -3322,7 +3377,7 @@ class _SubjectBooksScreenState extends State<SubjectBooksScreen> {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
@@ -3379,13 +3434,13 @@ class _SubjectBooksScreenState extends State<SubjectBooksScreen> {
                         style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF1A1A1A)),
+                            color: AppColors.text(context)),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         widget.gradeName,
-                        style: const TextStyle(
-                            fontSize: 12, color: Color(0xFF555555)),
+                        style: TextStyle(
+                            fontSize: 12, color: AppColors.textSub(context)),
                       ),
                       const SizedBox(height: 8),
                       Container(
@@ -3442,10 +3497,10 @@ class _SubjectBooksScreenState extends State<SubjectBooksScreen> {
           ),
           const SizedBox(height: 20),
           const Text('لا توجد كتب لهذه المادة بعد',
-              style: TextStyle(fontSize: 16, color: Color(0xFF555555))),
+              style: TextStyle(fontSize: 16, color: AppColors.textSub(context))),
           const SizedBox(height: 8),
           const Text('سيتم إضافة الكتب قريباً',
-              style: TextStyle(fontSize: 13, color: Color(0xFF888888))),
+              style: TextStyle(fontSize: 13, color: AppColors.textHint(context))),
         ],
       ),
     );
@@ -3539,7 +3594,7 @@ class _BookReaderScreenState extends State<BookReaderScreen> {
           widget.book['title'] ?? '',
           style: const TextStyle(fontSize: 15),
         ),
-        backgroundColor: const Color(0xFF1A1A1A),
+        backgroundColor: AppColors.text(context),
         foregroundColor: Colors.white,
         actions: [
           Center(
@@ -3571,10 +3626,10 @@ class _BookReaderScreenState extends State<BookReaderScreen> {
                         ? child
                         : const Center(
                             child: CircularProgressIndicator(
-                                color: Colors.white)),
+                                color: AppColors.card(context))),
                     errorBuilder: (_, __, ___) => const Center(
                       child: Icon(Icons.broken_image,
-                          size: 80, color: Colors.white54),
+                          size: 80, color: AppColors.card(context)54),
                     ),
                   ),
                 ),
@@ -3583,7 +3638,7 @@ class _BookReaderScreenState extends State<BookReaderScreen> {
           ),
           // شريط التنقل
           Container(
-            color: const Color(0xFF1A1A1A),
+            color: AppColors.text(context),
             padding: const EdgeInsets.symmetric(vertical: 10),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -3595,7 +3650,7 @@ class _BookReaderScreenState extends State<BookReaderScreen> {
                           curve: Curves.easeOut)
                       : null,
                   icon: const Icon(Icons.arrow_forward,
-                      color: Colors.white),
+                      color: AppColors.card(context)),
                 ),
                 Text(
                   'الصفحة ${_currentPage + 1}',
@@ -3608,7 +3663,7 @@ class _BookReaderScreenState extends State<BookReaderScreen> {
                           duration: const Duration(milliseconds: 300),
                           curve: Curves.easeOut)
                       : null,
-                  icon: const Icon(Icons.arrow_back, color: Colors.white),
+                  icon: Icon(Icons.arrow_back, color: AppColors.card(context)),
                 ),
               ],
             ),
@@ -3701,7 +3756,7 @@ class _NotificationsTabState extends State<NotificationsTab> {
                     style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF1A1A1A))),
+                        color: AppColors.text(context))),
               ),
               IconButton(
                 onPressed: _loadNotifications,
@@ -3746,7 +3801,7 @@ class _NotificationsTabState extends State<NotificationsTab> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
@@ -3776,7 +3831,7 @@ class _NotificationsTabState extends State<NotificationsTab> {
                     style: const TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF1A1A1A))),
+                        color: AppColors.text(context))),
               ),
             ],
           ),
@@ -3788,8 +3843,8 @@ class _NotificationsTabState extends State<NotificationsTab> {
                   height: 1.5)),
           const SizedBox(height: 8),
           Text(_formatDate(n['created_at']),
-              style: const TextStyle(
-                  fontSize: 11, color: Color(0xFF888888))),
+              style: TextStyle(
+                  fontSize: 11, color: AppColors.textHint(context))),
         ],
       ),
     );
@@ -3803,7 +3858,7 @@ class _NotificationsTabState extends State<NotificationsTab> {
           Container(
             padding: const EdgeInsets.all(30),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: AppColors.card(context),
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
@@ -3811,14 +3866,14 @@ class _NotificationsTabState extends State<NotificationsTab> {
               ],
             ),
             child: const Icon(Icons.notifications_off,
-                size: 60, color: Color(0xFF555555)),
+                size: 60, color: AppColors.textSub(context)),
           ),
           const SizedBox(height: 20),
           const Text('لا توجد إشعارات حالياً',
-              style: TextStyle(fontSize: 18, color: Color(0xFF555555))),
+              style: TextStyle(fontSize: 18, color: AppColors.textSub(context))),
           const SizedBox(height: 8),
           const Text('ستظهر هنا الإشعارات الجديدة',
-              style: TextStyle(fontSize: 13, color: Color(0xFF888888))),
+              style: TextStyle(fontSize: 13, color: AppColors.textHint(context))),
         ],
       ),
     );
@@ -3832,8 +3887,8 @@ class _NotificationsTabState extends State<NotificationsTab> {
           const Icon(Icons.error_outline, size: 60, color: Colors.red),
           const SizedBox(height: 15),
           Text(_error,
-              style: const TextStyle(
-                  fontSize: 16, color: Color(0xFF555555))),
+              style: TextStyle(
+                  fontSize: 16, color: AppColors.textSub(context))),
           const SizedBox(height: 15),
           ElevatedButton.icon(
             onPressed: _loadNotifications,
@@ -3935,8 +3990,8 @@ class _AccountTabState extends State<AccountTab> {
         backgroundColor: Colors.transparent,
         builder: (ctx) => Container(
           padding: const EdgeInsets.all(20),
-          decoration: const BoxDecoration(
-            color: Colors.white,
+          decoration: BoxDecoration(
+            color: AppColors.card(context),
             borderRadius: BorderRadius.only(
               topLeft: Radius.circular(24),
               topRight: Radius.circular(24),
@@ -4162,10 +4217,10 @@ class _AccountTabState extends State<AccountTab> {
                         width: 100,
                         height: 100,
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: AppColors.card(context),
                           shape: BoxShape.circle,
                           border:
-                              Border.all(color: Colors.white, width: 3),
+                              Border.all(color: AppColors.card(context), width: 3),
                           boxShadow: [
                             BoxShadow(
                               color: Colors.black.withOpacity(0.15),
@@ -4234,10 +4289,10 @@ class _AccountTabState extends State<AccountTab> {
                               color: Colors.amber,
                               shape: BoxShape.circle,
                               border: Border.all(
-                                  color: Colors.white, width: 2),
+                                  color: AppColors.card(context), width: 2),
                             ),
                             child: const Icon(Icons.edit,
-                                size: 14, color: Colors.white),
+                                size: 14, color: AppColors.card(context)),
                           ),
                         ),
                       ),
@@ -4267,7 +4322,7 @@ class _AccountTabState extends State<AccountTab> {
                           child: const Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.star, color: Colors.white, size: 14),
+                              Icon(Icons.star, color: AppColors.card(context), size: 14),
                               SizedBox(width: 4),
                               Text('PLUS',
                                   style: TextStyle(
@@ -4287,7 +4342,7 @@ class _AccountTabState extends State<AccountTab> {
                           style: const TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
-                            color: Colors.white,
+                            color: AppColors.card(context),
                           ),
                         ),
                       ),
@@ -4298,7 +4353,7 @@ class _AccountTabState extends State<AccountTab> {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 14, vertical: 5),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
+                      color: AppColors.card(context).withOpacity(0.2),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(_grade.isNotEmpty ? _grade : 'طالب',
@@ -4317,7 +4372,7 @@ class _AccountTabState extends State<AccountTab> {
             child: Container(
               padding: const EdgeInsets.symmetric(vertical: 18),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppColors.card(context),
                 borderRadius: BorderRadius.circular(24),
                 boxShadow: [
                   BoxShadow(
@@ -4346,7 +4401,7 @@ class _AccountTabState extends State<AccountTab> {
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Container(
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppColors.card(context),
                 borderRadius: BorderRadius.circular(24),
                 boxShadow: [
                   BoxShadow(
@@ -4469,7 +4524,7 @@ class _AccountTabState extends State<AccountTab> {
                         style: TextStyle(
                             fontWeight: FontWeight.w600,
                             fontSize: 14,
-                            color: Color(0xFF1A1A1A))),
+                            color: AppColors.text(context))),
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -4492,7 +4547,7 @@ class _AccountTabState extends State<AccountTab> {
                           ),
                         const SizedBox(width: 6),
                         const Icon(Icons.arrow_back_ios,
-                            size: 14, color: Color(0xFF555555)),
+                            size: 14, color: AppColors.textSub(context)),
                       ],
                     ),
                     onTap: () async {
@@ -4550,11 +4605,11 @@ class _AccountTabState extends State<AccountTab> {
               style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF1A1A1A))),
+                  color: AppColors.text(context))),
           const SizedBox(height: 2),
           Text(label,
-              style: const TextStyle(
-                  fontSize: 11, color: Color(0xFF555555))),
+              style: TextStyle(
+                  fontSize: 11, color: AppColors.textSub(context))),
         ],
       ),
     );
@@ -4581,9 +4636,9 @@ class _AccountTabState extends State<AccountTab> {
           style: const TextStyle(
               fontWeight: FontWeight.w600,
               fontSize: 14,
-              color: Color(0xFF1A1A1A))),
+              color: AppColors.text(context))),
       trailing: const Icon(Icons.arrow_back_ios,
-          size: 14, color: Color(0xFF555555)),
+          size: 14, color: AppColors.textSub(context)),
       onTap: onTap,
     );
   }
@@ -4598,8 +4653,8 @@ class _AccountTabState extends State<AccountTab> {
       isScrollControlled: true,
       builder: (_) => Container(
         padding: const EdgeInsets.all(20),
-        decoration: const BoxDecoration(
-          color: Colors.white,
+        decoration: BoxDecoration(
+          color: AppColors.card(context),
           borderRadius: BorderRadius.only(
             topLeft: Radius.circular(24),
             topRight: Radius.circular(24),
@@ -4629,7 +4684,7 @@ class _AccountTabState extends State<AccountTab> {
                     style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF1A1A1A))),
+                        color: AppColors.text(context))),
               ],
             ),
             const SizedBox(height: 20),
@@ -4714,10 +4769,10 @@ class _AccountTabState extends State<AccountTab> {
                       style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 14,
-                          color: Color(0xFF1A1A1A))),
+                          color: AppColors.text(context))),
                   Text(subtitle,
-                      style: const TextStyle(
-                          fontSize: 12, color: Color(0xFF555555))),
+                      style: TextStyle(
+                          fontSize: 12, color: AppColors.textSub(context))),
                 ],
               ),
             ),
@@ -4829,7 +4884,7 @@ class _SheetsScreenState extends State<SheetsScreen> {
     return DefaultTabController(
       length: 2,
       child: Scaffold(
-        backgroundColor: const Color(0xFFF5F7FA),
+        backgroundColor: AppColors.bg(context),
         appBar: AppBar(
           title: const Text('شيتات وأوراق تعلمية',
               style: TextStyle(fontWeight: FontWeight.bold)),
@@ -4865,7 +4920,7 @@ class _SheetsScreenState extends State<SheetsScreen> {
         final g = _grades[i];
         return Container(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: AppColors.card(context),
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
@@ -4890,7 +4945,7 @@ class _SheetsScreenState extends State<SheetsScreen> {
                 style: const TextStyle(
                     fontSize: 16, fontWeight: FontWeight.bold)),
             trailing: const Icon(Icons.arrow_back_ios,
-                size: 14, color: Color(0xFF555555)),
+                size: 14, color: AppColors.textSub(context)),
             onTap: () {
               Navigator.push(
                 context,
@@ -4922,7 +4977,7 @@ class _SheetsScreenState extends State<SheetsScreen> {
         final s = _subjects[i];
         return Container(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: AppColors.card(context),
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
@@ -5037,7 +5092,7 @@ class _SheetsListScreenState extends State<SheetsListScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: AppColors.bg(context),
       appBar: AppBar(
         title: Text(_title,
             style: const TextStyle(fontWeight: FontWeight.bold)),
@@ -5072,7 +5127,7 @@ class _SheetsListScreenState extends State<SheetsListScreen> {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
@@ -5124,11 +5179,11 @@ class _SheetsListScreenState extends State<SheetsListScreen> {
                           style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
-                              color: Color(0xFF1A1A1A))),
+                              color: AppColors.text(context))),
                       const SizedBox(height: 4),
                       Text('${sheet['grade'] ?? ''} • ${sheet['subject'] ?? ''}',
-                          style: const TextStyle(
-                              fontSize: 12, color: Color(0xFF555555))),
+                          style: TextStyle(
+                              fontSize: 12, color: AppColors.textSub(context))),
                       const SizedBox(height: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(
@@ -5180,10 +5235,10 @@ class _SheetsListScreenState extends State<SheetsListScreen> {
           ),
           const SizedBox(height: 20),
           const Text('لا توجد شيتات بعد',
-              style: TextStyle(fontSize: 16, color: Color(0xFF555555))),
+              style: TextStyle(fontSize: 16, color: AppColors.textSub(context))),
           const SizedBox(height: 8),
           const Text('سيتم إضافة الشيتات قريباً',
-              style: TextStyle(fontSize: 13, color: Color(0xFF888888))),
+              style: TextStyle(fontSize: 13, color: AppColors.textHint(context))),
         ],
       ),
     );
@@ -5268,8 +5323,8 @@ class _ManageBooksScreenState extends State<ManageBooksScreen> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => const Center(
-        child: CircularProgressIndicator(color: Colors.white),
+      builder: (_) => Center(
+        child: CircularProgressIndicator(color: AppColors.card(context)),
       ),
     );
 
@@ -5357,8 +5412,8 @@ class _ManageBooksScreenState extends State<ManageBooksScreen> {
       showDialog(
         context: context,
         barrierDismissible: false,
-        builder: (_) => const Center(
-          child: CircularProgressIndicator(color: Colors.white),
+        builder: (_) => Center(
+          child: CircularProgressIndicator(color: AppColors.card(context)),
         ),
       );
 
@@ -5428,7 +5483,7 @@ class _ManageBooksScreenState extends State<ManageBooksScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: AppColors.bg(context),
       appBar: AppBar(
         title: const Text('إدارة الكتب',
             style: TextStyle(fontWeight: FontWeight.bold)),
@@ -5441,7 +5496,7 @@ class _ManageBooksScreenState extends State<ManageBooksScreen> {
           // فلاتر
           Container(
             padding: const EdgeInsets.all(12),
-            color: Colors.white,
+            color: AppColors.card(context),
             child: Row(
               children: [
                 Expanded(
@@ -5500,7 +5555,7 @@ class _ManageBooksScreenState extends State<ManageBooksScreen> {
         child: Text(label,
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: active ? Colors.white : const Color(0xFF555555),
+              color: active ? Colors.white : AppColors.textSub(context),
               fontWeight: FontWeight.bold,
               fontSize: 13,
             )),
@@ -5517,7 +5572,7 @@ class _ManageBooksScreenState extends State<ManageBooksScreen> {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
@@ -5568,12 +5623,12 @@ class _ManageBooksScreenState extends State<ManageBooksScreen> {
                       style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFF1A1A1A))),
+                          color: AppColors.text(context))),
                   const SizedBox(height: 4),
                   Text(
                       '${book['grade']}${book['section'] != null ? ' - ${book['section']}' : ''} • ${book['subject']}',
-                      style: const TextStyle(
-                          fontSize: 11, color: Color(0xFF555555))),
+                      style: TextStyle(
+                          fontSize: 11, color: AppColors.textSub(context))),
                   const SizedBox(height: 6),
                   Row(
                     children: [
@@ -5598,8 +5653,8 @@ class _ManageBooksScreenState extends State<ManageBooksScreen> {
                       ),
                       const SizedBox(width: 6),
                       Text('$count صورة',
-                          style: const TextStyle(
-                              fontSize: 10, color: Color(0xFF888888))),
+                          style: TextStyle(
+                              fontSize: 10, color: AppColors.textHint(context))),
                       const SizedBox(width: 6),
                       Container(
                         padding: const EdgeInsets.symmetric(
@@ -5706,7 +5761,7 @@ class _VideosScreenState extends State<VideosScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: AppColors.bg(context),
       appBar: AppBar(
         backgroundColor: const Color(0xFFD32F2F),
         foregroundColor: Colors.white,
@@ -5725,7 +5780,7 @@ class _VideosScreenState extends State<VideosScreen> {
           // فلاتر
           Container(
             padding: const EdgeInsets.all(12),
-            color: Colors.white,
+            color: AppColors.card(context),
             child: Column(
               children: [
                 Row(
@@ -5827,7 +5882,7 @@ class _VideosScreenState extends State<VideosScreen> {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
@@ -5893,7 +5948,7 @@ class _VideosScreenState extends State<VideosScreen> {
                         child: Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.9),
+                            color: AppColors.card(context).withOpacity(0.9),
                             shape: BoxShape.circle,
                             boxShadow: [
                               BoxShadow(
@@ -5941,21 +5996,21 @@ class _VideosScreenState extends State<VideosScreen> {
                         style: const TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF1A1A1A))),
+                            color: AppColors.text(context))),
                     const SizedBox(height: 4),
                     Text(
                         '${video['grade'] ?? ''} • ${video['subject'] ?? ''}',
-                        style: const TextStyle(
-                            fontSize: 12, color: Color(0xFF555555))),
+                        style: TextStyle(
+                            fontSize: 12, color: AppColors.textSub(context))),
                     const SizedBox(height: 8),
                     Row(
                       children: [
                         const Icon(Icons.visibility,
-                            size: 14, color: Color(0xFF888888)),
+                            size: 14, color: AppColors.textHint(context)),
                         const SizedBox(width: 4),
                         Text('${video['views_count'] ?? 0} مشاهدة',
-                            style: const TextStyle(
-                                fontSize: 11, color: Color(0xFF888888))),
+                            style: TextStyle(
+                                fontSize: 11, color: AppColors.textHint(context))),
                       ],
                     ),
                   ],
@@ -6001,7 +6056,7 @@ class _VideosScreenState extends State<VideosScreen> {
           ),
           const SizedBox(height: 20),
           const Text('لا توجد فيديوهات بعد',
-              style: TextStyle(fontSize: 16, color: Color(0xFF555555))),
+              style: TextStyle(fontSize: 16, color: AppColors.textSub(context))),
         ],
       ),
     );
@@ -6100,7 +6155,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF1A1A1A),
+        backgroundColor: AppColors.text(context),
         foregroundColor: Colors.white,
         elevation: 0,
         title: Text(
@@ -6114,15 +6169,15 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
           AspectRatio(
             aspectRatio: 16 / 9,
             child: _initializing
-                ? const Center(
-                    child: CircularProgressIndicator(color: Colors.white))
+                ? Center(
+                    child: CircularProgressIndicator(color: AppColors.card(context)))
                 : _error.isNotEmpty
                     ? Center(
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             const Icon(Icons.error_outline,
-                                color: Colors.white, size: 50),
+                                color: AppColors.card(context), size: 50),
                             const SizedBox(height: 10),
                             Text(_error,
                                 style: const TextStyle(
@@ -6138,7 +6193,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
           // معلومات
           Expanded(
             child: Container(
-              color: const Color(0xFF1A1A1A),
+              color: AppColors.text(context),
               padding: const EdgeInsets.all(16),
               child: SingleChildScrollView(
                 child: Column(
@@ -6420,7 +6475,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     final roleColor = RoleHelper.roleColor(role);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: AppColors.bg(context),
       appBar: AppBar(
         backgroundColor: const Color(0xFF1565C0),
         foregroundColor: Colors.white,
@@ -6446,7 +6501,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: AppColors.card(context),
                       borderRadius: BorderRadius.circular(18),
                       boxShadow: [
                         BoxShadow(
@@ -6517,7 +6572,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                                       _formatDate(widget.post['created_at']),
                                       style: const TextStyle(
                                           fontSize: 11,
-                                          color: Color(0xFF888888))),
+                                          color: AppColors.textHint(context))),
                                 ],
                               ),
                             ),
@@ -6532,7 +6587,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                                 style: const TextStyle(
                                     fontSize: 18,
                                     fontWeight: FontWeight.bold,
-                                    color: Color(0xFF1A1A1A))),
+                                    color: AppColors.text(context))),
                           ),
                         Text(
                           widget.post['content'] ?? '',
@@ -6554,7 +6609,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                                         : Icons.favorite_border,
                                     color: _liked
                                         ? Colors.red
-                                        : const Color(0xFF888888),
+                                        : AppColors.textHint(context),
                                     size: 22,
                                   ),
                                   const SizedBox(width: 5),
@@ -6563,19 +6618,19 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                                           fontSize: 14,
                                           color: _liked
                                               ? Colors.red
-                                              : const Color(0xFF888888),
+                                              : AppColors.textHint(context),
                                           fontWeight: FontWeight.bold)),
                                 ],
                               ),
                             ),
                             const SizedBox(width: 20),
                             const Icon(Icons.comment_outlined,
-                                size: 22, color: Color(0xFF888888)),
+                                size: 22, color: AppColors.textHint(context)),
                             const SizedBox(width: 5),
                             Text('${_comments.length}',
                                 style: const TextStyle(
                                     fontSize: 14,
-                                    color: Color(0xFF888888),
+                                    color: AppColors.textHint(context),
                                     fontWeight: FontWeight.bold)),
                           ],
                         ),
@@ -6592,7 +6647,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                           style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
-                              color: Color(0xFF1A1A1A))),
+                              color: AppColors.text(context))),
                     ],
                   ),
                   const SizedBox(height: 12),
@@ -6604,17 +6659,17 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                     Container(
                       padding: const EdgeInsets.all(30),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: AppColors.card(context),
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: const Column(
                         children: [
                           Icon(Icons.chat_bubble_outline,
-                              size: 50, color: Color(0xFF888888)),
+                              size: 50, color: AppColors.textHint(context)),
                           SizedBox(height: 10),
                           Text('لا توجد تعليقات بعد',
                               style: TextStyle(
-                                  color: Color(0xFF888888),
+                                  color: AppColors.textHint(context),
                                   fontSize: 14)),
                         ],
                       ),
@@ -6627,7 +6682,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
           ),
           Container(
             padding: const EdgeInsets.all(12),
-            color: Colors.white,
+            color: AppColors.card(context),
             child: SafeArea(
               top: false,
               child: Row(
@@ -6639,7 +6694,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                       decoration: InputDecoration(
                         hintText: 'اكتب تعليقاً...',
                         filled: true,
-                        fillColor: const Color(0xFFF5F7FA),
+                        fillColor: AppColors.bg(context),
                         contentPadding: const EdgeInsets.symmetric(
                             horizontal: 16, vertical: 10),
                         border: OutlineInputBorder(
@@ -6662,9 +6717,9 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                               width: 18,
                               height: 18,
                               child: CircularProgressIndicator(
-                                  color: Colors.white, strokeWidth: 2))
+                                  color: AppColors.card(context), strokeWidth: 2))
                           : const Icon(Icons.send_rounded,
-                              color: Colors.white),
+                              color: AppColors.card(context)),
                     ),
                   ),
                 ],
@@ -6687,7 +6742,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(14),
       ),
       child: Row(
@@ -6730,8 +6785,8 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                     ),
                     const Spacer(),
                     Text(_formatDate(comment['created_at']),
-                        style: const TextStyle(
-                            fontSize: 10, color: Color(0xFF888888))),
+                        style: TextStyle(
+                            fontSize: 10, color: AppColors.textHint(context))),
                     if (canDelete)
                       GestureDetector(
                         onTap: () => _deleteComment(comment),
@@ -6831,7 +6886,7 @@ class _ForumScreenState extends State<ForumScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: AppColors.bg(context),
       appBar: AppBar(
         backgroundColor: const Color(0xFF1565C0),
         foregroundColor: Colors.white,
@@ -6868,7 +6923,7 @@ class _ForumScreenState extends State<ForumScreen> {
                 if (result == true) _load();
               },
               backgroundColor: const Color(0xFF1565C0),
-              icon: const Icon(Icons.add, color: Colors.white),
+              icon: Icon(Icons.add, color: AppColors.card(context)),
               label: const Text('منشور جديد',
                   style: TextStyle(
                       color: Colors.white, fontWeight: FontWeight.bold)),
@@ -6879,7 +6934,7 @@ class _ForumScreenState extends State<ForumScreen> {
           // الفلاتر
           Container(
             padding: const EdgeInsets.all(12),
-            color: Colors.white,
+            color: AppColors.card(context),
             child: Row(
               children: [
                 Expanded(child: _filterBtn('الكل', 'all')),
@@ -6930,7 +6985,7 @@ class _ForumScreenState extends State<ForumScreen> {
         child: Text(label,
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: active ? Colors.white : const Color(0xFF555555),
+              color: active ? Colors.white : AppColors.textSub(context),
               fontWeight: FontWeight.bold,
               fontSize: 13,
             )),
@@ -6946,7 +7001,7 @@ class _ForumScreenState extends State<ForumScreen> {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(18),
         border: isPinned
             ? Border.all(color: const Color(0xFFFFA000), width: 2)
@@ -7031,7 +7086,7 @@ class _ForumScreenState extends State<ForumScreen> {
                           Text(_formatDate(post['created_at']),
                               style: const TextStyle(
                                   fontSize: 11,
-                                  color: Color(0xFF888888))),
+                                  color: AppColors.textHint(context))),
                         ],
                       ),
                     ),
@@ -7047,7 +7102,7 @@ class _ForumScreenState extends State<ForumScreen> {
                         style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF1A1A1A))),
+                            color: AppColors.text(context))),
                   ),
                 // المحتوى
                 Text(
@@ -7101,18 +7156,18 @@ class _ForumScreenState extends State<ForumScreen> {
                 Row(
                   children: [
                     const Icon(Icons.favorite_border,
-                        size: 18, color: Color(0xFF888888)),
+                        size: 18, color: AppColors.textHint(context)),
                     const SizedBox(width: 4),
                     Text('${post['likes'] ?? 0}',
-                        style: const TextStyle(
-                            fontSize: 12, color: Color(0xFF888888))),
+                        style: TextStyle(
+                            fontSize: 12, color: AppColors.textHint(context))),
                     const SizedBox(width: 20),
                     const Icon(Icons.comment_outlined,
-                        size: 18, color: Color(0xFF888888)),
+                        size: 18, color: AppColors.textHint(context)),
                     const SizedBox(width: 4),
                     Text('${post['comments_count'] ?? 0}',
-                        style: const TextStyle(
-                            fontSize: 12, color: Color(0xFF888888))),
+                        style: TextStyle(
+                            fontSize: 12, color: AppColors.textHint(context))),
                   ],
                 ),
               ],
@@ -7155,11 +7210,11 @@ class _ForumScreenState extends State<ForumScreen> {
           ),
           const SizedBox(height: 20),
           const Text('لا توجد منشورات بعد',
-              style: TextStyle(fontSize: 16, color: Color(0xFF555555))),
+              style: TextStyle(fontSize: 16, color: AppColors.textSub(context))),
           if (_canPost) ...[
             const SizedBox(height: 10),
             const Text('اضغط زر + لإضافة أول منشور',
-                style: TextStyle(fontSize: 13, color: Color(0xFF888888))),
+                style: TextStyle(fontSize: 13, color: AppColors.textHint(context))),
           ],
         ],
       ),
@@ -7250,7 +7305,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: AppColors.bg(context),
       appBar: AppBar(
         backgroundColor: const Color(0xFF1565C0),
         foregroundColor: Colors.white,
@@ -7265,7 +7320,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                     width: 20,
                     height: 20,
                     child: CircularProgressIndicator(
-                        color: Colors.white, strokeWidth: 2))
+                        color: AppColors.card(context), strokeWidth: 2))
                 : const Text('نشر',
                     style: TextStyle(
                         color: Colors.white,
@@ -7283,7 +7338,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppColors.card(context),
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Column(
@@ -7315,7 +7370,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: AppColors.card(context),
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: DropdownButtonFormField<String>(
@@ -7371,7 +7426,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppColors.card(context),
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Row(
@@ -7413,14 +7468,14 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
           children: [
             Text(label,
                 style: TextStyle(
-                    color: active ? Colors.white : const Color(0xFF555555),
+                    color: active ? Colors.white : AppColors.textSub(context),
                     fontWeight: FontWeight.bold,
                     fontSize: 13)),
             Text(sub,
                 style: TextStyle(
                     color: active
                         ? Colors.white70
-                        : const Color(0xFF888888),
+                        : AppColors.textHint(context),
                     fontSize: 10)),
           ],
         ),
@@ -7747,7 +7802,7 @@ class _TeacherAIScreenState extends State<TeacherAIScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: AppColors.bg(context),
       appBar: AppBar(
         backgroundColor: const Color(0xFF7B1FA2),
         foregroundColor: Colors.white,
@@ -7839,19 +7894,19 @@ class _TeacherAIScreenState extends State<TeacherAIScreen> {
                   ),
                 ],
               ),
-              child: const Icon(Icons.smart_toy, size: 70, color: Colors.white),
+              child: Icon(Icons.smart_toy, size: 70, color: AppColors.card(context)),
             ),
             const SizedBox(height: 25),
             const Text('مرحباً بك في معلم كتابي',
                 style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF1A1A1A))),
+                    color: AppColors.text(context))),
             const SizedBox(height: 10),
             const Text(
               'اسألني أي سؤال دراسي وسأساعدك\nمن المنهج الليبي بإذن الله',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 14, color: Color(0xFF555555), height: 1.6),
+              style: TextStyle(fontSize: 14, color: AppColors.textSub(context), height: 1.6),
             ),
           ],
         ),
@@ -7863,7 +7918,7 @@ class _TeacherAIScreenState extends State<TeacherAIScreen> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.card(context),
         boxShadow: [
           BoxShadow(
               color: Colors.black.withOpacity(0.05),
@@ -7905,7 +7960,7 @@ class _TeacherAIScreenState extends State<TeacherAIScreen> {
                               decoration: const BoxDecoration(
                                   color: Colors.red, shape: BoxShape.circle),
                               child: const Icon(Icons.close,
-                                  color: Colors.white, size: 12),
+                                  color: AppColors.card(context), size: 12),
                             ),
                           ),
                         ),
@@ -7928,7 +7983,7 @@ class _TeacherAIScreenState extends State<TeacherAIScreen> {
                     decoration: InputDecoration(
                       hintText: 'اكتب سؤالك...',
                       filled: true,
-                      fillColor: const Color(0xFFF5F7FA),
+                      fillColor: AppColors.bg(context),
                       contentPadding:
                           const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       border: OutlineInputBorder(
@@ -7946,7 +8001,7 @@ class _TeacherAIScreenState extends State<TeacherAIScreen> {
                   ),
                   child: IconButton(
                     onPressed: _sending ? null : _sendMessage,
-                    icon: const Icon(Icons.send_rounded, color: Colors.white),
+                    icon: Icon(Icons.send_rounded, color: AppColors.card(context)),
                   ),
                 ),
               ],
@@ -7980,7 +8035,7 @@ class _ChatBubble extends StatelessWidget {
                 color: Color(0xFF7B1FA2),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.smart_toy, color: Colors.white, size: 16),
+              child: Icon(Icons.smart_toy, color: AppColors.card(context), size: 16),
             ),
           if (!isUser) const SizedBox(width: 6),
           Flexible(
@@ -8006,7 +8061,7 @@ class _ChatBubble extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 14,
                   height: 1.5,
-                  color: isUser ? Colors.white : const Color(0xFF1A1A1A),
+                  color: isUser ? Colors.white : AppColors.text(context),
                 ),
               ),
             ),
@@ -8019,7 +8074,7 @@ class _ChatBubble extends StatelessWidget {
                 color: Color(0xFF1565C0),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.person, color: Colors.white, size: 16),
+              child: Icon(Icons.person, color: AppColors.card(context), size: 16),
             ),
         ],
       ),
@@ -8120,7 +8175,7 @@ class _ManageVideosScreenState extends State<ManageVideosScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: AppColors.bg(context),
       appBar: AppBar(
         backgroundColor: const Color(0xFFD32F2F),
         foregroundColor: Colors.white,
@@ -8162,7 +8217,7 @@ class _ManageVideosScreenState extends State<ManageVideosScreen> {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -8201,13 +8256,13 @@ class _ManageVideosScreenState extends State<ManageVideosScreen> {
                       style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFF1A1A1A)),
+                          color: AppColors.text(context)),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis),
                   const SizedBox(height: 4),
                   Text('${video['grade']} • ${video['subject']}',
-                      style: const TextStyle(
-                          fontSize: 11, color: Color(0xFF555555)),
+                      style: TextStyle(
+                          fontSize: 11, color: AppColors.textSub(context)),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis),
                   const SizedBox(height: 4),
@@ -8228,8 +8283,8 @@ class _ManageVideosScreenState extends State<ManageVideosScreen> {
                       ),
                       const SizedBox(width: 6),
                       Text('👁 ${video['views_count'] ?? 0}',
-                          style: const TextStyle(
-                              fontSize: 10, color: Color(0xFF888888))),
+                          style: TextStyle(
+                              fontSize: 10, color: AppColors.textHint(context))),
                     ],
                   ),
                 ],
@@ -8517,7 +8572,7 @@ class _ManageVideosScreenState extends State<ManageVideosScreen> {
                       width: 18,
                       height: 18,
                       child: CircularProgressIndicator(
-                          color: Colors.white, strokeWidth: 2))
+                          color: AppColors.card(context), strokeWidth: 2))
                   : const Text('إضافة'),
             ),
           ],
@@ -8542,7 +8597,7 @@ class _ManageVideosScreenState extends State<ManageVideosScreen> {
           ),
           const SizedBox(height: 20),
           const Text('لا توجد فيديوهات بعد',
-              style: TextStyle(fontSize: 16, color: Color(0xFF555555))),
+              style: TextStyle(fontSize: 16, color: AppColors.textSub(context))),
           const SizedBox(height: 10),
           ElevatedButton.icon(
             onPressed: _showAddVideo,
@@ -8657,7 +8712,7 @@ class _AddSubscriptionScreenState extends State<AddSubscriptionScreen> {
           }).toList();
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: AppColors.bg(context),
       appBar: AppBar(
         backgroundColor: const Color(0xFFFFA000),
         foregroundColor: Colors.white,
@@ -8670,7 +8725,7 @@ class _AddSubscriptionScreenState extends State<AddSubscriptionScreen> {
           // اختيار المدة
           Container(
             padding: const EdgeInsets.all(16),
-            color: Colors.white,
+            color: AppColors.card(context),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -8678,7 +8733,7 @@ class _AddSubscriptionScreenState extends State<AddSubscriptionScreen> {
                     style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 15,
-                        color: Color(0xFF1A1A1A))),
+                        color: AppColors.text(context))),
                 const SizedBox(height: 10),
                 Row(
                   children: [
@@ -8727,7 +8782,7 @@ class _AddSubscriptionScreenState extends State<AddSubscriptionScreen> {
           if (_selectedUserEmail != null)
             Container(
               padding: const EdgeInsets.all(16),
-              color: Colors.white,
+              color: AppColors.card(context),
               child: SafeArea(
                 top: false,
                 child: SizedBox(
@@ -8773,7 +8828,7 @@ class _AddSubscriptionScreenState extends State<AddSubscriptionScreen> {
             label,
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: selected ? Colors.white : const Color(0xFF555555),
+              color: selected ? Colors.white : AppColors.textSub(context),
               fontWeight: FontWeight.bold,
               fontSize: 13,
             ),
@@ -8827,7 +8882,7 @@ class _AddSubscriptionScreenState extends State<AddSubscriptionScreen> {
               fontWeight: FontWeight.bold,
               fontSize: 14,
               color: hasEmail
-                  ? const Color(0xFF1A1A1A)
+                  ? AppColors.text(context)
                   : Colors.grey),
         ),
         subtitle: Text(
@@ -8935,7 +8990,7 @@ class _SubscriptionsListScreenState extends State<SubscriptionsListScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: AppColors.bg(context),
       appBar: AppBar(
         backgroundColor: const Color(0xFFFFA000),
         foregroundColor: Colors.white,
@@ -8956,7 +9011,7 @@ class _SubscriptionsListScreenState extends State<SubscriptionsListScreen> {
                       SizedBox(height: 15),
                       Text('لا توجد اشتراكات نشطة',
                           style: TextStyle(
-                              fontSize: 16, color: Color(0xFF555555))),
+                              fontSize: 16, color: AppColors.textSub(context))),
                     ],
                   ),
                 )
@@ -8980,7 +9035,7 @@ class _SubscriptionsListScreenState extends State<SubscriptionsListScreen> {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -9011,11 +9066,11 @@ class _SubscriptionsListScreenState extends State<SubscriptionsListScreen> {
                 decoration: BoxDecoration(
                   color: expired ? Colors.grey : const Color(0xFFFFA000),
                   shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 2),
+                  border: Border.all(color: AppColors.card(context), width: 2),
                 ),
                 child: Icon(
                   expired ? Icons.timer_off : Icons.workspace_premium,
-                  color: Colors.white,
+                  color: AppColors.card(context),
                   size: 10,
                 ),
               ),
@@ -9048,7 +9103,7 @@ class _SubscriptionsListScreenState extends State<SubscriptionsListScreen> {
           'متبقي: $days',
           style: TextStyle(
             fontSize: 12,
-            color: expired ? Colors.red : const Color(0xFF555555),
+            color: expired ? Colors.red : AppColors.textSub(context),
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -9238,7 +9293,7 @@ class _ManageRolesScreenState extends State<ManageRolesScreen> {
             .toList();
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: AppColors.bg(context),
       appBar: AppBar(
         backgroundColor: const Color(0xFF7B1FA2),
         foregroundColor: Colors.white,
@@ -9293,7 +9348,7 @@ class _ManageRolesScreenState extends State<ManageRolesScreen> {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
@@ -9321,10 +9376,10 @@ class _ManageRolesScreenState extends State<ManageRolesScreen> {
                 decoration: BoxDecoration(
                   color: color,
                   shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 1.5),
+                  border: Border.all(color: AppColors.card(context), width: 1.5),
                 ),
                 child: Icon(RoleHelper.roleIcon(role),
-                    color: Colors.white, size: 10),
+                    color: AppColors.card(context), size: 10),
               ),
             ),
           ],
@@ -9426,7 +9481,7 @@ class _RoleRequestsScreenState extends State<RoleRequestsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: AppColors.bg(context),
       appBar: AppBar(
         backgroundColor: const Color(0xFF7B1FA2),
         foregroundColor: Colors.white,
@@ -9447,7 +9502,7 @@ class _RoleRequestsScreenState extends State<RoleRequestsScreen> {
                       SizedBox(height: 15),
                       Text('لا توجد طلبات',
                           style: TextStyle(
-                              fontSize: 16, color: Color(0xFF555555))),
+                              fontSize: 16, color: AppColors.textSub(context))),
                     ],
                   ),
                 )
@@ -9467,7 +9522,7 @@ class _RoleRequestsScreenState extends State<RoleRequestsScreen> {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: color.withOpacity(0.3), width: 1.5),
         boxShadow: [
@@ -9503,8 +9558,8 @@ class _RoleRequestsScreenState extends State<RoleRequestsScreen> {
                             color: color)),
                     const SizedBox(height: 4),
                     Text(req['message'] ?? '',
-                        style: const TextStyle(
-                            fontSize: 12, color: Color(0xFF555555))),
+                        style: TextStyle(
+                            fontSize: 12, color: AppColors.textSub(context))),
                   ],
                 ),
               ),
@@ -9628,7 +9683,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: AppColors.bg(context),
       appBar: AppBar(
         backgroundColor: const Color(0xFFEF6C00),
         foregroundColor: Colors.white,
@@ -9654,7 +9709,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
             const Center(
               child: Text('غيّر كلمة سر الدخول للمشرفين',
                   style: TextStyle(
-                      fontSize: 14, color: Color(0xFF555555))),
+                      fontSize: 14, color: AppColors.textSub(context))),
             ),
             const SizedBox(height: 30),
             TextField(
@@ -9667,7 +9722,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                   onPressed: () => setState(() => _showOld = !_showOld),
                   icon: Icon(
                     _showOld ? Icons.visibility : Icons.visibility_off,
-                    color: const Color(0xFF555555),
+                    color: AppColors.textSub(context),
                   ),
                 ),
                 filled: true,
@@ -9689,7 +9744,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                   onPressed: () => setState(() => _showNew = !_showNew),
                   icon: Icon(
                     _showNew ? Icons.visibility : Icons.visibility_off,
-                    color: const Color(0xFF555555),
+                    color: AppColors.textSub(context),
                   ),
                 ),
                 filled: true,
@@ -9712,7 +9767,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                       setState(() => _showConfirm = !_showConfirm),
                   icon: Icon(
                     _showConfirm ? Icons.visibility : Icons.visibility_off,
-                    color: const Color(0xFF555555),
+                    color: AppColors.textSub(context),
                   ),
                 ),
                 filled: true,
@@ -9733,7 +9788,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                         width: 20,
                         height: 20,
                         child: CircularProgressIndicator(
-                            color: Colors.white, strokeWidth: 2))
+                            color: AppColors.card(context), strokeWidth: 2))
                     : const Icon(Icons.save),
                 label: const Text('حفظ',
                     style: TextStyle(
@@ -9811,7 +9866,7 @@ class _QuickBroadcastScreenState extends State<QuickBroadcastScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: AppColors.bg(context),
       appBar: AppBar(
         backgroundColor: const Color(0xFF7B1FA2),
         foregroundColor: Colors.white,
@@ -9828,7 +9883,7 @@ class _QuickBroadcastScreenState extends State<QuickBroadcastScreen> {
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppColors.card(context),
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Column(
@@ -9852,7 +9907,7 @@ class _QuickBroadcastScreenState extends State<QuickBroadcastScreen> {
                           margin: const EdgeInsets.only(bottom: 6),
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFF5F7FA),
+                            color: AppColors.bg(context),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Text(t,
@@ -9895,7 +9950,7 @@ class _QuickBroadcastScreenState extends State<QuickBroadcastScreen> {
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppColors.card(context),
                 borderRadius: BorderRadius.circular(14),
               ),
               child: DropdownButtonFormField<String>(
@@ -9926,7 +9981,7 @@ class _QuickBroadcastScreenState extends State<QuickBroadcastScreen> {
                         width: 20,
                         height: 20,
                         child: CircularProgressIndicator(
-                            color: Colors.white, strokeWidth: 2))
+                            color: AppColors.card(context), strokeWidth: 2))
                     : const Icon(Icons.send),
                 label: const Text('إرسال',
                     style: TextStyle(
@@ -10042,7 +10097,7 @@ class _ExportCSVScreenState extends State<ExportCSVScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: AppColors.bg(context),
       appBar: AppBar(
         backgroundColor: const Color(0xFF00897B),
         foregroundColor: Colors.white,
@@ -10070,7 +10125,7 @@ class _ExportCSVScreenState extends State<ExportCSVScreen> {
                   style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF1A1A1A))),
+                      color: AppColors.text(context))),
             ),
             const SizedBox(height: 8),
             const Center(
@@ -10078,14 +10133,14 @@ class _ExportCSVScreenState extends State<ExportCSVScreen> {
                   'سيتم إنشاء مجلد يحتوي على 8 ملفات CSV',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                      fontSize: 13, color: Color(0xFF555555))),
+                      fontSize: 13, color: AppColors.textSub(context))),
             ),
             const SizedBox(height: 20),
             // الملفات
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppColors.card(context),
                 borderRadius: BorderRadius.circular(16),
               ),
               child: const Column(
@@ -10127,7 +10182,7 @@ class _ExportCSVScreenState extends State<ExportCSVScreen> {
                         width: 20,
                         height: 20,
                         child: CircularProgressIndicator(
-                            color: Colors.white, strokeWidth: 2))
+                            color: AppColors.card(context), strokeWidth: 2))
                     : const Icon(Icons.file_download),
                 label: Text(
                   _exporting ? 'جاري التصدير...' : 'تصدير الكل',
@@ -10168,8 +10223,8 @@ class _ExportItem extends StatelessWidget {
                     fontSize: 13, fontWeight: FontWeight.w600)),
           ),
           Text(desc,
-              style: const TextStyle(
-                  fontSize: 11, color: Color(0xFF888888))),
+              style: TextStyle(
+                  fontSize: 11, color: AppColors.textHint(context))),
         ],
       ),
     );
@@ -10240,7 +10295,7 @@ class _BackupScreenState extends State<BackupScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: AppColors.bg(context),
       appBar: AppBar(
         backgroundColor: const Color(0xFF1565C0),
         foregroundColor: Colors.white,
@@ -10268,7 +10323,7 @@ class _BackupScreenState extends State<BackupScreen> {
                   style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF1A1A1A))),
+                      color: AppColors.text(context))),
             ),
             const SizedBox(height: 8),
             const Center(
@@ -10276,13 +10331,13 @@ class _BackupScreenState extends State<BackupScreen> {
                   'ملف JSON يحتوي على كل بيانات التطبيق',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                      fontSize: 13, color: Color(0xFF555555))),
+                      fontSize: 13, color: AppColors.textSub(context))),
             ),
             const SizedBox(height: 20),
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppColors.card(context),
                 borderRadius: BorderRadius.circular(16),
               ),
               child: const Column(
@@ -10332,7 +10387,7 @@ class _BackupScreenState extends State<BackupScreen> {
                         width: 20,
                         height: 20,
                         child: CircularProgressIndicator(
-                            color: Colors.white, strokeWidth: 2))
+                            color: AppColors.card(context), strokeWidth: 2))
                     : const Icon(Icons.save_alt),
                 label: Text(
                   _creating ? 'جاري الإنشاء...' : 'إنشاء نسخة احتياطية',
@@ -10433,7 +10488,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: AppColors.bg(context),
       appBar: AppBar(
         backgroundColor: const Color(0xFF283593),
         foregroundColor: Colors.white,
@@ -10488,7 +10543,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
               style: const TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF1A1A1A))),
+                  color: AppColors.text(context))),
         ],
       ),
     );
@@ -10515,7 +10570,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: color.withOpacity(0.2), width: 1.5),
         boxShadow: [
@@ -10533,7 +10588,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
           Text(key,
               style: const TextStyle(
                   fontSize: 12,
-                  color: Color(0xFF555555),
+                  color: AppColors.textSub(context),
                   fontWeight: FontWeight.w600)),
           const SizedBox(height: 6),
           Text('$value',
@@ -10557,7 +10612,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
       case 'المدراء':
         return const Color(0xFFD32F2F);
       case 'المحظورون':
-        return const Color(0xFF555555);
+        return AppColors.textSub(context);
       case 'مشتركو بلس':
         return const Color(0xFFFFA000);
       case 'الكتب':
@@ -10575,7 +10630,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
       case 'التعليقات':
         return const Color(0xFF00838F);
       default:
-        return const Color(0xFF555555);
+        return AppColors.textSub(context);
     }
   }
 }
@@ -10653,7 +10708,7 @@ class _ColorSettingsScreenState extends State<ColorSettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: AppColors.bg(context),
       appBar: AppBar(
         backgroundColor: _hexToColor(_primary),
         foregroundColor: Colors.white,
@@ -10691,7 +10746,7 @@ class _ColorSettingsScreenState extends State<ColorSettingsScreen> {
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: AppColors.card(context),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Column(
@@ -10718,10 +10773,10 @@ class _ColorSettingsScreenState extends State<ColorSettingsScreen> {
                           mainAxisAlignment:
                               MainAxisAlignment.spaceAround,
                           children: [
-                            Icon(Icons.home, color: Colors.white),
-                            Icon(Icons.menu_book, color: Colors.white70),
-                            Icon(Icons.notifications, color: Colors.white70),
-                            Icon(Icons.person, color: Colors.white70),
+                            Icon(Icons.home, color: AppColors.card(context)),
+                            Icon(Icons.menu_book, color: AppColors.card(context)70),
+                            Icon(Icons.notifications, color: AppColors.card(context)70),
+                            Icon(Icons.person, color: AppColors.card(context)70),
                           ],
                         ),
                       ),
@@ -10756,13 +10811,13 @@ class _ColorSettingsScreenState extends State<ColorSettingsScreen> {
       padding: const EdgeInsets.only(bottom: 12, right: 4),
       child: Row(
         children: [
-          Icon(icon, size: 18, color: const Color(0xFF555555)),
+          Icon(icon, size: 18, color: AppColors.textSub(context)),
           const SizedBox(width: 8),
           Text(title,
               style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF1A1A1A))),
+                  color: AppColors.text(context))),
         ],
       ),
     );
@@ -10788,7 +10843,7 @@ class _ColorSettingsScreenState extends State<ColorSettingsScreen> {
               color: _hexToColor(color),
               borderRadius: BorderRadius.circular(14),
               border: selected
-                  ? Border.all(color: Colors.white, width: 4)
+                  ? Border.all(color: AppColors.card(context), width: 4)
                   : null,
               boxShadow: selected
                   ? [
@@ -10800,7 +10855,7 @@ class _ColorSettingsScreenState extends State<ColorSettingsScreen> {
                   : null,
             ),
             child: selected
-                ? const Icon(Icons.check, color: Colors.white, size: 28)
+                ? Icon(Icons.check, color: AppColors.card(context), size: 28)
                 : null,
           ),
         );
@@ -10868,7 +10923,7 @@ class _WelcomeMessageScreenState extends State<WelcomeMessageScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: AppColors.bg(context),
       appBar: AppBar(
         backgroundColor: const Color(0xFF00897B),
         foregroundColor: Colors.white,
@@ -10886,7 +10941,7 @@ class _WelcomeMessageScreenState extends State<WelcomeMessageScreen> {
                 children: [
                   const Text('اكتب رسالة تظهر للطلاب عند التسجيل:',
                       style: TextStyle(
-                          fontSize: 14, color: Color(0xFF555555))),
+                          fontSize: 14, color: AppColors.textSub(context))),
                   const SizedBox(height: 12),
                   TextField(
                     controller: _ctrl,
@@ -10966,7 +11021,7 @@ class _AdvancedSettingsScreenState extends State<AdvancedSettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: AppColors.bg(context),
       appBar: AppBar(
         backgroundColor: const Color(0xFF455A64),
         foregroundColor: Colors.white,
@@ -11145,7 +11200,7 @@ class _AdvancedSettingsScreenState extends State<AdvancedSettingsScreen> {
                     icon: Icons.build_circle,
                     color: (_settings['maintenance_mode'] == true)
                         ? Colors.red
-                        : const Color(0xFF555555),
+                        : AppColors.textSub(context),
                     title: 'وضع الصيانة',
                     subtitle: (_settings['maintenance_mode'] == true)
                         ? 'مفعّل — التطبيق متوقف'
@@ -11224,7 +11279,7 @@ class _AdvancedSettingsScreenState extends State<AdvancedSettingsScreen> {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
@@ -11259,13 +11314,13 @@ class _AdvancedSettingsScreenState extends State<AdvancedSettingsScreen> {
           style: const TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 14,
-              color: Color(0xFF1A1A1A))),
+              color: AppColors.text(context))),
       subtitle: Text(subtitle,
-          style: const TextStyle(fontSize: 11, color: Color(0xFF555555)),
+          style: TextStyle(fontSize: 11, color: AppColors.textSub(context)),
           maxLines: 1,
           overflow: TextOverflow.ellipsis),
       trailing: const Icon(Icons.arrow_back_ios,
-          size: 14, color: Color(0xFF555555)),
+          size: 14, color: AppColors.textSub(context)),
     );
   }
 
@@ -11450,7 +11505,7 @@ class _ManageMuraqabatScreenState extends State<ManageMuraqabatScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: AppColors.bg(context),
       appBar: AppBar(
         backgroundColor: const Color(0xFF1565C0),
         foregroundColor: Colors.white,
@@ -11474,11 +11529,11 @@ class _ManageMuraqabatScreenState extends State<ManageMuraqabatScreen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(Icons.location_off,
-                          size: 80, color: Color(0xFF888888)),
+                          size: 80, color: AppColors.textHint(context)),
                       SizedBox(height: 15),
                       Text('لا توجد مراقبات',
                           style: TextStyle(
-                              fontSize: 16, color: Color(0xFF555555))),
+                              fontSize: 16, color: AppColors.textSub(context))),
                     ],
                   ),
                 )
@@ -11490,7 +11545,7 @@ class _ManageMuraqabatScreenState extends State<ManageMuraqabatScreen> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _add,
         backgroundColor: const Color(0xFF1565C0),
-        icon: const Icon(Icons.add, color: Colors.white),
+        icon: Icon(Icons.add, color: AppColors.card(context)),
         label: const Text('إضافة مراقبة',
             style: TextStyle(
                 color: Colors.white, fontWeight: FontWeight.bold)),
@@ -11503,7 +11558,7 @@ class _ManageMuraqabatScreenState extends State<ManageMuraqabatScreen> {
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -11530,7 +11585,7 @@ class _ManageMuraqabatScreenState extends State<ManageMuraqabatScreen> {
                 style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF1A1A1A))),
+                    color: AppColors.text(context))),
           ),
           IconButton(
             onPressed: () => _edit(index),
@@ -11651,7 +11706,7 @@ class _NotesScreenState extends State<NotesScreen> {
           }).toList();
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: AppColors.bg(context),
       appBar: AppBar(
         backgroundColor: const Color(0xFF00838F),
         foregroundColor: Colors.white,
@@ -11723,7 +11778,7 @@ class _NotesScreenState extends State<NotesScreen> {
           if (result == true) _load();
         },
         backgroundColor: const Color(0xFF00838F),
-        icon: const Icon(Icons.add, color: Colors.white),
+        icon: Icon(Icons.add, color: AppColors.card(context)),
         label: const Text('ملاحظة جديدة',
             style: TextStyle(
                 color: Colors.white, fontWeight: FontWeight.bold)),
@@ -11782,7 +11837,7 @@ class _NotesScreenState extends State<NotesScreen> {
                         style: const TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF1A1A1A)),
+                            color: AppColors.text(context)),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -11794,7 +11849,7 @@ class _NotesScreenState extends State<NotesScreen> {
                         size: 18,
                         color: isPinned
                             ? const Color(0xFFFFA000)
-                            : const Color(0xFF888888),
+                            : AppColors.textHint(context),
                       ),
                     ),
                   ],
@@ -11805,7 +11860,7 @@ class _NotesScreenState extends State<NotesScreen> {
                     note['content'] ?? '',
                     style: const TextStyle(
                         fontSize: 12,
-                        color: Color(0xFF555555),
+                        color: AppColors.textSub(context),
                         height: 1.4),
                     maxLines: 6,
                     overflow: TextOverflow.ellipsis,
@@ -11826,7 +11881,7 @@ class _NotesScreenState extends State<NotesScreen> {
                           note['subject'],
                           style: const TextStyle(
                               fontSize: 9,
-                              color: Color(0xFF555555),
+                              color: AppColors.textSub(context),
                               fontWeight: FontWeight.bold),
                         ),
                       ),
@@ -11871,10 +11926,10 @@ class _NotesScreenState extends State<NotesScreen> {
           ),
           const SizedBox(height: 20),
           const Text('لا توجد ملاحظات بعد',
-              style: TextStyle(fontSize: 16, color: Color(0xFF555555))),
+              style: TextStyle(fontSize: 16, color: AppColors.textSub(context))),
           const SizedBox(height: 10),
           const Text('اضغط + لإضافة ملاحظة جديدة',
-              style: TextStyle(fontSize: 13, color: Color(0xFF888888))),
+              style: TextStyle(fontSize: 13, color: AppColors.textHint(context))),
         ],
       ),
     );
@@ -12002,7 +12057,7 @@ class _CreateNoteScreenState extends State<CreateNoteScreen> {
                     width: 18,
                     height: 18,
                     child: CircularProgressIndicator(
-                        color: Colors.white, strokeWidth: 2))
+                        color: AppColors.card(context), strokeWidth: 2))
                 : const Text('حفظ',
                     style: TextStyle(
                         color: Colors.white,
@@ -12043,7 +12098,7 @@ class _CreateNoteScreenState extends State<CreateNoteScreen> {
                 style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF555555))),
+                    color: AppColors.textSub(context))),
             const SizedBox(height: 8),
             Wrap(
               spacing: 6,
@@ -12080,7 +12135,7 @@ class _CreateNoteScreenState extends State<CreateNoteScreen> {
                 style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF555555))),
+                    color: AppColors.textSub(context))),
             const SizedBox(height: 8),
             Wrap(
               spacing: 10,
@@ -12200,7 +12255,7 @@ class _CreateCourseScreenState extends State<CreateCourseScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: AppColors.bg(context),
       appBar: AppBar(
         backgroundColor: const Color(0xFF00897B),
         foregroundColor: Colors.white,
@@ -12215,7 +12270,7 @@ class _CreateCourseScreenState extends State<CreateCourseScreen> {
                     width: 18,
                     height: 18,
                     child: CircularProgressIndicator(
-                        color: Colors.white, strokeWidth: 2))
+                        color: AppColors.card(context), strokeWidth: 2))
                 : const Text('حفظ',
                     style: TextStyle(
                         color: Colors.white,
@@ -12320,7 +12375,7 @@ class _CreateCourseScreenState extends State<CreateCourseScreen> {
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppColors.card(context),
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Column(
@@ -12365,7 +12420,7 @@ class _CreateCourseScreenState extends State<CreateCourseScreen> {
         child: Text(label,
             textAlign: TextAlign.center,
             style: TextStyle(
-                color: active ? Colors.white : const Color(0xFF555555),
+                color: active ? Colors.white : AppColors.textSub(context),
                 fontWeight: FontWeight.bold,
                 fontSize: 13)),
       ),
@@ -12448,7 +12503,7 @@ class _CreateLessonScreenState extends State<CreateLessonScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: AppColors.bg(context),
       appBar: AppBar(
         backgroundColor: const Color(0xFF00897B),
         foregroundColor: Colors.white,
@@ -12463,7 +12518,7 @@ class _CreateLessonScreenState extends State<CreateLessonScreen> {
                     width: 18,
                     height: 18,
                     child: CircularProgressIndicator(
-                        color: Colors.white, strokeWidth: 2))
+                        color: AppColors.card(context), strokeWidth: 2))
                 : const Text('حفظ',
                     style: TextStyle(
                         color: Colors.white,
@@ -12525,7 +12580,7 @@ class _CreateLessonScreenState extends State<CreateLessonScreen> {
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppColors.card(context),
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Column(
@@ -12555,7 +12610,7 @@ class _CreateLessonScreenState extends State<CreateLessonScreen> {
                               style: TextStyle(
                                   color: selected
                                       ? Colors.white
-                                      : const Color(0xFF555555),
+                                      : AppColors.textSub(context),
                                   fontWeight: FontWeight.bold,
                                   fontSize: 12)),
                         ),
@@ -12581,7 +12636,7 @@ class _CreateLessonScreenState extends State<CreateLessonScreen> {
                     child: Text(
                       'يمكنك استخدام روابط YouTube أو روابط mp4 مباشرة',
                       style: TextStyle(
-                          fontSize: 12, color: Color(0xFF555555)),
+                          fontSize: 12, color: AppColors.textSub(context)),
                     ),
                   ),
                 ],
@@ -12658,7 +12713,7 @@ class _CoursesScreenState extends State<CoursesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: AppColors.bg(context),
       appBar: AppBar(
         backgroundColor: const Color(0xFF00897B),
         foregroundColor: Colors.white,
@@ -12710,7 +12765,7 @@ class _CoursesScreenState extends State<CoursesScreen> {
                 if (result == true) _load();
               },
               backgroundColor: const Color(0xFF00897B),
-              icon: const Icon(Icons.add, color: Colors.white),
+              icon: Icon(Icons.add, color: AppColors.card(context)),
               label: const Text('دورة جديدة',
                   style: TextStyle(
                       color: Colors.white,
@@ -12726,7 +12781,7 @@ class _CoursesScreenState extends State<CoursesScreen> {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
@@ -12776,11 +12831,11 @@ class _CoursesScreenState extends State<CoursesScreen> {
                           fit: BoxFit.cover,
                           errorBuilder: (_, __, ___) => const Icon(
                               Icons.school,
-                              color: Colors.white,
+                              color: AppColors.card(context),
                               size: 40),
                         )
                       : const Icon(Icons.school,
-                          color: Colors.white, size: 40),
+                          color: AppColors.card(context), size: 40),
                 ),
                 const SizedBox(width: 14),
                 Expanded(
@@ -12792,15 +12847,15 @@ class _CoursesScreenState extends State<CoursesScreen> {
                         style: const TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF1A1A1A)),
+                            color: AppColors.text(context)),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 4),
                       Text(
                         course['instructor_name'] ?? '',
-                        style: const TextStyle(
-                            fontSize: 12, color: Color(0xFF555555)),
+                        style: TextStyle(
+                            fontSize: 12, color: AppColors.textSub(context)),
                       ),
                       const SizedBox(height: 8),
                       Row(
@@ -12882,11 +12937,11 @@ class _CoursesScreenState extends State<CoursesScreen> {
           ),
           const SizedBox(height: 20),
           const Text('لا توجد دورات بعد',
-              style: TextStyle(fontSize: 16, color: Color(0xFF555555))),
+              style: TextStyle(fontSize: 16, color: AppColors.textSub(context))),
           if (_canCreate) ...[
             const SizedBox(height: 10),
             const Text('اضغط + لإضافة أول دورة',
-                style: TextStyle(fontSize: 13, color: Color(0xFF888888))),
+                style: TextStyle(fontSize: 13, color: AppColors.textHint(context))),
           ],
         ],
       ),
@@ -12996,7 +13051,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: AppColors.bg(context),
       appBar: AppBar(
         backgroundColor: const Color(0xFF00897B),
         foregroundColor: Colors.white,
@@ -13068,7 +13123,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 10, vertical: 5),
                               decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.2),
+                                color: AppColors.card(context).withOpacity(0.2),
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               child: Text(
@@ -13082,7 +13137,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 10, vertical: 5),
                               decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.2),
+                                color: AppColors.card(context).withOpacity(0.2),
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               child: Text(
@@ -13103,7 +13158,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: AppColors.card(context),
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: Column(
@@ -13155,7 +13210,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                           style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
-                              color: Color(0xFF1A1A1A))),
+                              color: AppColors.text(context))),
                     ],
                   ),
                   const SizedBox(height: 12),
@@ -13165,17 +13220,17 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                     Container(
                       padding: const EdgeInsets.all(30),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: AppColors.card(context),
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: const Column(
                         children: [
                           Icon(Icons.menu_book_outlined,
-                              size: 60, color: Color(0xFF888888)),
+                              size: 60, color: AppColors.textHint(context)),
                           SizedBox(height: 10),
                           Text('لا توجد دروس بعد',
                               style: TextStyle(
-                                  color: Color(0xFF888888),
+                                  color: AppColors.textHint(context),
                                   fontSize: 14)),
                         ],
                       ),
@@ -13254,7 +13309,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(14),
         border: isCompleted
             ? Border.all(color: const Color(0xFF2E7D32), width: 1.5)
@@ -13291,7 +13346,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
           ),
           child: Center(
             child: isCompleted
-                ? const Icon(Icons.check, color: Colors.white, size: 22)
+                ? Icon(Icons.check, color: AppColors.card(context), size: 22)
                 : Text('${idx + 1}',
                     style: const TextStyle(
                         color: Color(0xFF00897B),
@@ -13320,12 +13375,12 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                       : Icons.radio_button_unchecked,
                   color: isCompleted
                       ? const Color(0xFF2E7D32)
-                      : const Color(0xFF888888),
+                      : AppColors.textHint(context),
                   size: 24,
                 ),
               ),
             const Icon(Icons.arrow_back_ios,
-                size: 14, color: Color(0xFF888888)),
+                size: 14, color: AppColors.textHint(context)),
           ],
         ),
       ),
@@ -13484,7 +13539,7 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: AppColors.bg(context),
       appBar: AppBar(
         backgroundColor: const Color(0xFF1565C0),
         foregroundColor: Colors.white,
@@ -13499,7 +13554,7 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
                     width: 18,
                     height: 18,
                     child: CircularProgressIndicator(
-                        color: Colors.white, strokeWidth: 2))
+                        color: AppColors.card(context), strokeWidth: 2))
                 : const Text('حفظ',
                     style: TextStyle(
                         color: Colors.white,
@@ -13639,13 +13694,13 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
                     Container(
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: AppColors.card(context),
                         borderRadius: BorderRadius.circular(14),
                       ),
                       child: Row(
                         children: [
                           const Icon(Icons.email,
-                              color: Color(0xFF555555), size: 22),
+                              color: AppColors.textSub(context), size: 22),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Column(
@@ -13654,7 +13709,7 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
                                 const Text('البريد الإلكتروني',
                                     style: TextStyle(
                                         fontSize: 11,
-                                        color: Color(0xFF888888))),
+                                        color: AppColors.textHint(context))),
                                 Text(_email,
                                     style: const TextStyle(
                                         fontSize: 13,
@@ -13672,7 +13727,7 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(vertical: 18),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: AppColors.card(context),
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: Row(
@@ -13715,8 +13770,8 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
             style: const TextStyle(
                 fontSize: 18, fontWeight: FontWeight.bold)),
         Text(label,
-            style: const TextStyle(
-                fontSize: 11, color: Color(0xFF555555))),
+            style: TextStyle(
+                fontSize: 11, color: AppColors.textSub(context))),
       ],
     );
   }
@@ -13781,7 +13836,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: AppColors.bg(context),
       appBar: AppBar(
         backgroundColor: const Color(0xFF66BB6A),
         foregroundColor: Colors.white,
@@ -13813,7 +13868,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
             child: const Row(
               children: [
                 Icon(Icons.emoji_events,
-                    color: Colors.white, size: 50),
+                    color: AppColors.card(context), size: 50),
                 SizedBox(width: 15),
                 Expanded(
                   child: Column(
@@ -13872,7 +13927,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -13904,10 +13959,10 @@ class _GoalsScreenState extends State<GoalsScreen> {
                         style: const TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 14,
-                            color: Color(0xFF1A1A1A))),
+                            color: AppColors.text(context))),
                     Text(goal['desc'],
-                        style: const TextStyle(
-                            fontSize: 11, color: Color(0xFF555555))),
+                        style: TextStyle(
+                            fontSize: 11, color: AppColors.textSub(context))),
                   ],
                 ),
               ),
@@ -14136,7 +14191,7 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
                 style: TextStyle(
                     color: selected
                         ? Colors.white
-                        : const Color(0xFF555555),
+                        : AppColors.textSub(context),
                     fontWeight: FontWeight.bold,
                     fontSize: 16)),
           ),
@@ -14197,7 +14252,7 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: AppColors.bg(context),
       appBar: AppBar(
         backgroundColor: const Color(0xFFD32F2F),
         foregroundColor: Colors.white,
@@ -14212,7 +14267,7 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
                     width: 18,
                     height: 18,
                     child: CircularProgressIndicator(
-                        color: Colors.white, strokeWidth: 2))
+                        color: AppColors.card(context), strokeWidth: 2))
                 : const Text('حفظ',
                     style: TextStyle(
                         color: Colors.white,
@@ -14279,7 +14334,7 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppColors.card(context),
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Column(
@@ -14309,7 +14364,7 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
                               style: TextStyle(
                                   color: selected
                                       ? Colors.white
-                                      : const Color(0xFF555555),
+                                      : AppColors.textSub(context),
                                   fontWeight: FontWeight.bold,
                                   fontSize: 12)),
                         ),
@@ -14330,7 +14385,7 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
                     style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF1A1A1A))),
+                        color: AppColors.text(context))),
               ],
             ),
             const SizedBox(height: 12),
@@ -14338,17 +14393,17 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
               Container(
                 padding: const EdgeInsets.all(30),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: AppColors.card(context),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: const Column(
                   children: [
                     Icon(Icons.help_outline,
-                        size: 50, color: Color(0xFF888888)),
+                        size: 50, color: AppColors.textHint(context)),
                     SizedBox(height: 10),
                     Text('لا توجد أسئلة بعد',
                         style: TextStyle(
-                            color: Color(0xFF888888), fontSize: 14)),
+                            color: AppColors.textHint(context), fontSize: 14)),
                     SizedBox(height: 5),
                     Text('اضغط + لإضافة أول سؤال',
                         style: TextStyle(
@@ -14366,7 +14421,7 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
                   margin: const EdgeInsets.only(bottom: 10),
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: AppColors.card(context),
                     borderRadius: BorderRadius.circular(14),
                   ),
                   child: Column(
@@ -14426,7 +14481,7 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
                                   fontSize: 11,
                                   color: isCorrect
                                       ? const Color(0xFF2E7D32)
-                                      : const Color(0xFF555555),
+                                      : AppColors.textSub(context),
                                   fontWeight: isCorrect
                                       ? FontWeight.bold
                                       : FontWeight.normal),
@@ -14534,7 +14589,7 @@ class _QuizzesScreenState extends State<QuizzesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: AppColors.bg(context),
       appBar: AppBar(
         backgroundColor: const Color(0xFFEF6C00),
         foregroundColor: Colors.white,
@@ -14581,7 +14636,7 @@ class _QuizzesScreenState extends State<QuizzesScreen> {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
@@ -14628,7 +14683,7 @@ class _QuizzesScreenState extends State<QuizzesScreen> {
                         borderRadius: BorderRadius.circular(14),
                       ),
                       child: const Icon(Icons.assignment,
-                          color: Colors.white, size: 28),
+                          color: AppColors.card(context), size: 28),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -14639,7 +14694,7 @@ class _QuizzesScreenState extends State<QuizzesScreen> {
                               style: const TextStyle(
                                   fontSize: 15,
                                   fontWeight: FontWeight.bold,
-                                  color: Color(0xFF1A1A1A)),
+                                  color: AppColors.text(context)),
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis),
                           const SizedBox(height: 4),
@@ -14647,7 +14702,7 @@ class _QuizzesScreenState extends State<QuizzesScreen> {
                             '${quiz['subject']} • ${quiz['grade']}',
                             style: const TextStyle(
                                 fontSize: 12,
-                                color: Color(0xFF555555)),
+                                color: AppColors.textSub(context)),
                           ),
                         ],
                       ),
@@ -14760,11 +14815,11 @@ class _QuizzesScreenState extends State<QuizzesScreen> {
           ),
           const SizedBox(height: 20),
           const Text('لا توجد اختبارات لصفك بعد',
-              style: TextStyle(fontSize: 16, color: Color(0xFF555555))),
+              style: TextStyle(fontSize: 16, color: AppColors.textSub(context))),
           const SizedBox(height: 8),
           Text('صفك: $_userGrade',
-              style: const TextStyle(
-                  fontSize: 13, color: Color(0xFF888888))),
+              style: TextStyle(
+                  fontSize: 13, color: AppColors.textHint(context))),
         ],
       ),
     );
@@ -14890,7 +14945,7 @@ class _TakeQuizScreenState extends State<TakeQuizScreen> {
     final progress = (_currentIndex + 1) / _questions.length;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: AppColors.bg(context),
       appBar: AppBar(
         backgroundColor: const Color(0xFFEF6C00),
         foregroundColor: Colors.white,
@@ -14910,7 +14965,7 @@ class _TakeQuizScreenState extends State<TakeQuizScreen> {
             ),
             child: Row(
               children: [
-                const Icon(Icons.timer, color: Colors.white, size: 16),
+                Icon(Icons.timer, color: AppColors.card(context), size: 16),
                 const SizedBox(width: 4),
                 Text('$_timeLeft ث',
                     style: const TextStyle(
@@ -14960,7 +15015,7 @@ class _TakeQuizScreenState extends State<TakeQuizScreen> {
             Container(
               padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppColors.card(context),
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
@@ -15018,7 +15073,7 @@ class _TakeQuizScreenState extends State<TakeQuizScreen> {
                             style: TextStyle(
                                 color: selected
                                     ? const Color(0xFFEF6C00)
-                                    : const Color(0xFF555555),
+                                    : AppColors.textSub(context),
                                 fontWeight: FontWeight.bold),
                           ),
                         ),
@@ -15030,7 +15085,7 @@ class _TakeQuizScreenState extends State<TakeQuizScreen> {
                                 fontSize: 14,
                                 color: selected
                                     ? Colors.white
-                                    : const Color(0xFF1A1A1A),
+                                    : AppColors.text(context),
                                 fontWeight: FontWeight.w600)),
                       ),
                     ],
@@ -15091,7 +15146,7 @@ class _TakeQuizScreenState extends State<TakeQuizScreen> {
                         width: 18,
                         height: 18,
                         child: CircularProgressIndicator(
-                            color: Colors.white, strokeWidth: 2))
+                            color: AppColors.card(context), strokeWidth: 2))
                     : Icon(_currentIndex == _questions.length - 1
                         ? Icons.check
                         : Icons.arrow_forward),
@@ -15161,7 +15216,7 @@ class QuizResultScreen extends StatelessWidget {
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: AppColors.bg(context),
       appBar: AppBar(
         backgroundColor: color,
         foregroundColor: Colors.white,
@@ -15195,7 +15250,7 @@ class QuizResultScreen extends StatelessWidget {
               ),
               child: Column(
                 children: [
-                  Icon(icon, color: Colors.white, size: 60),
+                  Icon(icon, color: AppColors.card(context), size: 60),
                   const SizedBox(height: 15),
                   Text(message,
                       style: const TextStyle(
@@ -15207,7 +15262,7 @@ class QuizResultScreen extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 30, vertical: 12),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
+                      color: AppColors.card(context).withOpacity(0.2),
                       borderRadius: BorderRadius.circular(30),
                     ),
                     child: Text(
@@ -15234,7 +15289,7 @@ class QuizResultScreen extends StatelessWidget {
                 style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF1A1A1A))),
+                    color: AppColors.text(context))),
             const SizedBox(height: 12),
 
             ...questions.asMap().entries.map((entry) {
@@ -15248,7 +15303,7 @@ class QuizResultScreen extends StatelessWidget {
                 margin: const EdgeInsets.only(bottom: 12),
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: AppColors.card(context),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
                     color: isCorrect
@@ -15272,7 +15327,7 @@ class QuizResultScreen extends StatelessWidget {
                           ),
                           child: Icon(
                             isCorrect ? Icons.check : Icons.close,
-                            color: Colors.white,
+                            color: AppColors.card(context),
                             size: 16,
                           ),
                         ),
@@ -15301,7 +15356,7 @@ class QuizResultScreen extends StatelessWidget {
                               ? const Color(0xFF2E7D32).withOpacity(0.15)
                               : isSelected
                                   ? Colors.red.withOpacity(0.1)
-                                  : const Color(0xFFF5F7FA),
+                                  : AppColors.bg(context),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Row(
@@ -15314,7 +15369,7 @@ class QuizResultScreen extends StatelessWidget {
                                         ? const Color(0xFF2E7D32)
                                         : isSelected
                                             ? Colors.red
-                                            : const Color(0xFF555555))),
+                                            : AppColors.textSub(context))),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(opt,
@@ -15324,7 +15379,7 @@ class QuizResultScreen extends StatelessWidget {
                                           ? const Color(0xFF2E7D32)
                                           : isSelected
                                               ? Colors.red
-                                              : const Color(0xFF555555))),
+                                              : AppColors.textSub(context))),
                             ),
                             if (isAnswer)
                               const Icon(Icons.check,
@@ -15427,7 +15482,7 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: AppColors.bg(context),
       appBar: AppBar(
         title: const Text('غرفة التحكم',
             style: TextStyle(fontWeight: FontWeight.bold)),
@@ -15477,17 +15532,17 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
               ],
             ),
             child: const Icon(Icons.admin_panel_settings,
-                size: 70, color: Colors.white),
+                size: 70, color: AppColors.card(context)),
           ),
           const SizedBox(height: 25),
           const Text('الدخول للمشرفين',
               style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF1A1A1A))),
+                  color: AppColors.text(context))),
           const SizedBox(height: 8),
           const Text('هذه الصفحة مخصصة للمشرف فقط',
-              style: TextStyle(fontSize: 13, color: Color(0xFF555555))),
+              style: TextStyle(fontSize: 13, color: AppColors.textSub(context))),
           const SizedBox(height: 30),
           TextField(
             controller: _idController,
@@ -15517,7 +15572,7 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
                   _showLoginPassword
                       ? Icons.visibility
                       : Icons.visibility_off,
-                  color: const Color(0xFF555555),
+                  color: AppColors.textSub(context),
                 ),
               ),
               filled: true,
@@ -15592,7 +15647,7 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
                         leading: const CircleAvatar(
                           backgroundColor: Color(0xFFFFD700),
                           child: Icon(Icons.star,
-                              color: Colors.white, size: 20),
+                              color: AppColors.card(context), size: 20),
                         ),
                         title: Text(sub['user_name'] ?? 'مستخدم',
                             style: const TextStyle(fontSize: 13)),
@@ -15656,11 +15711,11 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
                         style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 15,
-                            color: Color(0xFF1A1A1A))),
+                            color: AppColors.text(context))),
                     SizedBox(height: 2),
                     Text('v1.0 — الإصدار الرسمي',
                         style: TextStyle(
-                            fontSize: 12, color: Color(0xFF555555))),
+                            fontSize: 12, color: AppColors.textSub(context))),
                   ],
                 ),
               ),
@@ -15803,7 +15858,7 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
         const SizedBox(height: 20),
         Container(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: AppColors.card(context),
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
@@ -15888,7 +15943,7 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
     return Container(
       height: 120,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
@@ -15921,7 +15976,7 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
                     style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF1A1A1A))),
+                        color: AppColors.text(context))),
                 const SizedBox(height: 2),
                 Text(subtitle,
                     style: TextStyle(
@@ -15951,9 +16006,9 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
           style: const TextStyle(
               fontWeight: FontWeight.w600,
               fontSize: 14,
-              color: Color(0xFF1A1A1A))),
+              color: AppColors.text(context))),
       trailing: const Icon(Icons.arrow_back_ios,
-          size: 14, color: Color(0xFF555555)),
+          size: 14, color: AppColors.textSub(context)),
       onTap: onTap,
     );
   }
@@ -15989,8 +16044,8 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
           return Container(
             height: MediaQuery.of(context).size.height * 0.8,
             padding: const EdgeInsets.all(20),
-            decoration: const BoxDecoration(
-              color: Colors.white,
+            decoration: BoxDecoration(
+              color: AppColors.card(context),
               borderRadius: BorderRadius.only(
                 topLeft: Radius.circular(24),
                 topRight: Radius.circular(24),
@@ -16018,7 +16073,7 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
                         style: const TextStyle(
                             fontSize: 17,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF1A1A1A)),
+                            color: AppColors.text(context)),
                       ),
                     ),
                     IconButton(
@@ -16038,7 +16093,7 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
                           ? const Center(
                               child: Text('لا يوجد مستخدمون',
                                   style: TextStyle(
-                                      color: Color(0xFF555555))))
+                                      color: AppColors.textSub(context))))
                           : ListView.separated(
                               itemCount: usersList.length,
                               separatorBuilder: (_, __) =>
@@ -16085,7 +16140,7 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
                                                         style: const TextStyle(
                                                             fontWeight: FontWeight.bold,
                                                             fontSize: 14,
-                                                            color: Color(0xFF1A1A1A))),
+                                                            color: AppColors.text(context))),
                                                   ),
                                                   if (u['role'] != null &&
                                                       u['role'] != 'student')
@@ -16134,13 +16189,13 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
                                                   overflow: TextOverflow.ellipsis,
                                                   style: const TextStyle(
                                                       fontSize: 10,
-                                                      color: Color(0xFF888888)),
+                                                      color: AppColors.textHint(context)),
                                                 ),
                                               Text(
                                                   '${u['grade'] ?? ''} - ${u['muraqaba'] ?? ''}',
                                                   style: const TextStyle(
                                                       fontSize: 11,
-                                                      color: Color(0xFF555555))),
+                                                      color: AppColors.textSub(context))),
                                             ],
                                           ),
                                         ),
@@ -16231,8 +16286,8 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
       isScrollControlled: true,
       builder: (_) => Container(
         padding: const EdgeInsets.all(20),
-        decoration: const BoxDecoration(
-          color: Colors.white,
+        decoration: BoxDecoration(
+          color: AppColors.card(context),
           borderRadius: BorderRadius.only(
             topLeft: Radius.circular(24),
             topRight: Radius.circular(24),
@@ -16258,7 +16313,7 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
                     style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF1A1A1A))),
+                        color: AppColors.text(context))),
               ],
             ),
             const SizedBox(height: 20),
@@ -16318,8 +16373,8 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
                     color: color)),
             const SizedBox(height: 4),
             Text(label,
-                style: const TextStyle(
-                    fontSize: 11, color: Color(0xFF555555))),
+                style: TextStyle(
+                    fontSize: 11, color: AppColors.textSub(context))),
           ],
         ),
       ),
@@ -16484,7 +16539,7 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
                     onPressed: () => setSt(() => showOld = !showOld),
                     icon: Icon(
                       showOld ? Icons.visibility : Icons.visibility_off,
-                      color: const Color(0xFF555555),
+                      color: AppColors.textSub(context),
                     ),
                   ),
                   border: OutlineInputBorder(
@@ -16503,7 +16558,7 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
                     onPressed: () => setSt(() => showNew = !showNew),
                     icon: Icon(
                       showNew ? Icons.visibility : Icons.visibility_off,
-                      color: const Color(0xFF555555),
+                      color: AppColors.textSub(context),
                     ),
                   ),
                   border: OutlineInputBorder(
@@ -16581,8 +16636,8 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
           return Container(
             height: MediaQuery.of(context).size.height * 0.75,
             padding: const EdgeInsets.all(20),
-            decoration: const BoxDecoration(
-              color: Colors.white,
+            decoration: BoxDecoration(
+              color: AppColors.card(context),
               borderRadius: BorderRadius.only(
                 topLeft: Radius.circular(24),
                 topRight: Radius.circular(24),
@@ -16609,7 +16664,7 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
                           style: const TextStyle(
                               fontSize: 17,
                               fontWeight: FontWeight.bold,
-                              color: Color(0xFF1A1A1A))),
+                              color: AppColors.text(context))),
                     ),
                     IconButton(
                       onPressed: () => _addQuiz(setSt),
@@ -16630,16 +16685,16 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   Icon(Icons.assignment_outlined,
-                                      size: 60, color: Color(0xFF555555)),
+                                      size: 60, color: AppColors.textSub(context)),
                                   SizedBox(height: 12),
                                   Text('لا توجد اختبارات بعد',
                                       style: TextStyle(
-                                          color: Color(0xFF555555))),
+                                          color: AppColors.textSub(context))),
                                   SizedBox(height: 6),
                                   Text('اضغط + لإضافة أول اختبار',
                                       style: TextStyle(
                                           fontSize: 12,
-                                          color: Color(0xFF888888))),
+                                          color: AppColors.textHint(context))),
                                 ],
                               ),
                             )
@@ -16685,7 +16740,7 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
                                                 '${q['grade'] ?? ''} • ${q['subject'] ?? ''}',
                                                 style: const TextStyle(
                                                     fontSize: 11,
-                                                    color: Color(0xFF555555))),
+                                                    color: AppColors.textSub(context))),
                                           ],
                                         ),
                                       ),
@@ -17029,7 +17084,7 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
                                       shape: BoxShape.circle,
                                     ),
                                     child: const Icon(Icons.close,
-                                        color: Colors.white, size: 12),
+                                        color: AppColors.card(context), size: 12),
                                   ),
                                 ),
                               ),
@@ -17053,7 +17108,7 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
                               width: 50,
                               height: 65,
                               decoration: BoxDecoration(
-                                color: Colors.white,
+                                color: AppColors.card(context),
                                 borderRadius: BorderRadius.circular(8),
                                 border: Border.all(
                                     color: Colors.grey.shade300),
@@ -17083,7 +17138,7 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
                                         : 'تم اختيار الغلاف',
                                     style: const TextStyle(
                                         fontSize: 11,
-                                        color: Color(0xFF555555)),
+                                        color: AppColors.textSub(context)),
                                   ),
                                 ],
                               ),
@@ -17574,7 +17629,7 @@ class _ReferralScreenState extends State<ReferralScreen> {
                                     height: 16,
                                     child: CircularProgressIndicator(
                                         strokeWidth: 2,
-                                        color: Colors.white),
+                                        color: AppColors.card(context)),
                                   )
                                 : const Icon(Icons.check_circle),
                             label: Text(_redeeming ? 'جاري...' : 'تفعيل الكود'),
@@ -17803,7 +17858,7 @@ class _ReferralStatsScreenState extends State<ReferralStatsScreen> {
                   style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF1A1A1A))),
+                      color: AppColors.text(context))),
               const SizedBox(height: 10),
               Card(
                 elevation: 2,
@@ -18272,7 +18327,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: textColor ?? const Color(0xFF1A1A1A),
+                  color: textColor ?? AppColors.text(context),
                 ),
               ),
             ),
@@ -18390,7 +18445,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: AppColors.bg(context),
       appBar: AppBar(
         backgroundColor: const Color(0xFF1565C0),
         foregroundColor: Colors.white,
@@ -18477,7 +18532,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                           margin: const EdgeInsets.only(right: 8),
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: AppColors.card(context),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Column(
@@ -18579,7 +18634,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: AppColors.bg(context),
       appBar: AppBar(
         title: const Text('كلمة سر جديدة',
             style: TextStyle(fontWeight: FontWeight.bold)),
@@ -18609,7 +18664,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                 ],
               ),
               child: const Icon(Icons.lock_reset,
-                  size: 60, color: Colors.white),
+                  size: 60, color: AppColors.card(context)),
             ),
             const SizedBox(height: 30),
             const Text(
@@ -18618,7 +18673,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF1A1A1A),
+                color: AppColors.text(context),
               ),
             ),
             const SizedBox(height: 8),
@@ -18690,7 +18745,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                         width: 18,
                         height: 18,
                         child: CircularProgressIndicator(
-                            color: Colors.white, strokeWidth: 2),
+                            color: AppColors.card(context), strokeWidth: 2),
                       )
                     : const Icon(Icons.check_circle),
                 label: Text(_saving ? 'جاري الحفظ...' : 'حفظ كلمة السر'),
@@ -18723,7 +18778,7 @@ class EmailVerifiedScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: AppColors.bg(context),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -18749,7 +18804,7 @@ class EmailVerifiedScreen extends StatelessWidget {
                 child: const Icon(
                   Icons.check_circle,
                   size: 80,
-                  color: Colors.white,
+                  color: AppColors.card(context),
                 ),
               ),
               const SizedBox(height: 30),
@@ -18761,7 +18816,7 @@ class EmailVerifiedScreen extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 26,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF1A1A1A),
+                  color: AppColors.text(context),
                 ),
               ),
               const SizedBox(height: 12),
@@ -18772,7 +18827,7 @@ class EmailVerifiedScreen extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 15,
-                  color: Color(0xFF555555),
+                  color: AppColors.textSub(context),
                   height: 1.5,
                 ),
               ),
@@ -18828,7 +18883,7 @@ class TermsOfServiceScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: AppColors.bg(context),
       appBar: AppBar(
         backgroundColor: const Color(0xFF1565C0),
         foregroundColor: Colors.white,
@@ -18957,7 +19012,7 @@ class TermsOfServiceScreen extends StatelessWidget {
               ),
               child: const Column(
                 children: [
-                  Icon(Icons.gavel, color: Colors.white, size: 45),
+                  Icon(Icons.gavel, color: AppColors.card(context), size: 45),
                   SizedBox(height: 12),
                   Text('استخدامك = موافقتك',
                       style: TextStyle(
@@ -19219,7 +19274,7 @@ class AvatarHelper {
                 height: radius,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  color: Colors.white,
+                  color: AppColors.card(context),
                 ),
               ),
             );
@@ -19508,8 +19563,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => const Center(
-          child: CircularProgressIndicator(color: Colors.white)),
+      builder: (ctx) => Center(
+          child: CircularProgressIndicator(color: AppColors.card(context))),
     );
 
     try {
@@ -19596,7 +19651,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           shape: BoxShape.circle,
         ),
         child: const Icon(Icons.menu_book,
-            size: 40, color: Colors.white),
+            size: 40, color: AppColors.card(context)),
       ),
       children: const [
         Text('تطبيق تعليمي مجاني للطلاب الليبيين.'),
@@ -19622,7 +19677,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: AppColors.bg(context),
       appBar: AppBar(
         backgroundColor: const Color(0xFF1565C0),
         foregroundColor: Colors.white,
@@ -19884,7 +19939,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
@@ -19926,10 +19981,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
           style: const TextStyle(
               fontWeight: FontWeight.w600,
               fontSize: 14,
-              color: Color(0xFF1A1A1A))),
+              color: AppColors.text(context))),
       subtitle: Text(subtitle,
-          style: const TextStyle(
-              fontSize: 11, color: Color(0xFF888888))),
+          style: TextStyle(
+              fontSize: 11, color: AppColors.textHint(context))),
       trailing: Switch(
         value: value,
         onChanged: onChanged,
@@ -19959,12 +20014,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
           style: const TextStyle(
               fontWeight: FontWeight.w600,
               fontSize: 14,
-              color: Color(0xFF1A1A1A))),
+              color: AppColors.text(context))),
       subtitle: Text(subtitle,
-          style: const TextStyle(
-              fontSize: 11, color: Color(0xFF888888))),
+          style: TextStyle(
+              fontSize: 11, color: AppColors.textHint(context))),
       trailing: const Icon(Icons.arrow_back_ios,
-          size: 14, color: Color(0xFF555555)),
+          size: 14, color: AppColors.textSub(context)),
     );
   }
 }
