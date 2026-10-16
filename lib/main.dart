@@ -1,5 +1,5 @@
 // ============================================
-// Kitabi v0.1 — تطبيق تعليمي للطلاب الليبيين
+// Kitabi v1.0 — تطبيق تعليمي للطلاب الليبيين
 // ============================================
 
 import 'package:flutter/material.dart';
@@ -2205,7 +2205,7 @@ class HomeTab extends StatelessWidget {
                               color: Colors.amber.shade600,
                               borderRadius: BorderRadius.circular(20),
                             ),
-                            child: const Text('الإصدار 0.1 تجريبي',
+                            child: const Text('الإصدار 1.0',
                                 style: TextStyle(
                                     color: Colors.white,
                                     fontSize: 11,
@@ -4363,35 +4363,21 @@ class _AccountTabState extends State<AccountTab> {
                   }),
                   _menuDivider(),
 
-                  ListTile(
-                    leading: Container(
-                      padding: const EdgeInsets.all(9),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF7E57C2).withOpacity(0.12),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(Icons.dark_mode_outlined,
-                          color: Color(0xFF7E57C2), size: 22),
-                    ),
-                    title: const Text('المظهر (الوضع الليلي)',
-                        style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 14,
-                            color: Color(0xFF1A1A1A))),
-                    trailing: Switch(
-                      value: _darkMode,
-                      onChanged: (v) async {
-                        setState(() => _darkMode = v);
-                        // نستخدم GlobalKey للوصول للـ State
-                        kitabiAppKey.currentState?.toggleDark(v);
-                        if (!mounted) return;
-                        showKitabiSnack(
-                            context,
-                            v ? '🌙 تم تفعيل الوضع الليلي' : '☀️ تم تفعيل الوضع النهاري');
-                      },
-                      activeColor: const Color(0xFF7E57C2),
-                    ),
-                  ),
+                  _menuItem(Icons.settings_outlined, 'الإعدادات',
+                      const Color(0xFF7E57C2), () async {
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const SettingsScreen()),
+                    );
+                    // نحدّث الوضع الليلي عند العودة
+                    if (!mounted) return;
+                    final prefs = await SharedPreferences.getInstance();
+                    if (!mounted) return;
+                    setState(() {
+                      _darkMode = prefs.getBool('dark_mode') ?? false;
+                    });
+                  }),
                   _menuDivider(),
                   _menuItem(Icons.help_outline, 'المساعدة والدعم',
                       const Color(0xFF26A69A), () {
@@ -4645,7 +4631,7 @@ class _AccountTabState extends State<AccountTab> {
             _helpItem(
               Icons.info,
               'عن التطبيق',
-              'الإصدار 0.3.0',
+              'الإصدار 1.0.0',
               const Color(0xFFEF6C00),
               () {
                 Navigator.pop(context);
@@ -10189,7 +10175,7 @@ class _BackupScreenState extends State<BackupScreen> {
       // نجمع كل البيانات
       final data = <String, dynamic>{
         'created_at': DateTime.now().toIso8601String(),
-        'version': '0.3.0',
+        'version': '1.0.0',
         'users': await supabase.from('users').select(),
         'books': await supabase.from('books').select(),
         'notifications': await supabase.from('notifications').select(),
@@ -15643,7 +15629,7 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
                             fontSize: 15,
                             color: Color(0xFF1A1A1A))),
                     SizedBox(height: 2),
-                    Text('v0.1 — الإصدار التجريبي',
+                    Text('v1.0 — الإصدار الرسمي',
                         style: TextStyle(
                             fontSize: 12, color: Color(0xFF555555))),
                   ],
@@ -19226,5 +19212,730 @@ class AvatarHelper {
       const Color(0xFF00838F),
     ];
     return colors[name.codeUnitAt(0) % colors.length];
+  }
+}
+
+// ==================================================
+// SettingsScreen — الإعدادات الشاملة
+// ==================================================
+class SettingsScreen extends StatefulWidget {
+  const SettingsScreen({super.key});
+
+  @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> {
+  // المظهر
+  bool _darkMode = false;
+  double _fontScale = 1.0;
+  bool _reduceMotion = false;
+
+  // الإشعارات
+  bool _notifApp = true;
+  bool _notifBooks = true;
+  bool _notifQuizzes = true;
+  bool _notifForum = true;
+  bool _notifGeneral = true;
+
+  // الخصوصية
+  bool _hideActivity = false;
+  bool _showEmailInProfile = true;
+
+  // بيانات المستخدم
+  String _userEmail = '';
+  String _userName = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSettings();
+  }
+
+  Future<void> _loadSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() {
+      _darkMode = prefs.getBool('dark_mode') ?? false;
+      _fontScale = prefs.getDouble('font_scale') ?? 1.0;
+      _reduceMotion = prefs.getBool('reduce_motion') ?? false;
+      _notifApp = prefs.getBool('notif_app') ?? true;
+      _notifBooks = prefs.getBool('notif_books') ?? true;
+      _notifQuizzes = prefs.getBool('notif_quizzes') ?? true;
+      _notifForum = prefs.getBool('notif_forum') ?? true;
+      _notifGeneral = prefs.getBool('notif_general') ?? true;
+      _hideActivity = prefs.getBool('hide_activity') ?? false;
+      _showEmailInProfile =
+          prefs.getBool('show_email_in_profile') ?? true;
+      _userEmail = prefs.getString('user_email') ?? '';
+      _userName = prefs.getString('user_name') ?? '';
+    });
+  }
+
+  Future<void> _savePref(String key, dynamic value) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (value is bool) await prefs.setBool(key, value);
+    if (value is double) await prefs.setDouble(key, value);
+    if (value is String) await prefs.setString(key, value);
+    if (value is int) await prefs.setInt(key, value);
+  }
+
+  // ============ Actions ============
+
+  void _toggleDark(bool v) async {
+    setState(() => _darkMode = v);
+    await _savePref('dark_mode', v);
+    // نستدعي مباشرة - لا نعتمد على callback
+    kitabiAppKey.currentState?.toggleDark(v);
+    if (!mounted) return;
+    showKitabiSnack(context,
+        v ? '🌙 تم تفعيل الوضع الليلي' : '☀️ تم تفعيل الوضع النهاري');
+  }
+
+  void _toggleReduceMotion(bool v) async {
+    setState(() => _reduceMotion = v);
+    await _savePref('reduce_motion', v);
+  }
+
+  void _toggleNotifApp(bool v) async {
+    setState(() => _notifApp = v);
+    await _savePref('notif_app', v);
+  }
+
+  void _toggleNotifBooks(bool v) async {
+    setState(() => _notifBooks = v);
+    await _savePref('notif_books', v);
+  }
+
+  void _toggleNotifQuizzes(bool v) async {
+    setState(() => _notifQuizzes = v);
+    await _savePref('notif_quizzes', v);
+  }
+
+  void _toggleNotifForum(bool v) async {
+    setState(() => _notifForum = v);
+    await _savePref('notif_forum', v);
+  }
+
+  void _toggleNotifGeneral(bool v) async {
+    setState(() => _notifGeneral = v);
+    await _savePref('notif_general', v);
+  }
+
+  void _toggleHideActivity(bool v) async {
+    setState(() => _hideActivity = v);
+    await _savePref('hide_activity', v);
+  }
+
+  void _toggleShowEmail(bool v) async {
+    setState(() => _showEmailInProfile = v);
+    await _savePref('show_email_in_profile', v);
+  }
+
+  Future<void> _changeFontSize() async {
+    final result = await showDialog<double>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20)),
+        title: const Text('حجم الخط'),
+        content: StatefulBuilder(
+          builder: (ctx, setDlg) => Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                _fontScale == 0.9
+                    ? 'صغير'
+                    : _fontScale == 1.0
+                        ? 'عادي'
+                        : _fontScale == 1.15
+                            ? 'كبير'
+                            : 'كبير جداً',
+                style: const TextStyle(
+                    fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 8,
+                children: [
+                  _sizeChip(ctx, 0.9, 'صغير', setDlg),
+                  _sizeChip(ctx, 1.0, 'عادي', setDlg),
+                  _sizeChip(ctx, 1.15, 'كبير', setDlg),
+                  _sizeChip(ctx, 1.3, 'كبير جداً', setDlg),
+                ],
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('إغلاق'),
+          ),
+        ],
+      ),
+    );
+    if (result != null) {
+      setState(() => _fontScale = result);
+      await _savePref('font_scale', result);
+      if (!mounted) return;
+      showKitabiSnack(context, 'تم تغيير حجم الخط');
+    }
+  }
+
+  Widget _sizeChip(
+      BuildContext ctx, double size, String label, StateSetter setDlg) {
+    final selected = _fontScale == size;
+    return GestureDetector(
+      onTap: () {
+        setDlg(() {});
+        Navigator.pop(ctx, size);
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: selected ? const Color(0xFF1565C0) : Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: selected
+                ? const Color(0xFF1565C0)
+                : Colors.grey.shade300,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: selected ? Colors.white : Colors.black87,
+            fontWeight: FontWeight.bold,
+            fontSize: 13,
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showChangePassword() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+          builder: (_) => const ChangePasswordScreen()),
+    );
+  }
+
+  void _showAccountInfo() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.person, color: Color(0xFF1565C0)),
+            SizedBox(width: 10),
+            Text('معلومات حسابي'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _infoRow('الاسم', _userName),
+            _infoRow('البريد',
+                _userEmail.isEmpty ? 'غير مسجّل' : _userEmail),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('حسناً'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _infoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 70,
+            child: Text(label,
+                style: const TextStyle(
+                    fontWeight: FontWeight.bold, fontSize: 13)),
+          ),
+          Expanded(
+            child: Text(value,
+                style: const TextStyle(fontSize: 13)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _exportData() async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => const Center(
+          child: CircularProgressIndicator(color: Colors.white)),
+    );
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final data = {
+        'name': prefs.getString('user_name'),
+        'email': prefs.getString('user_email'),
+        'grade': prefs.getString('user_grade'),
+        'muraqaba': prefs.getString('user_muraqaba'),
+        'points': prefs.getInt('user_points'),
+        'level': prefs.getInt('user_level'),
+        'achievements': prefs.getInt('user_achievements'),
+        'exported_at': DateTime.now().toIso8601String(),
+      };
+
+      // نحفظه في ملف
+      final dir = await getApplicationDocumentsDirectory();
+      final file = File(
+          '${dir.path}/my_data_${DateTime.now().millisecondsSinceEpoch}.json');
+      await file.writeAsString(
+          const JsonEncoder.withIndent('  ').convert(data));
+
+      if (!mounted) return;
+      Navigator.pop(context);
+      showKitabiSnack(context, '✅ تم التصدير: ${file.path}');
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.pop(context);
+      showKitabiSnack(context, 'فشل التصدير: $e');
+    }
+  }
+
+  Future<void> _clearCache() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20)),
+        title: const Text('مسح الذاكرة المؤقتة'),
+        content: const Text(
+            'سيتم حذف البيانات المؤقتة والصور المخزنة. لن تفقد إعداداتك أو حسابك.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFEF6C00),
+                foregroundColor: Colors.white),
+            child: const Text('مسح'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    try {
+      final cacheDir = await getTemporaryDirectory();
+      if (cacheDir.existsSync()) {
+        await cacheDir.delete(recursive: true);
+      }
+      if (!mounted) return;
+      showKitabiSnack(context, '✅ تم مسح الذاكرة المؤقتة');
+    } catch (e) {
+      if (!mounted) return;
+      showKitabiSnack(context, 'فشل المسح');
+    }
+  }
+
+  void _showVersionInfo() {
+    showAboutDialog(
+      context: context,
+      applicationName: 'KITABI',
+      applicationVersion: '1.0.0',
+      applicationIcon: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFF1565C0), Color(0xFF42A5F5)],
+          ),
+          shape: BoxShape.circle,
+        ),
+        child: const Icon(Icons.menu_book,
+            size: 40, color: Colors.white),
+      ),
+      children: const [
+        Text('تطبيق تعليمي مجاني للطلاب الليبيين.'),
+        SizedBox(height: 8),
+        Text('جميع الخصائص مجانية بالكامل.'),
+        SizedBox(height: 8),
+        Text('© 2026 Kitabi Team'),
+      ],
+    );
+  }
+
+  void _shareApp() {
+    Clipboard.setData(const ClipboardData(
+      text: 'حمّل تطبيق كتابي الآن — تطبيق تعليمي مجاني للطلاب الليبيين! 📚',
+    ));
+    showKitabiSnack(context, '📋 تم نسخ نص المشاركة');
+  }
+
+  void _rateApp() {
+    showKitabiSnack(context, '⭐ شكراً لتقييمك! (قريباً على المتاجر)');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF1565C0),
+        foregroundColor: Colors.white,
+        elevation: 0,
+        title: const Text('الإعدادات',
+            style: TextStyle(fontWeight: FontWeight.bold)),
+      ),
+      body: ListView(
+        padding: const EdgeInsets.only(bottom: 30),
+        children: [
+          const SizedBox(height: 12),
+
+          // ============ المظهر ============
+          _sectionHeader('🎨 المظهر', const Color(0xFF7B1FA2)),
+          _card([
+            _switchTile(
+              icon: Icons.dark_mode,
+              color: const Color(0xFF7B1FA2),
+              title: 'الوضع الليلي',
+              subtitle: 'تفعيل المظهر الداكن',
+              value: _darkMode,
+              onChanged: _toggleDark,
+            ),
+            _divider(),
+            _tapTile(
+              icon: Icons.text_fields,
+              color: const Color(0xFF00897B),
+              title: 'حجم الخط',
+              subtitle: _fontScale == 0.9
+                  ? 'صغير'
+                  : _fontScale == 1.0
+                      ? 'عادي'
+                      : _fontScale == 1.15
+                          ? 'كبير'
+                          : 'كبير جداً',
+              onTap: _changeFontSize,
+            ),
+            _divider(),
+            _switchTile(
+              icon: Icons.animation,
+              color: const Color(0xFFEF6C00),
+              title: 'تقليل الحركة',
+              subtitle: 'تقليل تأثيرات الانتقال',
+              value: _reduceMotion,
+              onChanged: _toggleReduceMotion,
+            ),
+          ]),
+
+          // ============ الإشعارات ============
+          _sectionHeader('🔔 الإشعارات', const Color(0xFFD32F2F)),
+          _card([
+            _switchTile(
+              icon: Icons.notifications_active,
+              color: const Color(0xFFD32F2F),
+              title: 'إشعارات التطبيق',
+              subtitle: 'تمكين كل الإشعارات',
+              value: _notifApp,
+              onChanged: _toggleNotifApp,
+            ),
+            if (_notifApp) ...[
+              _divider(),
+              _switchTile(
+                icon: Icons.menu_book,
+                color: const Color(0xFF1565C0),
+                title: 'كتب جديدة',
+                subtitle: 'عند إضافة كتاب جديد',
+                value: _notifBooks,
+                onChanged: _toggleNotifBooks,
+              ),
+              _divider(),
+              _switchTile(
+                icon: Icons.assignment,
+                color: const Color(0xFF00897B),
+                title: 'اختبارات',
+                subtitle: 'اختبارات جديدة',
+                value: _notifQuizzes,
+                onChanged: _toggleNotifQuizzes,
+              ),
+              _divider(),
+              _switchTile(
+                icon: Icons.forum,
+                color: const Color(0xFF7B1FA2),
+                title: 'المنتدى',
+                subtitle: 'ردود وتعليقات جديدة',
+                value: _notifForum,
+                onChanged: _toggleNotifForum,
+              ),
+              _divider(),
+              _switchTile(
+                icon: Icons.campaign,
+                color: const Color(0xFFEF6C00),
+                title: 'إشعارات عامة',
+                subtitle: 'إعلانات وأخبار',
+                value: _notifGeneral,
+                onChanged: _toggleNotifGeneral,
+              ),
+            ],
+          ]),
+
+          // ============ الحساب ============
+          _sectionHeader('👤 الحساب', const Color(0xFF1565C0)),
+          _card([
+            _tapTile(
+              icon: Icons.person_outline,
+              color: const Color(0xFF1565C0),
+              title: 'معلومات حسابي',
+              subtitle: _userEmail.isEmpty ? 'غير مسجّل' : _userEmail,
+              onTap: _showAccountInfo,
+            ),
+            _divider(),
+            _tapTile(
+              icon: Icons.lock_outline,
+              color: const Color(0xFF00897B),
+              title: 'تغيير كلمة السر',
+              subtitle: 'تحديث كلمة السر الحالية',
+              onTap: _showChangePassword,
+            ),
+          ]),
+
+          // ============ البيانات ============
+          _sectionHeader('💾 البيانات', const Color(0xFF6A1B9A)),
+          _card([
+            _tapTile(
+              icon: Icons.download,
+              color: const Color(0xFF1565C0),
+              title: 'تصدير بياناتي',
+              subtitle: 'تنزيل نسخة من بياناتك',
+              onTap: _exportData,
+            ),
+            _divider(),
+            _tapTile(
+              icon: Icons.cleaning_services,
+              color: const Color(0xFFEF6C00),
+              title: 'مسح الذاكرة المؤقتة',
+              subtitle: 'حذف الملفات المؤقتة',
+              onTap: _clearCache,
+            ),
+          ]),
+
+          // ============ الخصوصية ============
+          _sectionHeader('🔒 الخصوصية', const Color(0xFF00897B)),
+          _card([
+            _tapTile(
+              icon: Icons.privacy_tip_outlined,
+              color: const Color(0xFF1565C0),
+              title: 'سياسة الخصوصية',
+              subtitle: 'كيف نحمي بياناتك',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const PrivacyPolicyScreen()),
+                );
+              },
+            ),
+            _divider(),
+            _tapTile(
+              icon: Icons.gavel,
+              color: const Color(0xFF00897B),
+              title: 'شروط الاستخدام',
+              subtitle: 'قواعد استخدام التطبيق',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const TermsOfServiceScreen()),
+                );
+              },
+            ),
+            _divider(),
+            _switchTile(
+              icon: Icons.visibility_off,
+              color: const Color(0xFF6A1B9A),
+              title: 'إخفاء النشاط',
+              subtitle: 'عدم إظهار نشاطك للآخرين',
+              value: _hideActivity,
+              onChanged: _toggleHideActivity,
+            ),
+            _divider(),
+            _switchTile(
+              icon: Icons.email_outlined,
+              color: const Color(0xFF00838F),
+              title: 'إظهار البريد في الملف',
+              subtitle: 'عرض بريدك في ملفك الشخصي',
+              value: _showEmailInProfile,
+              onChanged: _toggleShowEmail,
+            ),
+          ]),
+
+          // ============ حول ============
+          _sectionHeader('ℹ️ حول التطبيق', const Color(0xFF5E35B1)),
+          _card([
+            _tapTile(
+              icon: Icons.info_outline,
+              color: const Color(0xFF5E35B1),
+              title: 'الإصدار',
+              subtitle: 'KITABI 1.0.0',
+              onTap: _showVersionInfo,
+            ),
+            _divider(),
+            _tapTile(
+              icon: Icons.star_outline,
+              color: const Color(0xFFFFA000),
+              title: 'تقييم التطبيق',
+              subtitle: 'ساعدنا بتقييمك ⭐',
+              onTap: _rateApp,
+            ),
+            _divider(),
+            _tapTile(
+              icon: Icons.share_outlined,
+              color: const Color(0xFF00897B),
+              title: 'مشاركة التطبيق',
+              subtitle: 'شارك مع أصدقائك',
+              onTap: _shareApp,
+            ),
+            _divider(),
+            _tapTile(
+              icon: Icons.email,
+              color: const Color(0xFF1565C0),
+              title: 'تواصل معنا',
+              subtitle: 'mhmdkfkwfalqmaty@gmail.com',
+              onTap: () {
+                Clipboard.setData(const ClipboardData(
+                    text: 'mhmdkfkwfalqmaty@gmail.com'));
+                showKitabiSnack(context, '📋 تم نسخ البريد');
+              },
+            ),
+          ]),
+
+          const SizedBox(height: 30),
+          const Center(
+            child: Text(
+              'KITABI © 2026',
+              style: TextStyle(
+                  color: Color(0xFF999999), fontSize: 12),
+            ),
+          ),
+          const SizedBox(height: 20),
+        ],
+      ),
+    );
+  }
+
+  Widget _sectionHeader(String title, Color color) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+      child: Text(
+        title,
+        style: TextStyle(
+          fontSize: 15,
+          fontWeight: FontWeight.bold,
+          color: color,
+        ),
+      ),
+    );
+  }
+
+  Widget _card(List<Widget> children) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(children: children),
+    );
+  }
+
+  Widget _divider() => const Divider(
+        height: 1,
+        indent: 60,
+        endIndent: 15,
+        color: Color(0xFFF0F0F0),
+      );
+
+  Widget _switchTile({
+    required IconData icon,
+    required Color color,
+    required String title,
+    required String subtitle,
+    required bool value,
+    required Function(bool) onChanged,
+  }) {
+    return ListTile(
+      leading: Container(
+        padding: const EdgeInsets.all(9),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.12),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Icon(icon, color: color, size: 22),
+      ),
+      title: Text(title,
+          style: const TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 14,
+              color: Color(0xFF1A1A1A))),
+      subtitle: Text(subtitle,
+          style: const TextStyle(
+              fontSize: 11, color: Color(0xFF888888))),
+      trailing: Switch(
+        value: value,
+        onChanged: onChanged,
+        activeColor: color,
+      ),
+    );
+  }
+
+  Widget _tapTile({
+    required IconData icon,
+    required Color color,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return ListTile(
+      onTap: onTap,
+      leading: Container(
+        padding: const EdgeInsets.all(9),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.12),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Icon(icon, color: color, size: 22),
+      ),
+      title: Text(title,
+          style: const TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 14,
+              color: Color(0xFF1A1A1A))),
+      subtitle: Text(subtitle,
+          style: const TextStyle(
+              fontSize: 11, color: Color(0xFF888888))),
+      trailing: const Icon(Icons.arrow_back_ios,
+          size: 14, color: Color(0xFF555555)),
+    );
   }
 }
