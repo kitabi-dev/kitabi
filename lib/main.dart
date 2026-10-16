@@ -3,6 +3,7 @@
 // ============================================
 
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -201,11 +202,36 @@ class _KitabiAppInner extends StatefulWidget {
 class _KitabiAppInnerState extends State<_KitabiAppInner> {
   bool _isDark = false;
   bool _loaded = false;
+  StreamSubscription<AuthState>? _authSub;
+  final GlobalKey<NavigatorState> _navKey = GlobalKey<NavigatorState>();
 
   @override
   void initState() {
     super.initState();
     _load();
+    _listenToAuth();
+  }
+
+  void _listenToAuth() {
+    _authSub = supabase.auth.onAuthStateChange.listen((data) {
+      final event = data.event;
+      debugPrint('Auth event: $event');
+      
+      // عند استلام رابط إعادة تعيين كلمة السر
+      if (event == AuthChangeEvent.passwordRecovery) {
+        _navKey.currentState?.pushAndRemoveUntil(
+          MaterialPageRoute(
+              builder: (_) => const ResetPasswordScreen()),
+          (route) => false,
+        );
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _authSub?.cancel();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -238,6 +264,7 @@ class _KitabiAppInnerState extends State<_KitabiAppInner> {
     return MaterialApp(
       title: 'Kitabi',
       debugShowCheckedModeBanner: false,
+      navigatorKey: _navKey,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color(0xFF1565C0),
@@ -735,18 +762,69 @@ class _LoginScreenState extends State<LoginScreen> {
       showKitabiSnack(context, 'اكتب بريدك أولاً');
       return;
     }
-
+    
     try {
       await supabase.auth.resetPasswordForEmail(
         _emailCtrl.text.trim(),
+        redirectTo: 'kitabi://reset-password',
       );
       if (!mounted) return;
-      showKitabiSnack(context,
-          '✅ تم إرسال رابط تغيير كلمة السر إلى بريدك');
+      
+      // نعرض dialog توضيحي
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20)),
+          title: const Row(
+            children: [
+              Icon(Icons.mark_email_read, color: Color(0xFF00897B)),
+              SizedBox(width: 10),
+              Text('تحقق من بريدك'),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('تم إرسال رابط تغيير كلمة السر إلى:'),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF5F7FA),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  _emailCtrl.text.trim(),
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold, fontSize: 13),
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'افتح الرابط من إيميلك لتغيير كلمة السر.',
+                style: TextStyle(fontSize: 13, color: Color(0xFF555555)),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                '💡 تحقق من مجلد الرسائل غير المرغوب فيها',
+                style: TextStyle(fontSize: 12, color: Color(0xFFEF6C00)),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('حسناً'),
+            ),
+          ],
+        ),
+      );
     } catch (e) {
       debugPrint('Forgot error: $e');
       if (!mounted) return;
-      showKitabiSnack(context, 'فشل الإرسال');
+      showKitabiSnack(context, 'فشل الإرسال: تأكد من الإيميل');
     }
   }
 
@@ -17964,3 +18042,205 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     );
   }
 }
+
+
+// ==================================================
+// ResetPasswordScreen — شاشة إعادة تعيين كلمة السر
+// ==================================================
+class ResetPasswordScreen extends StatefulWidget {
+  const ResetPasswordScreen({super.key});
+  @override
+  State<ResetPasswordScreen> createState() => _ResetPasswordScreenState();
+}
+
+class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
+  final _passCtrl = TextEditingController();
+  final _confirmCtrl = TextEditingController();
+  bool _showPass = false;
+  bool _showConfirm = false;
+  bool _saving = false;
+
+  @override
+  void dispose() {
+    _passCtrl.dispose();
+    _confirmCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    if (_passCtrl.text.length < 6) {
+      showKitabiSnack(context, 'كلمة السر 6 أحرف على الأقل');
+      return;
+    }
+    if (_passCtrl.text != _confirmCtrl.text) {
+      showKitabiSnack(context, 'كلمتا السر غير متطابقتين');
+      return;
+    }
+
+    setState(() => _saving = true);
+
+    try {
+      await supabase.auth.updateUser(
+        UserAttributes(password: _passCtrl.text),
+      );
+      
+      if (!mounted) return;
+      showKitabiSnack(context, '✅ تم تغيير كلمة السر بنجاح');
+      
+      // ننتظر ثانيتين ثم نرجع لتسجيل الدخول
+      await Future.delayed(const Duration(seconds: 2));
+      if (!mounted) return;
+      
+      // نخرج من الجلسة الحالية
+      await supabase.auth.signOut();
+      if (!mounted) return;
+      
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        (route) => false,
+      );
+    } catch (e) {
+      debugPrint('Reset password error: $e');
+      if (!mounted) return;
+      setState(() => _saving = false);
+      showKitabiSnack(context, 'فشل تغيير كلمة السر: $e');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
+      appBar: AppBar(
+        title: const Text('كلمة سر جديدة',
+            style: TextStyle(fontWeight: FontWeight.bold)),
+        backgroundColor: const Color(0xFF1565C0),
+        foregroundColor: Colors.white,
+        elevation: 0,
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const SizedBox(height: 30),
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF1565C0), Color(0xFF42A5F5)],
+                ),
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF1565C0).withOpacity(0.3),
+                    blurRadius: 20,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: const Icon(Icons.lock_reset,
+                  size: 60, color: Colors.white),
+            ),
+            const SizedBox(height: 30),
+            const Text(
+              'اكتب كلمة السر الجديدة',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF1A1A1A),
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'اختر كلمة سر قوية لا يعرفها أحد',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 13,
+                color: Color(0xFF666666),
+              ),
+            ),
+            const SizedBox(height: 30),
+            
+            // كلمة السر الجديدة
+            TextField(
+              controller: _passCtrl,
+              obscureText: !_showPass,
+              decoration: InputDecoration(
+                labelText: 'كلمة السر الجديدة',
+                prefixIcon: const Icon(Icons.lock_outline),
+                suffixIcon: IconButton(
+                  icon: Icon(_showPass
+                      ? Icons.visibility
+                      : Icons.visibility_off),
+                  onPressed: () =>
+                      setState(() => _showPass = !_showPass),
+                ),
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
+            
+            // تأكيد كلمة السر
+            TextField(
+              controller: _confirmCtrl,
+              obscureText: !_showConfirm,
+              decoration: InputDecoration(
+                labelText: 'تأكيد كلمة السر',
+                prefixIcon: const Icon(Icons.lock_outline),
+                suffixIcon: IconButton(
+                  icon: Icon(_showConfirm
+                      ? Icons.visibility
+                      : Icons.visibility_off),
+                  onPressed: () =>
+                      setState(() => _showConfirm = !_showConfirm),
+                ),
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+            const SizedBox(height: 30),
+            
+            // زر الحفظ
+            SizedBox(
+              height: 55,
+              child: ElevatedButton.icon(
+                onPressed: _saving ? null : _save,
+                icon: _saving
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                            color: Colors.white, strokeWidth: 2),
+                      )
+                    : const Icon(Icons.check_circle),
+                label: Text(_saving ? 'جاري الحفظ...' : 'حفظ كلمة السر'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1565C0),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ==================================================
+// ResetPasswordScreen — شاشة إعادة تعيين كلمة السر
+// ==================================================
