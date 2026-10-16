@@ -3562,6 +3562,7 @@ class AccountTab extends StatefulWidget {
 
 class _AccountTabState extends State<AccountTab> {
   String _name = '';
+  String _email = '';
   String _grade = '';
   String _muraqaba = '';
   int _points = 0;
@@ -3607,6 +3608,7 @@ class _AccountTabState extends State<AccountTab> {
     if (!mounted) return;
     setState(() {
       _name = prefs.getString('user_name') ?? 'طالب';
+      _email = prefs.getString('user_email') ?? '';
       _grade = prefs.getString('user_grade') ?? '';
       _muraqaba = prefs.getString('user_muraqaba') ?? '';
       _points = stats['points'] ?? 0;
@@ -3837,6 +3839,23 @@ class _AccountTabState extends State<AccountTab> {
                       context,
                       MaterialPageRoute(
                           builder: (_) => const GoalsScreen()),
+                    );
+                  }),
+                  _menuDivider(),
+                  _menuItem(Icons.card_giftcard, 'كود الهدية 🎁',
+                      const Color(0xFFE91E63), () {
+                    if (_email.isEmpty) {
+                      showKitabiSnack(context,
+                          '⚠️ لا يوجد إيميل مسجّل، سجّل خروجك ثم دخولك مرة أخرى');
+                      return;
+                    }
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => ReferralScreen(
+                                userEmail: _email,
+                                userName: _name,
+                              )),
                     );
                   }),
                   _menuDivider(),
@@ -16506,4 +16525,390 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
   }
 
 
+}
+
+// ==================================================
+// نظام كود الهدية (Referral System) — Kitabi
+// أضف هذا الكود في نهاية lib/main.dart
+// ==================================================
+
+// ============ ReferralHelper ============
+class ReferralHelper {
+  /// يجلب أو ينشئ كود المستخدم
+  static Future<String?> getOrCreateMyCode(String email) async {
+    try {
+      // 1) نبحث عن كود موجود
+      final existing = await supabase
+          .from('users')
+          .select('invite_code')
+          .eq('email', email)
+          .limit(1);
+      
+      if (existing.isNotEmpty && existing[0]['invite_code'] != null) {
+        return existing[0]['invite_code'] as String;
+      }
+      
+      // 2) ننشئ كود جديد
+      final codeResponse = await supabase.rpc('generate_referral_code');
+      final newCode = codeResponse as String;
+      
+      // 3) نحفظه في users
+      await supabase
+          .from('users')
+          .update({'invite_code': newCode})
+          .eq('email', email);
+      
+      return newCode;
+    } catch (e) {
+      debugPrint('getOrCreateMyCode error: $e');
+      return null;
+    }
+  }
+  
+  /// يجلب عدد الأشخاص الذين استخدموا كودي
+  static Future<int> getMyInviteCount(String email) async {
+    try {
+      final data = await supabase
+          .from('referral_uses')
+          .select('id')
+          .eq('code_owner_email', email);
+      return (data as List).length;
+    } catch (e) {
+      return 0;
+    }
+  }
+  
+  /// يجلب قائمة من استخدموا كودي
+  static Future<List<Map<String, dynamic>>> getMyReferrals(String email) async {
+    try {
+      final data = await supabase
+          .from('referral_uses')
+          .select()
+          .eq('code_owner_email', email)
+          .order('created_at', ascending: false);
+      return List<Map<String, dynamic>>.from(data);
+    } catch (e) {
+      return [];
+    }
+  }
+  
+  /// هل استخدمت كوداً من قبل؟
+  static Future<bool> hasUsedCode(String email) async {
+    try {
+      final data = await supabase
+          .from('referral_uses')
+          .select('id')
+          .eq('used_by_email', email)
+          .limit(1);
+      return (data as List).isNotEmpty;
+    } catch (e) {
+      return false;
+    }
+  }
+  
+  /// تفعيل كود
+  static Future<Map<String, dynamic>> redeemCode({
+    required String code,
+    required String email,
+  }) async {
+    try {
+      final result = await supabase.rpc('redeem_referral_code', params: {
+        'p_code': code.toUpperCase().trim(),
+        'p_user_email': email,
+      });
+      return Map<String, dynamic>.from(result as Map);
+    } catch (e) {
+      debugPrint('redeemCode error: $e');
+      return {'success': false, 'error': 'خطأ في الاتصال: $e'};
+    }
+  }
+}
+
+// ============ ReferralScreen ============
+class ReferralScreen extends StatefulWidget {
+  final String userEmail;
+  final String userName;
+  const ReferralScreen({
+    super.key,
+    required this.userEmail,
+    required this.userName,
+  });
+  
+  @override
+  State<ReferralScreen> createState() => _ReferralScreenState();
+}
+
+class _ReferralScreenState extends State<ReferralScreen> {
+  final _codeCtrl = TextEditingController();
+  String? _myCode;
+  bool _loading = true;
+  bool _redeeming = false;
+  int _inviteCount = 0;
+  List<Map<String, dynamic>> _referrals = [];
+  bool _hasUsedCode = false;
+  
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+  
+  @override
+  void dispose() {
+    _codeCtrl.dispose();
+    super.dispose();
+  }
+  
+  Future<void> _loadData() async {
+    setState(() => _loading = true);
+    try {
+      final code = await ReferralHelper.getOrCreateMyCode(widget.userEmail);
+      final count = await ReferralHelper.getMyInviteCount(widget.userEmail);
+      final refs = await ReferralHelper.getMyReferrals(widget.userEmail);
+      final used = await ReferralHelper.hasUsedCode(widget.userEmail);
+      
+      if (!mounted) return;
+      setState(() {
+        _myCode = code;
+        _inviteCount = count;
+        _referrals = refs;
+        _hasUsedCode = used;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+    }
+  }
+  
+  Future<void> _redeem() async {
+    final code = _codeCtrl.text.trim();
+    if (code.isEmpty) {
+      showKitabiSnack(context, 'اكتب كود صديقك');
+      return;
+    }
+    
+    setState(() => _redeeming = true);
+    
+    final result = await ReferralHelper.redeemCode(
+      code: code,
+      email: widget.userEmail,
+    );
+    
+    if (!mounted) return;
+    setState(() => _redeeming = false);
+    
+    if (result['success'] == true) {
+      showKitabiSnack(context, '🎉 تم التفعيل! +3 أيام Plus لك، +7 أيام لصديقك');
+      _codeCtrl.clear();
+      _loadData();
+    } else {
+      showKitabiSnack(context, result['error']?.toString() ?? 'فشل التفعيل');
+    }
+  }
+  
+  void _copyCode() {
+    if (_myCode == null) return;
+    Clipboard.setData(ClipboardData(text: _myCode!));
+    showKitabiSnack(context, '📋 تم نسخ الكود');
+  }
+  
+  void _shareCode() {
+    if (_myCode == null) return;
+    final msg = 'مرحباً! استخدم كودي "$_myCode" في تطبيق كتابي '
+                'وستحصل على 3 أيام Plus مجاناً! 🎁';
+    Clipboard.setData(ClipboardData(text: msg));
+    showKitabiSnack(context, '📋 تم نسخ رسالة الدعوة');
+  }
+  
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('كود الهدية 🎁'),
+        centerTitle: true,
+      ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // === كودي ===
+                  Card(
+                    elevation: 2,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        children: [
+                          const Icon(Icons.card_giftcard,
+                              size: 48, color: Color(0xFF1565C0)),
+                          const SizedBox(height: 12),
+                          const Text('كودك الخاص',
+                              style: TextStyle(
+                                  fontSize: 16, fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 20, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF1565C0).withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                  color: const Color(0xFF1565C0), width: 2),
+                            ),
+                            child: Text(
+                              _myCode ?? '...',
+                              style: const TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 2,
+                                fontFamily: 'monospace',
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: ElevatedButton.icon(
+                                  onPressed: _copyCode,
+                                  icon: const Icon(Icons.copy),
+                                  label: const Text('نسخ'),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: ElevatedButton.icon(
+                                  onPressed: _shareCode,
+                                  icon: const Icon(Icons.share),
+                                  label: const Text('مشاركة'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF00897B),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'استخدمه $_inviteCount مرة',
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 16),
+                  
+                  // === استخدم كود صديق ===
+                  Card(
+                    elevation: 2,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          const Text('🎁 استخدم كود صديق',
+                              style: TextStyle(
+                                  fontSize: 16, fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 8),
+                          Text(
+                            _hasUsedCode
+                                ? 'استخدمت كوداً من قبل ✓'
+                                : 'اكتب كود صديقك واحصل على 3 أيام Plus مجاناً!',
+                            style: TextStyle(
+                              color: _hasUsedCode
+                                  ? Colors.green
+                                  : Colors.grey[600],
+                              fontSize: 13,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          TextField(
+                            controller: _codeCtrl,
+                            enabled: !_hasUsedCode,
+                            textCapitalization: TextCapitalization.characters,
+                            decoration: InputDecoration(
+                              hintText: 'KITABI-XXXXXX',
+                              prefixIcon: const Icon(Icons.vpn_key),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          ElevatedButton.icon(
+                            onPressed: (_redeeming || _hasUsedCode)
+                                ? null
+                                : _redeem,
+                            icon: _redeeming
+                                ? const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white),
+                                  )
+                                : const Icon(Icons.check_circle),
+                            label: Text(_redeeming ? 'جاري...' : 'تفعيل الكود'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF00897B),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 16),
+                  
+                  // === قائمة من استخدموا كودي ===
+                  if (_referrals.isNotEmpty)
+                    Card(
+                      elevation: 2,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('👥 من استخدم كودك ($_inviteCount)',
+                                style: const TextStyle(
+                                    fontSize: 16, fontWeight: FontWeight.bold)),
+                            const SizedBox(height: 12),
+                            ..._referrals.map((r) => ListTile(
+                                  leading: const CircleAvatar(
+                                    child: Icon(Icons.person),
+                                  ),
+                                  title: Text(r['used_by_name'] ?? 'مستخدم'),
+                                  subtitle: Text(
+                                    '+7 أيام لك',
+                                    style: const TextStyle(
+                                        color: Colors.green, fontSize: 12),
+                                  ),
+                                )),
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+    );
+  }
 }
