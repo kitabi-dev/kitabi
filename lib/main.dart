@@ -3570,6 +3570,7 @@ class _AccountTabState extends State<AccountTab> {
   int _achievements = 0;
   int _pendingRequests = 0;
   bool _darkMode = false;
+  bool _isPlus = false;
 
   @override
   void initState() {
@@ -3616,6 +3617,18 @@ class _AccountTabState extends State<AccountTab> {
       _achievements = stats['achievements'] ?? 0;
     });
     await _loadPendingRequests();
+    await _checkPlus();
+  }
+
+  Future<void> _checkPlus() async {
+    if (_email.isEmpty) return;
+    try {
+      final isPlus = await SubscriptionHelper.isPlusUser(_email);
+      if (!mounted) return;
+      setState(() => _isPlus = isPlus);
+    } catch (e) {
+      debugPrint('Check plus error: $e');
+    }
   }
 
   Future<void> _logout() async {
@@ -3756,11 +3769,55 @@ class _AccountTabState extends State<AccountTab> {
                     ],
                   ),
                   const SizedBox(height: 15),
-                  Text(_name,
-                      style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold)),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      if (_isPlus) ...[
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFFFFD700), Color(0xFFFFA000)],
+                            ),
+                            borderRadius: BorderRadius.circular(14),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFFFFD700).withOpacity(0.5),
+                                blurRadius: 10,
+                                offset: const Offset(0, 3),
+                              ),
+                            ],
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.star, color: Colors.white, size: 14),
+                              SizedBox(width: 4),
+                              Text('PLUS',
+                                  style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: 1.2)),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                      ],
+                      Flexible(
+                        child: Text(
+                          _name,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                   const SizedBox(height: 6),
                   Container(
                     padding: const EdgeInsets.symmetric(
@@ -3909,7 +3966,7 @@ class _AccountTabState extends State<AccountTab> {
                     showAboutDialog(
                       context: context,
                       applicationName: 'KITABI',
-                      applicationVersion: '0.1.0',
+                      applicationVersion: '1.0.0',
                       applicationIcon: const Icon(Icons.menu_book,
                           size: 40, color: Color(0xFF1565C0)),
                       children: const [
@@ -4140,7 +4197,7 @@ class _AccountTabState extends State<AccountTab> {
                 showAboutDialog(
                   context: context,
                   applicationName: 'KITABI',
-                  applicationVersion: '0.3.0',
+                  applicationVersion: '1.0.0',
                   applicationIcon: const Icon(Icons.menu_book,
                       size: 40, color: Color(0xFF1565C0)),
                   children: const [
@@ -14991,6 +15048,88 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
     );
   }
 
+  Future<void> _showPlusUsers() async {
+    try {
+      final now = DateTime.now().toIso8601String();
+      final subsData = await supabase
+          .from('subscriptions')
+          .select()
+          .eq('is_active', true)
+          .gte('expires_at', now)
+          .order('expires_at', ascending: false);
+
+      if (!mounted) return;
+
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20)),
+          title: Row(
+            children: [
+              const Icon(Icons.star, color: Color(0xFFFFD700)),
+              const SizedBox(width: 8),
+              Text('مشتركو Plus (${subsData.length})'),
+            ],
+          ),
+          content: SizedBox(
+            width: double.maxFinite,
+            height: 400,
+            child: subsData.isEmpty
+                ? const Center(child: Text('لا يوجد مشتركون حالياً'))
+                : ListView.builder(
+                    itemCount: subsData.length,
+                    itemBuilder: (_, i) {
+                      final sub = subsData[i];
+                      final exp = DateTime.tryParse(sub['expires_at']);
+                      final daysLeft = exp != null
+                          ? exp.difference(DateTime.now()).inDays
+                          : 0;
+                      return ListTile(
+                        leading: const CircleAvatar(
+                          backgroundColor: Color(0xFFFFD700),
+                          child: Icon(Icons.star,
+                              color: Colors.white, size: 20),
+                        ),
+                        title: Text(sub['user_name'] ?? 'مستخدم',
+                            style: const TextStyle(fontSize: 13)),
+                        subtitle: Text(sub['user_email'] ?? '',
+                            style: const TextStyle(fontSize: 10)),
+                        trailing: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: daysLeft > 3
+                                ? Colors.green.withOpacity(0.15)
+                                : Colors.orange.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text('$daysLeft يوم',
+                              style: TextStyle(
+                                  color: daysLeft > 3
+                                      ? Colors.green
+                                      : Colors.orange,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 11)),
+                        ),
+                      );
+                    },
+                  ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('إغلاق'),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      showKitabiSnack(context, 'خطأ: $e');
+    }
+  }
+
   Widget _panel() {
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -15105,6 +15244,28 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
                       builder: (_) => const SubscriptionsListScreen()),
                 );
               }),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _bigCard('كود الهدية', 'إحصائيات',
+                  Icons.card_giftcard_rounded, const Color(0xFFE91E63),
+                  () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const ReferralStatsScreen()),
+                );
+              }),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _bigCard('Plus', 'المستخدمون',
+                  Icons.star_rounded, const Color(0xFFFFD700),
+                  () => _showPlusUsers()),
             ),
           ],
         ),
@@ -16909,6 +17070,322 @@ class _ReferralScreenState extends State<ReferralScreen> {
                 ],
               ),
             ),
+    );
+  }
+}
+
+
+// ==================================================
+// ReferralStatsScreen — إحصائيات كود الهدية
+// ==================================================
+class ReferralStatsScreen extends StatefulWidget {
+  const ReferralStatsScreen({super.key});
+  @override
+  State<ReferralStatsScreen> createState() => _ReferralStatsScreenState();
+}
+
+class _ReferralStatsScreenState extends State<ReferralStatsScreen> {
+  List<Map<String, dynamic>> _uses = [];
+  List<Map<String, dynamic>> _subs = [];
+  Map<String, int> _topInviters = {};
+  bool _loading = true;
+  String _search = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    try {
+      final usesData = await supabase
+          .from('referral_uses')
+          .select()
+          .order('created_at', ascending: false);
+      final subsData = await supabase
+          .from('subscriptions')
+          .select()
+          .eq('is_active', true)
+          .order('expires_at', ascending: false);
+
+      final Map<String, int> counts = {};
+      for (var u in usesData) {
+        final owner = u['code_owner_name'] ?? 'مجهول';
+        counts[owner] = (counts[owner] ?? 0) + 1;
+      }
+      final sorted = Map.fromEntries(
+        counts.entries.toList()..sort((a, b) => b.value.compareTo(a.value)),
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _uses = List<Map<String, dynamic>>.from(usesData);
+        _subs = List<Map<String, dynamic>>.from(subsData);
+        _topInviters = Map<String, int>.from(sorted);
+        _loading = false;
+      });
+    } catch (e) {
+      debugPrint('Load referral stats error: $e');
+      if (!mounted) return;
+      setState(() => _loading = false);
+    }
+  }
+
+  int get _activePlusCount {
+    final now = DateTime.now();
+    return _subs.where((s) {
+      final exp = DateTime.tryParse(s['expires_at']?.toString() ?? '');
+      return exp != null && exp.isAfter(now);
+    }).length;
+  }
+
+  Future<void> _exportCSV() async {
+    try {
+      final dir = await getApplicationDocumentsDirectory();
+      final file = File(
+          '${dir.path}/referral_stats_${DateTime.now().millisecondsSinceEpoch}.csv');
+      final buffer = StringBuffer();
+      buffer.writeln('owner,used_by,code,owner_days,user_days,date');
+      for (var u in _uses) {
+        buffer.writeln([
+          u['code_owner_name'] ?? '',
+          u['used_by_name'] ?? '',
+          u['invite_code'] ?? '',
+          u['owner_reward_days'] ?? 0,
+          u['user_reward_days'] ?? 0,
+          u['created_at'] ?? '',
+        ].join(','));
+      }
+      await file.writeAsString(buffer.toString());
+      if (!mounted) return;
+      showKitabiSnack(context, 'تم التصدير');
+    } catch (e) {
+      if (!mounted) return;
+      showKitabiSnack(context, 'فشل التصدير: $e');
+    }
+  }
+
+  List<Map<String, dynamic>> get _filteredUses {
+    if (_search.isEmpty) return _uses;
+    final q = _search.toLowerCase();
+    return _uses.where((u) {
+      return (u['code_owner_name']?.toString().toLowerCase().contains(q) ?? false) ||
+             (u['used_by_name']?.toString().toLowerCase().contains(q) ?? false) ||
+             (u['invite_code']?.toString().toLowerCase().contains(q) ?? false);
+    }).toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('إحصائيات كود الهدية'),
+          backgroundColor: const Color(0xFFE91E63),
+          foregroundColor: Colors.white,
+        ),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('إحصائيات كود الهدية'),
+        backgroundColor: const Color(0xFFE91E63),
+        foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.file_download),
+            tooltip: 'تصدير CSV',
+            onPressed: _uses.isEmpty ? null : _exportCSV,
+          ),
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _load,
+          ),
+        ],
+      ),
+      body: RefreshIndicator(
+        onRefresh: _load,
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: _statCard('إجمالي الاستخدامات',
+                      '${_uses.length}', Icons.card_giftcard,
+                      const Color(0xFFE91E63)),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _statCard('مشتركو Plus',
+                      '$_activePlusCount', Icons.star,
+                      const Color(0xFFFFD700)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: _statCard('أكواد مستخدمة',
+                      '${_uses.map((u) => u['invite_code']).toSet().length}',
+                      Icons.vpn_key, const Color(0xFF7B1FA2)),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _statCard('مستخدمون مميزون',
+                      '${_topInviters.length}', Icons.emoji_events,
+                      const Color(0xFFEF6C00)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            if (_topInviters.isNotEmpty) ...[
+              const Text('أكثر 5 مستخدمين دعوة',
+                  style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1A1A1A))),
+              const SizedBox(height: 10),
+              Card(
+                elevation: 2,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16)),
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    children: _topInviters.entries.take(5).toList().asMap().entries.map((entry) {
+                      final idx = entry.key;
+                      final item = entry.value;
+                      final medals = ['1', '2', '3', '4', '5'];
+                      return ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: const Color(0xFFE91E63),
+                          child: Text(medals[idx],
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold)),
+                        ),
+                        title: Text(item.key,
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold)),
+                        trailing: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFE91E63).withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text('${item.value} دعوة',
+                              style: const TextStyle(
+                                  color: Color(0xFFE91E63),
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12)),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+            ],
+            TextField(
+              onChanged: (v) => setState(() => _search = v),
+              decoration: InputDecoration(
+                hintText: 'ابحث بالاسم أو الكود...',
+                prefixIcon: const Icon(Icons.search),
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text('سجل الاستخدامات (${_filteredUses.length})',
+                style: const TextStyle(
+                    fontSize: 16, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            if (_filteredUses.isEmpty)
+              Container(
+                padding: const EdgeInsets.all(40),
+                child: Column(
+                  children: [
+                    Icon(Icons.inbox, size: 60, color: Colors.grey[400]),
+                    const SizedBox(height: 10),
+                    Text('لا توجد استخدامات',
+                        style: TextStyle(color: Colors.grey[600])),
+                  ],
+                ),
+              )
+            else
+              ..._filteredUses.map((u) => Card(
+                    elevation: 1,
+                    margin: const EdgeInsets.only(bottom: 8),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                    child: ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor: const Color(0xFFE91E63).withOpacity(0.15),
+                        child: const Icon(Icons.card_giftcard,
+                            color: Color(0xFFE91E63), size: 20),
+                      ),
+                      title: Text(
+                          '${u['code_owner_name']} - ${u['used_by_name']}',
+                          style: const TextStyle(
+                              fontSize: 13, fontWeight: FontWeight.w600)),
+                      subtitle: Text(
+                          'الكود: ${u['invite_code']}',
+                          style: const TextStyle(fontSize: 11)),
+                      trailing: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text('+${u['owner_reward_days']} لصاحبه',
+                              style: const TextStyle(
+                                  color: Colors.green, fontSize: 10)),
+                          Text('+${u['user_reward_days']} للمستخدم',
+                              style: const TextStyle(
+                                  color: Colors.blue, fontSize: 10)),
+                        ],
+                      ),
+                    ),
+                  )),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _statCard(String label, String value, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: color, size: 28),
+          const SizedBox(height: 8),
+          Text(value,
+              style: TextStyle(
+                  fontSize: 26, fontWeight: FontWeight.bold, color: color)),
+          const SizedBox(height: 2),
+          Text(label,
+              style: TextStyle(
+                  fontSize: 12,
+                  color: color.withOpacity(0.8),
+                  fontWeight: FontWeight.w600)),
+        ],
+      ),
     );
   }
 }
