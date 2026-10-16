@@ -8090,7 +8090,8 @@ class _AddSubscriptionScreenState extends State<AddSubscriptionScreen> {
   bool _loading = true;
   String _search = '';
   String _selectedDuration = '1';
-  String? _selectedUser;
+  String? _selectedUserEmail;
+  String? _selectedUserName;
 
   @override
   void initState() {
@@ -8118,8 +8119,8 @@ class _AddSubscriptionScreenState extends State<AddSubscriptionScreen> {
   }
 
   Future<void> _activate() async {
-    if (_selectedUser == null) {
-      showKitabiSnack(context, 'اختر مستخدماً');
+    if (_selectedUserEmail == null || _selectedUserEmail!.isEmpty) {
+      showKitabiSnack(context, 'اختر مستخدماً لديه إيميل');
       return;
     }
 
@@ -8132,7 +8133,7 @@ class _AddSubscriptionScreenState extends State<AddSubscriptionScreen> {
       final existing = await supabase
           .from('subscriptions')
           .select('id')
-          .eq('user_name', _selectedUser!)
+          .eq('user_email', _selectedUserEmail!)
           .eq('is_active', true)
           .limit(1);
 
@@ -8141,21 +8142,23 @@ class _AddSubscriptionScreenState extends State<AddSubscriptionScreen> {
         await supabase.from('subscriptions').update({
           'expires_at': expires.toIso8601String(),
           'started_at': now.toIso8601String(),
+          'starts_at': now.toIso8601String(),
         }).eq('id', existing[0]['id']);
       } else {
         // نضيف جديد
         await supabase.from('subscriptions').insert({
-          'user_name': _selectedUser,
+          'user_email': _selectedUserEmail,
+          'user_name': _selectedUserName,
           'plan': 'plus',
-          'started_at': now.toIso8601String(),
-          'expires_at': expires.toIso8601String(),
           'is_active': true,
+          'started_at': now.toIso8601String(),
+          'starts_at': now.toIso8601String(),
+          'expires_at': expires.toIso8601String(),
         });
       }
 
       if (!mounted) return;
-      showKitabiSnack(
-          context, 'تم تفعيل بلس لـ $_selectedUser ($months شهر)');
+      showKitabiSnack(context, '✅ تم تفعيل Plus بنجاح');
       Navigator.pop(context);
     } catch (e) {
       if (!mounted) return;
@@ -8163,7 +8166,7 @@ class _AddSubscriptionScreenState extends State<AddSubscriptionScreen> {
     }
   }
 
-  @override
+    @override
   Widget build(BuildContext context) {
     final filtered = _search.isEmpty
         ? _users
@@ -8240,7 +8243,7 @@ class _AddSubscriptionScreenState extends State<AddSubscriptionScreen> {
                       ),
           ),
           // زر التفعيل
-          if (_selectedUser != null)
+          if (_selectedUserEmail != null)
             Container(
               padding: const EdgeInsets.all(16),
               color: Colors.white,
@@ -8301,7 +8304,9 @@ class _AddSubscriptionScreenState extends State<AddSubscriptionScreen> {
 
   Widget _userCard(Map<String, dynamic> user) {
     final name = (user['name'] ?? '').toString();
-    final isSelected = _selectedUser == name;
+    final email = (user['email'] ?? '').toString();
+    final hasEmail = email.isNotEmpty && email != 'null';
+    final isSelected = _selectedUserEmail == email;
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
@@ -8317,20 +8322,41 @@ class _AddSubscriptionScreenState extends State<AddSubscriptionScreen> {
         ),
       ),
       child: ListTile(
-        onTap: () => setState(() => _selectedUser = name),
+        onTap: hasEmail
+            ? () => setState(() {
+                  _selectedUserEmail = email;
+                  _selectedUserName = name;
+                })
+            : () => showKitabiSnack(context,
+                'هذا المستخدم لا يملك إيميل — لا يمكن إضافة اشتراك'),
         leading: CircleAvatar(
-          backgroundColor: const Color(0xFF1565C0),
+          backgroundColor: hasEmail
+              ? const Color(0xFF1565C0)
+              : Colors.grey,
           child: Text(
             name.isNotEmpty ? name[0] : '؟',
             style: const TextStyle(
                 color: Colors.white, fontWeight: FontWeight.bold),
           ),
         ),
-        title: Text(name,
-            style: const TextStyle(
-                fontWeight: FontWeight.bold, fontSize: 14)),
-        subtitle: Text('${user['grade']} • ${user['muraqaba']}',
-            style: const TextStyle(fontSize: 11)),
+        title: Text(
+          hasEmail ? name : '$name (بدون إيميل)',
+          style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+              color: hasEmail ? const Color(0xFF1A1A1A) : Colors.grey),
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('\${user['grade']} • \${user['muraqaba']}',
+                style: const TextStyle(fontSize: 11)),
+            if (hasEmail)
+              Text(email,
+                  style: const TextStyle(
+                      fontSize: 10, color: Color(0xFF666666))),
+          ],
+        ),
         trailing: isSelected
             ? const Icon(Icons.check_circle,
                 color: Color(0xFFFFA000), size: 26)
