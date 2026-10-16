@@ -1971,9 +1971,9 @@ class HomeTab extends StatelessWidget {
               crossAxisCount: 3,
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-              childAspectRatio: 1,
+              crossAxisSpacing: 8,
+              mainAxisSpacing: 8,
+              childAspectRatio: 0.95,
               children: [
                 _quickBtn(context, 'المكتبة', Icons.menu_book_rounded,
                     const LinearGradient(
@@ -2069,10 +2069,20 @@ class HomeTab extends StatelessWidget {
                         builder: (_) => const SheetsScreen()),
                   );
                 }),
+                _quickBtn(context, 'آلة حاسبة', Icons.calculate_rounded,
+                    const LinearGradient(
+                        colors: [Color(0xFFE91E63), Color(0xFFFF5C8A)]),
+                    () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const CalculatorScreen()),
+                  );
+                }),
               ],
             ),
           ),
-          const SizedBox(height: 0),
+          const SizedBox(height: 18),
           // ===== الصفوف الدراسية الليبية =====
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 20),
@@ -17406,6 +17416,574 @@ class _ReferralStatsScreenState extends State<ReferralStatsScreen> {
                   fontSize: 12,
                   color: color.withOpacity(0.8),
                   fontWeight: FontWeight.w600)),
+        ],
+      ),
+    );
+  }
+}
+
+// ==================================================
+// CalculatorScreen — آلة حاسبة علمية متطورة
+// ==================================================
+class CalculatorScreen extends StatefulWidget {
+  const CalculatorScreen({super.key});
+  @override
+  State<CalculatorScreen> createState() => _CalculatorScreenState();
+}
+
+class _CalculatorScreenState extends State<CalculatorScreen> {
+  String _display = '0';
+  String _expression = '';
+  String _lastResult = '';
+  double? _memory;
+  bool _isScientific = false;
+  bool _showHistory = false;
+  List<Map<String, String>> _history = [];
+  final ScrollController _historyScroll = ScrollController();
+
+  @override
+  void dispose() {
+    _historyScroll.dispose();
+    super.dispose();
+  }
+
+  void _haptic() {
+    HapticFeedback.lightImpact();
+  }
+
+  void _onBtn(String value) {
+    _haptic();
+    setState(() {
+      // الأرقام
+      if (RegExp(r'^[0-9]$').hasMatch(value)) {
+        if (_display == '0' || _display == 'خطأ') {
+          _display = value;
+        } else {
+          _display += value;
+        }
+      }
+      // النقطة العشرية
+      else if (value == '.') {
+        if (!_display.contains('.')) {
+          _display += '.';
+        }
+      }
+      // العمليات
+      else if (value == '+' || value == '-' || value == '×' || value == '÷') {
+        _expression += _display + ' ' + value + ' ';
+        _display = '0';
+      }
+      // يساوي
+      else if (value == '=') {
+        _calculate();
+      }
+      // مسح الكل
+      else if (value == 'C') {
+        _display = '0';
+        _expression = '';
+      }
+      // مسح الحرف الأخير
+      else if (value == '⌫') {
+        if (_display.length > 1) {
+          _display = _display.substring(0, _display.length - 1);
+        } else {
+          _display = '0';
+        }
+      }
+      // تغيير الإشارة
+      else if (value == '±') {
+        if (_display.startsWith('-')) {
+          _display = _display.substring(1);
+        } else if (_display != '0') {
+          _display = '-' + _display;
+        }
+      }
+      // النسبة
+      else if (value == '%') {
+        final n = double.tryParse(_display) ?? 0;
+        _display = (n / 100).toString();
+      }
+      // الدوال العلمية
+      else if (value == 'sin' || value == 'cos' || value == 'tan' ||
+               value == 'log' || value == 'ln' || value == '√') {
+        _applyScientific(value);
+      }
+      else if (value == 'x²') {
+        final n = double.tryParse(_display) ?? 0;
+        _display = (n * n).toString();
+      }
+      else if (value == 'x³') {
+        final n = double.tryParse(_display) ?? 0;
+        _display = (n * n * n).toString();
+      }
+      else if (value == '1/x') {
+        final n = double.tryParse(_display) ?? 0;
+        if (n != 0) {
+          _display = (1 / n).toString();
+        } else {
+          _display = 'خطأ';
+        }
+      }
+      else if (value == 'π') {
+        _display = (3.141592653589793).toString();
+      }
+      else if (value == 'e') {
+        _display = (2.718281828459045).toString();
+      }
+      else if (value == '!') {
+        final n = int.tryParse(_display) ?? 0;
+        if (n >= 0 && n <= 170) {
+          double r = 1;
+          for (int i = 2; i <= n; i++) {
+            r *= i;
+          }
+          _display = r.toString();
+        } else {
+          _display = 'خطأ';
+        }
+      }
+      else if (value == '(' || value == ')') {
+        _expression += value;
+      }
+      // الذاكرة
+      else if (value == 'M+') {
+        _memory = (_memory ?? 0) + (double.tryParse(_display) ?? 0);
+        _display = '0';
+      }
+      else if (value == 'M-') {
+        _memory = (_memory ?? 0) - (double.tryParse(_display) ?? 0);
+        _display = '0';
+      }
+      else if (value == 'MR') {
+        if (_memory != null) _display = _memory.toString();
+      }
+      else if (value == 'MC') {
+        _memory = null;
+      }
+    });
+  }
+
+  void _applyScientific(String fn) {
+    final n = double.tryParse(_display);
+    if (n == null) {
+      _display = 'خطأ';
+      return;
+    }
+    double result;
+    switch (fn) {
+      case 'sin':
+        result = _sin(n);
+        break;
+      case 'cos':
+        result = _cos(n);
+        break;
+      case 'tan':
+        result = _tan(n);
+        break;
+      case 'log':
+        result = n > 0 ? (_log10(n)) : double.nan;
+        break;
+      case 'ln':
+        result = n > 0 ? (_ln(n)) : double.nan;
+        break;
+      case '√':
+        result = n >= 0 ? (_sqrt(n)) : double.nan;
+        break;
+      default:
+        result = double.nan;
+    }
+    _display = result.isNaN ? 'خطأ' : result.toString();
+  }
+
+  // دوال رياضية بدون dart:math
+  double _sin(double x) {
+    // تقدير بواسطة Taylor series
+    double xr = x % (2 * 3.141592653589793);
+    double term = xr;
+    double sum = xr;
+    for (int i = 1; i < 10; i++) {
+      term *= -xr * xr / ((2 * i) * (2 * i + 1));
+      sum += term;
+    }
+    return sum;
+  }
+
+  double _cos(double x) {
+    double xr = x % (2 * 3.141592653589793);
+    double term = 1.0;
+    double sum = 1.0;
+    for (int i = 1; i < 10; i++) {
+      term *= -xr * xr / ((2 * i - 1) * (2 * i));
+      sum += term;
+    }
+    return sum;
+  }
+
+  double _tan(double x) {
+    return _sin(x) / _cos(x);
+  }
+
+  double _ln(double x) {
+    if (x <= 0) return double.nan;
+    // تقريب ln(x)
+    double y = (x - 1) / (x + 1);
+    double y2 = y * y;
+    double sum = 0;
+    double term = y;
+    for (int i = 0; i < 100; i++) {
+      sum += term / (2 * i + 1);
+      term *= y2;
+    }
+    return 2 * sum;
+  }
+
+  double _log10(double x) {
+    return _ln(x) / _ln(10);
+  }
+
+  double _sqrt(double x) {
+    if (x < 0) return double.nan;
+    if (x == 0) return 0;
+    double guess = x / 2;
+    for (int i = 0; i < 20; i++) {
+      guess = (guess + x / guess) / 2;
+    }
+    return guess;
+  }
+
+  void _calculate() {
+    try {
+      final expr = _expression + _display;
+      final result = _evaluate(expr);
+      _lastResult = expr + ' = ' + result;
+      _history.insert(0, {
+        'expr': expr,
+        'result': result,
+      });
+      if (_history.length > 50) _history.removeLast();
+      _display = result;
+      _expression = '';
+    } catch (e) {
+      _display = 'خطأ';
+    }
+  }
+
+  String _evaluate(String expr) {
+    // إزالة المسافات
+    expr = expr.replaceAll(' ', '');
+    // استبدال الرموز
+    expr = expr.replaceAll('×', '*');
+    expr = expr.replaceAll('÷', '/');
+    // معالجة القسمة على صفر
+    if (expr.contains('/0') && !expr.contains('/0.')) {
+      return 'خطأ';
+    }
+    // تقييم بسيط
+    final result = _parseExpression(expr);
+    if (result.isNaN || result.isInfinite) {
+      return 'خطأ';
+    }
+    // تنسيق النتيجة
+    if (result == result.toInt().toDouble()) {
+      return result.toInt().toString();
+    }
+    return result.toStringAsFixed(10).replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), '');
+  }
+
+  double _parseExpression(String expr) {
+    // إزالة الأقواس الخارجية
+    while (expr.startsWith('(') && expr.endsWith(')')) {
+      expr = expr.substring(1, expr.length - 1);
+    }
+    // البحث عن آخر + أو -
+    int depth = 0;
+    for (int i = expr.length - 1; i >= 0; i--) {
+      final c = expr[i];
+      if (c == ')') depth++;
+      if (c == '(') depth--;
+      if (depth == 0 && (c == '+' || c == '-') && i > 0) {
+        final left = _parseExpression(expr.substring(0, i));
+        final right = _parseExpression(expr.substring(i + 1));
+        return c == '+' ? left + right : left - right;
+      }
+    }
+    // البحث عن آخر * أو /
+    depth = 0;
+    for (int i = expr.length - 1; i >= 0; i--) {
+      final c = expr[i];
+      if (c == ')') depth++;
+      if (c == '(') depth--;
+      if (depth == 0 && (c == '*' || c == '/')) {
+        final left = _parseExpression(expr.substring(0, i));
+        final right = _parseExpression(expr.substring(i + 1));
+        if (c == '*') return left * right;
+        if (right == 0) return double.nan;
+        return left / right;
+      }
+    }
+    // رقم
+    return double.tryParse(expr) ?? 0;
+  }
+
+  Widget _btn(String label, {
+    Color? color,
+    Color? textColor,
+    VoidCallback? onTap,
+    int flex = 1,
+  }) {
+    return Expanded(
+      flex: flex,
+      child: Padding(
+        padding: const EdgeInsets.all(4),
+        child: Material(
+          color: color ?? Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          elevation: 1,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: onTap ?? () => _onBtn(label),
+            child: Container(
+              height: 60,
+              alignment: Alignment.center,
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: textColor ?? const Color(0xFF1A1A1A),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBasicMode() {
+    const blue = Color(0xFF1565C0);
+    const orange = Color(0xFFEF6C00);
+    return Column(
+      children: [
+        Row(children: [
+          _btn('C', color: Colors.red.shade50, textColor: Colors.red),
+          _btn('⌫', color: Colors.orange.shade50, textColor: orange),
+          _btn('%', color: Colors.orange.shade50, textColor: orange),
+          _btn('÷', color: blue, textColor: Colors.white),
+        ]),
+        Row(children: [
+          _btn('7'),
+          _btn('8'),
+          _btn('9'),
+          _btn('×', color: blue, textColor: Colors.white),
+        ]),
+        Row(children: [
+          _btn('4'),
+          _btn('5'),
+          _btn('6'),
+          _btn('-', color: blue, textColor: Colors.white),
+        ]),
+        Row(children: [
+          _btn('1'),
+          _btn('2'),
+          _btn('3'),
+          _btn('+', color: blue, textColor: Colors.white),
+        ]),
+        Row(children: [
+          _btn('±'),
+          _btn('0'),
+          _btn('.'),
+          _btn('=', color: orange, textColor: Colors.white),
+        ]),
+      ],
+    );
+  }
+
+  Widget _buildScientificMode() {
+    const blue = Color(0xFF1565C0);
+    const orange = Color(0xFFEF6C00);
+    const purple = Color(0xFF7B1FA2);
+    return Column(
+      children: [
+        Row(children: [
+          _btn('sin', color: purple.withOpacity(0.1), textColor: purple),
+          _btn('cos', color: purple.withOpacity(0.1), textColor: purple),
+          _btn('tan', color: purple.withOpacity(0.1), textColor: purple),
+          _btn('(', color: purple.withOpacity(0.1), textColor: purple),
+        ]),
+        Row(children: [
+          _btn('log', color: purple.withOpacity(0.1), textColor: purple),
+          _btn('ln', color: purple.withOpacity(0.1), textColor: purple),
+          _btn('√', color: purple.withOpacity(0.1), textColor: purple),
+          _btn(')', color: purple.withOpacity(0.1), textColor: purple),
+        ]),
+        Row(children: [
+          _btn('x²', color: purple.withOpacity(0.1), textColor: purple),
+          _btn('x³', color: purple.withOpacity(0.1), textColor: purple),
+          _btn('1/x', color: purple.withOpacity(0.1), textColor: purple),
+          _btn('!', color: purple.withOpacity(0.1), textColor: purple),
+        ]),
+        Row(children: [
+          _btn('π', color: purple.withOpacity(0.1), textColor: purple),
+          _btn('e', color: purple.withOpacity(0.1), textColor: purple),
+          _btn('C', color: Colors.red.shade50, textColor: Colors.red),
+          _btn('⌫', color: Colors.orange.shade50, textColor: orange),
+        ]),
+        Row(children: [
+          _btn('MC', color: purple.withOpacity(0.1), textColor: purple),
+          _btn('MR', color: purple.withOpacity(0.1), textColor: purple),
+          _btn('M+', color: purple.withOpacity(0.1), textColor: purple),
+          _btn('M-', color: purple.withOpacity(0.1), textColor: purple),
+        ]),
+        Row(children: [
+          _btn('%', color: Colors.orange.shade50, textColor: orange),
+          _btn('7'),
+          _btn('8'),
+          _btn('9'),
+          _btn('÷', color: blue, textColor: Colors.white),
+        ]),
+        Row(children: [
+          _btn('±', color: Colors.grey.shade100),
+          _btn('4'),
+          _btn('5'),
+          _btn('6'),
+          _btn('×', color: blue, textColor: Colors.white),
+        ]),
+        Row(children: [
+          _btn('.'),
+          _btn('1'),
+          _btn('2'),
+          _btn('3'),
+          _btn('-', color: blue, textColor: Colors.white),
+        ]),
+        Row(children: [
+          _btn('=', color: orange, textColor: Colors.white, flex: 2),
+          _btn('0'),
+          _btn('+', color: blue, textColor: Colors.white, flex: 2),
+        ]),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF1565C0),
+        foregroundColor: Colors.white,
+        elevation: 0,
+        title: const Text('آلة حاسبة',
+            style: TextStyle(fontWeight: FontWeight.bold)),
+        actions: [
+          IconButton(
+            icon: Icon(_isScientific ? Icons.calculate : Icons.functions),
+            tooltip: _isScientific ? 'بسيطة' : 'علمية',
+            onPressed: () => setState(() => _isScientific = !_isScientific),
+          ),
+          IconButton(
+            icon: Icon(_showHistory ? Icons.history_toggle_off : Icons.history),
+            tooltip: 'السجل',
+            onPressed: () => setState(() => _showHistory = !_showHistory),
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          // شاشة العرض
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(20),
+            decoration: const BoxDecoration(
+              color: Color(0xFF1565C0),
+              borderRadius: BorderRadius.only(
+                bottomLeft: Radius.circular(30),
+                bottomRight: Radius.circular(30),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                if (_expression.isNotEmpty)
+                  Text(
+                    _expression,
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 18,
+                    ),
+                  ),
+                const SizedBox(height: 8),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  reverse: true,
+                  child: Text(
+                    _display,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 48,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                if (_memory != null)
+                  Text(
+                    'M: $_memory',
+                    style: const TextStyle(
+                      color: Colors.amber,
+                      fontSize: 12,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+
+          // السجل
+          if (_showHistory)
+            Container(
+              height: 100,
+              color: Colors.grey.shade100,
+              child: _history.isEmpty
+                  ? const Center(child: Text('لا يوجد سجل'))
+                  : ListView.builder(
+                      controller: _historyScroll,
+                      scrollDirection: Axis.horizontal,
+                      itemCount: _history.length,
+                      padding: const EdgeInsets.all(8),
+                      itemBuilder: (_, i) {
+                        final h = _history[i];
+                        return Container(
+                          margin: const EdgeInsets.only(right: 8),
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(h['expr']!,
+                                  style: const TextStyle(
+                                      fontSize: 11, color: Colors.grey)),
+                              Text(h['result']!,
+                                  style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF1565C0))),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+            ),
+
+          // الأزرار
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(8),
+              child: _isScientific ? _buildScientificMode() : _buildBasicMode(),
+            ),
+          ),
         ],
       ),
     );
