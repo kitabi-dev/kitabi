@@ -1967,118 +1967,64 @@ class HomeTab extends StatelessWidget {
           const SizedBox(height: 22),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: GridView.count(
-              crossAxisCount: 3,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisSpacing: 10,
-              mainAxisSpacing: 10,
-              childAspectRatio: 1.0,
+            child: Column(
               children: [
-                _quickBtn(context, 'المكتبة', Icons.menu_book_rounded,
-                    const LinearGradient(
-                        colors: [Color(0xFF1565C0), Color(0xFF42A5F5)]),
-                    onStartLearning),
-                _quickBtn(context, 'الدورات', Icons.school_rounded,
-                    const LinearGradient(
-                        colors: [Color(0xFF00897B), Color(0xFF26A69A)]),
-                    () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (_) => const CoursesScreen()),
-                  );
-                }),
-                _quickBtn(context, 'المعلم الذكي', Icons.smart_toy_rounded,
-                    const LinearGradient(
-                        colors: [Color(0xFF7B1FA2), Color(0xFFAB47BC)]),
-                    () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (_) => const TeacherAIScreen()),
-                  );
-                }),
-                _quickBtn(context, 'المنتدى', Icons.forum_rounded,
-                    const LinearGradient(
-                        colors: [Color(0xFF283593), Color(0xFF3F51B5)]),
-                    () async {
-                  final prefs = await SharedPreferences.getInstance();
-                  final name = prefs.getString('user_name') ?? '';
-                  final grade = prefs.getString('user_grade') ?? '';
-                  String role = 'student';
-                  try {
-                    final data = await supabase
-                        .from('users')
-                        .select('role')
-                        .eq('name', name)
-                        .limit(1);
-                    if (data.isNotEmpty) {
-                      role = (data[0]['role'] ?? 'student').toString();
-                    }
-                  } catch (_) {}
-                  if (!context.mounted) return;
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => ForumScreen(
-                        userName: name,
-                        userGrade: grade,
-                        userRole: role,
-                      ),
-                    ),
-                  );
-                }),
-                _quickBtn(context, 'الاختبارات', Icons.assignment_rounded,
-                    const LinearGradient(
-                        colors: [Color(0xFFEF6C00), Color(0xFFFFA726)]),
-                    () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (_) => const QuizzesScreen()),
-                  );
-                }),
-                _quickBtn(context, 'ملاحظاتي', Icons.sticky_note_2_rounded,
-                    const LinearGradient(
-                        colors: [Color(0xFF00838F), Color(0xFF00ACC1)]),
-                    () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (_) => const NotesScreen()),
-                  );
-                }),
-                _quickBtn(context, 'فيديوهات', Icons.play_circle_fill_rounded,
-                    const LinearGradient(
-                        colors: [Color(0xFFD32F2F), Color(0xFFEF5350)]),
-                    () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (_) => const VideosScreen()),
-                  );
-                }),
-                _quickBtn(context, 'شيتات وأوراق', Icons.description_rounded,
-                    const LinearGradient(
-                        colors: [Color(0xFF00695C), Color(0xFF26A69A)]),
-                    () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (_) => const SheetsScreen()),
-                  );
-                }),
-                _quickBtn(context, 'آلة حاسبة', Icons.calculate_rounded,
-                    const LinearGradient(
-                        colors: [Color(0xFFE91E63), Color(0xFFFF5C8A)]),
-                    () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (_) => const CalculatorScreen()),
-                  );
-                }),
+                Row(
+                  children: [
+                    Expanded(child: _quickBtn(context, 'المكتبة', Icons.menu_book_rounded,
+                        const LinearGradient(colors: [Color(0xFF1565C0), Color(0xFF42A5F5)]),
+                        () => Navigator.push(context, MaterialPageRoute(
+                            builder: (_) => const LibraryTab())))),
+                    const SizedBox(width: 10),
+                    Expanded(child: _quickBtn(context, 'الدورات', Icons.school_rounded,
+                        const LinearGradient(colors: [Color(0xFF00897B), Color(0xFF26A69A)]),
+                        () => Navigator.push(context, MaterialPageRoute(
+                            builder: (_) => const CoursesScreen())))),
+                    const SizedBox(width: 10),
+                    Expanded(child: _quickBtn(context, 'المعلم الذكي', Icons.smart_toy_rounded,
+                        const LinearGradient(colors: [Color(0xFF7B1FA2), Color(0xFFAB47BC)]),
+                        () => Navigator.push(context, MaterialPageRoute(
+                            builder: (_) => const TeacherAIScreen())))),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(child: _quickBtn(context, 'المنتدى', Icons.forum_rounded,
+                        const LinearGradient(colors: [Color(0xFF283593), Color(0xFF5C6BC0)]),
+                        () => Navigator.push(context, MaterialPageRoute(
+                            builder: (_) => const ForumScreen())))),
+                    const SizedBox(width: 10),
+                    Expanded(child: _quickBtn(context, 'الاختبارات', Icons.assignment_rounded,
+                        const LinearGradient(colors: [Color(0xFFEF6C00), Color(0xFFFFA726)]),
+                        () => Navigator.push(context, MaterialPageRoute(
+                            builder: (_) => const QuizzesScreen())))),
+                    const SizedBox(width: 10),
+                    Expanded(child: _quickBtn(context, 'ملاحظاتي', Icons.sticky_note_2_rounded,
+                        const LinearGradient(colors: [Color(0xFF00838F), Color(0xFF00ACC1)]),
+                        () => Navigator.push(context, MaterialPageRoute(
+                            builder: (_) => const NotesScreen())))),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(child: _quickBtn(context, 'فيديوهات', Icons.play_circle_fill_rounded,
+                        const LinearGradient(colors: [Color(0xFFD32F2F), Color(0xFFEF5350)]),
+                        () => Navigator.push(context, MaterialPageRoute(
+                            builder: (_) => const VideosScreen())))),
+                    const SizedBox(width: 10),
+                    Expanded(child: _quickBtn(context, 'شيتات وأوراق', Icons.description_rounded,
+                        const LinearGradient(colors: [Color(0xFF00695C), Color(0xFF26A69A)]),
+                        () => Navigator.push(context, MaterialPageRoute(
+                            builder: (_) => const SheetsScreen())))),
+                    const SizedBox(width: 10),
+                    Expanded(child: _quickBtn(context, 'آلة حاسبة', Icons.calculate_rounded,
+                        const LinearGradient(colors: [Color(0xFFE91E63), Color(0xFFFF5C8A)]),
+                        () => Navigator.push(context, MaterialPageRoute(
+                            builder: (_) => const CalculatorScreen())))),
+                  ],
+                ),
               ],
             ),
           ),
@@ -2171,74 +2117,73 @@ class HomeTab extends StatelessWidget {
 
   Widget _gradesGrid(
       BuildContext context, List<String> grades, Color color) {
-    return GridView.count(
-      crossAxisCount: 3,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisSpacing: 8,
-      mainAxisSpacing: 8,
-      childAspectRatio: 2.0,
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
       children: grades.map((grade) {
-        return Material(
-          color: Colors.transparent,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(16),
-            onTap: () {
-              // ننتقل للمكتبة
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => GradeSubjectsScreen(
-                    gradeName: grade,
-                    subjects: const [
-                      'الرياضيات', 'اللغة العربية', 'اللغة الإنجليزية',
-                      'التربية الإسلامية', 'الحاسوب', 'العلوم', 'الاجتماعيات',
-                    ],
-                    icons: const {
-                      'الرياضيات': Icons.calculate_rounded,
-                      'اللغة العربية': Icons.translate_rounded,
-                      'اللغة الإنجليزية': Icons.language_rounded,
-                      'التربية الإسلامية': Icons.mosque_rounded,
-                      'الحاسوب': Icons.computer_rounded,
-                      'العلوم': Icons.science_rounded,
-                      'الاجتماعيات': Icons.public_rounded,
-                    },
-                    colors: const {
-                      'الرياضيات': Color(0xFF1565C0),
-                      'اللغة العربية': Color(0xFF00897B),
-                      'اللغة الإنجليزية': Color(0xFF7B1FA2),
-                      'التربية الإسلامية': Color(0xFF00838F),
-                      'الحاسوب': Color(0xFF283593),
-                      'العلوم': Color(0xFFEF6C00),
-                      'الاجتماعيات': Color(0xFFD32F2F),
-                    },
+        return SizedBox(
+          width: (MediaQuery.of(context).size.width - 48) / 3,
+          height: 60,
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(16),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => GradeSubjectsScreen(
+                      gradeName: grade,
+                      subjects: const [
+                        'الرياضيات', 'اللغة العربية', 'اللغة الإنجليزية',
+                        'التربية الإسلامية', 'الحاسوب', 'العلوم', 'الاجتماعيات',
+                      ],
+                      icons: const {
+                        'الرياضيات': Icons.calculate_rounded,
+                        'اللغة العربية': Icons.translate_rounded,
+                        'اللغة الإنجليزية': Icons.language_rounded,
+                        'التربية الإسلامية': Icons.mosque_rounded,
+                        'الحاسوب': Icons.computer_rounded,
+                        'العلوم': Icons.science_rounded,
+                        'الاجتماعيات': Icons.public_rounded,
+                      },
+                      colors: const {
+                        'الرياضيات': Color(0xFF1565C0),
+                        'اللغة العربية': Color(0xFF00897B),
+                        'اللغة الإنجليزية': Color(0xFF7B1FA2),
+                        'التربية الإسلامية': Color(0xFF00838F),
+                        'الحاسوب': Color(0xFF283593),
+                        'العلوم': Color(0xFFEF6C00),
+                        'الاجتماعيات': Color(0xFFD32F2F),
+                      },
+                    ),
                   ),
+                );
+              },
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: color.withOpacity(0.25), width: 1.5),
+                  boxShadow: [
+                    BoxShadow(
+                      color: color.withOpacity(0.1),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
                 ),
-              );
-            },
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: color.withOpacity(0.25), width: 1.5),
-                boxShadow: [
-                  BoxShadow(
-                    color: color.withOpacity(0.1),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
-              ),
-              child: Center(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 6),
-                  child: Text(
-                    grade,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF1A1A1A),
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    child: Text(
+                      grade,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1A1A1A),
+                      ),
                     ),
                   ),
                 ),
@@ -2252,35 +2197,38 @@ class HomeTab extends StatelessWidget {
 
   Widget _quickBtn(BuildContext context, String label, IconData icon,
       Gradient grad, VoidCallback onTap) {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: grad,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: grad.colors.first.withOpacity(0.35),
-            blurRadius: 12,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
+    return AspectRatio(
+      aspectRatio: 1.0,
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: grad,
           borderRadius: BorderRadius.circular(20),
-          onTap: onTap,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, color: Colors.white, size: 30),
-              const SizedBox(height: 8),
-              Text(label,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold)),
-            ],
+          boxShadow: [
+            BoxShadow(
+              color: grad.colors.first.withOpacity(0.35),
+              blurRadius: 12,
+              offset: const Offset(0, 5),
+            ),
+          ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(20),
+            onTap: onTap,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, color: Colors.white, size: 30),
+                const SizedBox(height: 8),
+                Text(label,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold)),
+              ],
+            ),
           ),
         ),
       ),
