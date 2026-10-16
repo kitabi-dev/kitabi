@@ -22,6 +22,9 @@ const String kSupabaseAnonKey = 'sb_publishable_d4ZrC9cHXb8YvzyvlRkeCA_GOMtyzgt'
 // وصول سريع
 final supabase = Supabase.instance.client;
 
+// ValueNotifier للوضع الليلي (يُحدّث التطبيق فورياً)
+final ValueNotifier<bool> darkModeNotifier = ValueNotifier<bool>(false);
+
 // ============ نموذج إحصائيات المستخدم ============
 class UserStats {
   static Future<Map<String, int>> get() async {
@@ -259,14 +262,17 @@ class _KitabiAppInnerState extends State<_KitabiAppInner> {
   Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();
     if (!mounted) return;
+    final dark = prefs.getBool('dark_mode') ?? false;
+    darkModeNotifier.value = dark;
     setState(() {
-      _isDark = prefs.getBool('dark_mode') ?? false;
+      _isDark = dark;
       _loaded = true;
     });
   }
 
   void toggleDark(bool value) async {
     setState(() => _isDark = value);
+    darkModeNotifier.value = value;  // ← التحديث الفوري
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('dark_mode', value);
   }
@@ -283,28 +289,33 @@ class _KitabiAppInnerState extends State<_KitabiAppInner> {
         ),
       );
     }
-    return MaterialApp(
-      title: 'Kitabi',
-      debugShowCheckedModeBanner: false,
-      navigatorKey: _navKey,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF1565C0),
-          brightness: Brightness.light,
-        ),
-        scaffoldBackgroundColor: const Color(0xFFF5F7FA),
-        useMaterial3: true,
-      ),
-      darkTheme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF1565C0),
-          brightness: Brightness.dark,
-        ),
-        scaffoldBackgroundColor: const Color(0xFF121212),
-        useMaterial3: true,
-      ),
-      themeMode: _isDark ? ThemeMode.dark : ThemeMode.light,
-      home: const SplashScreen(),
+    return ValueListenableBuilder<bool>(
+      valueListenable: darkModeNotifier,
+      builder: (context, isDark, _) {
+        return MaterialApp(
+          title: 'Kitabi',
+          debugShowCheckedModeBanner: false,
+          navigatorKey: _navKey,
+          theme: ThemeData(
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: const Color(0xFF1565C0),
+              brightness: Brightness.light,
+            ),
+            scaffoldBackgroundColor: const Color(0xFFF5F7FA),
+            useMaterial3: true,
+          ),
+          darkTheme: ThemeData(
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: const Color(0xFF1565C0),
+              brightness: Brightness.dark,
+            ),
+            scaffoldBackgroundColor: const Color(0xFF121212),
+            useMaterial3: true,
+          ),
+          themeMode: isDark ? ThemeMode.dark : ThemeMode.light,
+          home: const SplashScreen(),
+        );
+      },
     );
   }
 }
@@ -1940,6 +1951,14 @@ class _HomeShellState extends State<HomeShell> {
     final tabs = [
       HomeTab(
         onStartLearning: () => _goToTab(1),
+        onOpenNotifications: () => _goToTab(2),
+        onOpenSettings: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+                builder: (_) => const SettingsScreen()),
+          );
+        },
         userName: _userName,
         userGrade: _userGrade,
         userRole: _userRole,
@@ -2055,12 +2074,16 @@ class _HomeShellState extends State<HomeShell> {
 // ============ Home Tab ============
 class HomeTab extends StatelessWidget {
   final VoidCallback onStartLearning;
+  final VoidCallback? onOpenNotifications;
+  final VoidCallback? onOpenSettings;
   final String userName;
   final String userGrade;
   final String userRole;
   const HomeTab({
     super.key,
     required this.onStartLearning,
+    this.onOpenNotifications,
+    this.onOpenSettings,
     this.userName = 'طالب',
     this.userGrade = '',
     this.userRole = 'student',
@@ -2121,7 +2144,7 @@ class HomeTab extends StatelessWidget {
                   ),
                 ),
                 IconButton(
-                  onPressed: () {},
+                  onPressed: onOpenNotifications,
                   icon: const Icon(Icons.notifications_none_rounded,
                       color: Color(0xFF1565C0), size: 26),
                   padding: EdgeInsets.zero,
@@ -2129,7 +2152,13 @@ class HomeTab extends StatelessWidget {
                 ),
                 const SizedBox(width: 18),
                 IconButton(
-                  onPressed: () {},
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const SettingsScreen()),
+                    );
+                  },
                   icon: const Icon(Icons.settings_outlined,
                       color: Color(0xFF1565C0), size: 26),
                   padding: EdgeInsets.zero,
@@ -19285,8 +19314,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void _toggleDark(bool v) async {
     setState(() => _darkMode = v);
     await _savePref('dark_mode', v);
-    // نستدعي مباشرة - لا نعتمد على callback
-    kitabiAppKey.currentState?.toggleDark(v);
+    // التحديث الفوري عبر ValueNotifier
+    darkModeNotifier.value = v;
     if (!mounted) return;
     showKitabiSnack(context,
         v ? '🌙 تم تفعيل الوضع الليلي' : '☀️ تم تفعيل الوضع النهاري');
