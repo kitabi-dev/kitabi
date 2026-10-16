@@ -16046,38 +16046,89 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
                                   ),
                                   child: Row(
                                     children: [
-                                      CircleAvatar(
-                                        backgroundColor: banned
-                                            ? Colors.red
-                                            : const Color(0xFF1565C0),
-                                        child: Text(
-                                          (u['name'] ?? '?')
-                                              .toString()
-                                              .substring(0, 1),
-                                          style: const TextStyle(
-                                              color: Colors.white,
-                                              fontWeight: FontWeight.bold),
+                                      AvatarHelper.buildAvatar(
+                                          email: u['email'] ?? '',
+                                          name: u['name'] ?? '?',
+                                          avatarUrl: u['avatar_url'],
+                                          radius: 22,
+                                          backgroundColor: banned
+                                              ? Colors.red
+                                              : const Color(0xFF1565C0),
                                         ),
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(u['name'] ?? '',
-                                                style: const TextStyle(
-                                                    fontWeight: FontWeight.bold,
-                                                    fontSize: 14,
-                                                    color: Color(0xFF1A1A1A))),
-                                            Text(
-                                                '${u['grade'] ?? ''} - ${u['muraqaba'] ?? ''}',
-                                                style: const TextStyle(
-                                                    fontSize: 11,
-                                                    color: Color(0xFF555555))),
-                                          ],
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Row(
+                                                children: [
+                                                  Flexible(
+                                                    child: Text(
+                                                        u['name'] ?? '',
+                                                        overflow: TextOverflow.ellipsis,
+                                                        style: const TextStyle(
+                                                            fontWeight: FontWeight.bold,
+                                                            fontSize: 14,
+                                                            color: Color(0xFF1A1A1A))),
+                                                  ),
+                                                  if (u['role'] != null &&
+                                                      u['role'] != 'student')
+                                                    Container(
+                                                      margin: const EdgeInsets.only(right: 6),
+                                                      padding: const EdgeInsets.symmetric(
+                                                          horizontal: 6, vertical: 2),
+                                                      decoration: BoxDecoration(
+                                                        color: RoleHelper.roleColor(
+                                                                u['role'].toString())
+                                                            .withOpacity(0.15),
+                                                        borderRadius: BorderRadius.circular(6),
+                                                      ),
+                                                      child: Text(
+                                                        RoleHelper.roleLabel(
+                                                            u['role'].toString()),
+                                                        style: TextStyle(
+                                                            color: RoleHelper.roleColor(
+                                                                u['role'].toString()),
+                                                            fontSize: 9,
+                                                            fontWeight: FontWeight.bold),
+                                                      ),
+                                                    ),
+                                                  if (banned)
+                                                    Container(
+                                                      padding: const EdgeInsets.symmetric(
+                                                          horizontal: 6, vertical: 2),
+                                                      decoration: BoxDecoration(
+                                                        color: Colors.red.shade100,
+                                                        borderRadius: BorderRadius.circular(6),
+                                                      ),
+                                                      child: const Text(
+                                                        'محظور',
+                                                        style: TextStyle(
+                                                            color: Colors.red,
+                                                            fontSize: 9,
+                                                            fontWeight: FontWeight.bold),
+                                                      ),
+                                                    ),
+                                                ],
+                                              ),
+                                              if (u['email'] != null &&
+                                                  u['email'].toString().isNotEmpty)
+                                                Text(
+                                                  u['email'].toString(),
+                                                  overflow: TextOverflow.ellipsis,
+                                                  style: const TextStyle(
+                                                      fontSize: 10,
+                                                      color: Color(0xFF888888)),
+                                                ),
+                                              Text(
+                                                  '${u['grade'] ?? ''} - ${u['muraqaba'] ?? ''}',
+                                                  style: const TextStyle(
+                                                      fontSize: 11,
+                                                      color: Color(0xFF555555))),
+                                            ],
+                                          ),
                                         ),
-                                      ),
                                       IconButton(
                                         onPressed: () async {
                                           try {
