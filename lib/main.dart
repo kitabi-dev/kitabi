@@ -3839,6 +3839,8 @@ class _AccountTabState extends State<AccountTab> {
   int _pendingRequests = 0;
   bool _darkMode = false;
   bool _isPlus = false;
+  String? _avatarUrl;
+  bool _uploadingAvatar = false;
 
   @override
   void initState() {
@@ -3886,6 +3888,145 @@ class _AccountTabState extends State<AccountTab> {
     });
     await _loadPendingRequests();
     await _checkPlus();
+    await _loadAvatar();
+  }
+
+  Future<void> _loadAvatar() async {
+    if (_email.isEmpty) return;
+    final url = await AvatarHelper.getAvatarUrl(_email);
+    if (!mounted) return;
+    setState(() => _avatarUrl = url);
+  }
+
+  Future<void> _pickAvatar() async {
+    try {
+      final picker = ImagePicker();
+      final source = await showModalBottomSheet<ImageSource>(
+        context: context,
+        backgroundColor: Colors.transparent,
+        builder: (ctx) => Container(
+          padding: const EdgeInsets.all(20),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(24),
+              topRight: Radius.circular(24),
+            ),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 50,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Text('تغيير الصورة الرمزية',
+                  style: TextStyle(
+                      fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 20),
+              ListTile(
+                leading: const Icon(Icons.photo_library,
+                    color: Color(0xFF1565C0)),
+                title: const Text('من المعرض'),
+                onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+              ),
+              ListTile(
+                leading: const Icon(Icons.camera_alt,
+                    color: Color(0xFF00897B)),
+                title: const Text('التقاط صورة'),
+                onTap: () => Navigator.pop(ctx, ImageSource.camera),
+              ),
+              if (_avatarUrl != null)
+                ListTile(
+                  leading: const Icon(Icons.delete, color: Colors.red),
+                  title: const Text('حذف الصورة',
+                      style: TextStyle(color: Colors.red)),
+                  onTap: () => Navigator.pop(ctx, null),
+                ),
+            ],
+          ),
+        ),
+      );
+
+      if (source == null) {
+        // حذف الصورة
+        if (_avatarUrl == null) return;
+        final confirm = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20)),
+            title: const Text('حذف الصورة؟'),
+            content: const Text('هل تريد حذف صورة الملف الشخصي؟'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('إلغاء'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red,
+                    foregroundColor: Colors.white),
+                child: const Text('حذف'),
+              ),
+            ],
+          ),
+        );
+        if (confirm != true) return;
+
+        setState(() => _uploadingAvatar = true);
+        final ok = await AvatarHelper.deleteAvatar(_email);
+        if (!mounted) return;
+        setState(() {
+          _uploadingAvatar = false;
+          if (ok) _avatarUrl = null;
+        });
+        if (ok) {
+          showKitabiSnack(context, '✅ تم حذف الصورة');
+        } else {
+          showKitabiSnack(context, 'فشل الحذف');
+        }
+        return;
+      }
+
+      final picked = await picker.pickImage(
+        source: source,
+        imageQuality: 75,
+        maxWidth: 800,
+        maxHeight: 800,
+      );
+
+      if (picked == null) return;
+
+      setState(() => _uploadingAvatar = true);
+      final url = await AvatarHelper.uploadAvatar(
+        email: _email,
+        imageFile: File(picked.path),
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _uploadingAvatar = false;
+        if (url != null) _avatarUrl = url;
+      });
+
+      if (url != null) {
+        showKitabiSnack(context, '✅ تم تحديث الصورة');
+      } else {
+        showKitabiSnack(context, 'فشل الرفع');
+      }
+    } catch (e) {
+      debugPrint('pickAvatar error: $e');
+      if (!mounted) return;
+      setState(() => _uploadingAvatar = false);
+      showKitabiSnack(context, 'خطأ: $e');
+    }
   }
 
   Future<void> _checkPlus() async {
@@ -4004,23 +4145,60 @@ class _AccountTabState extends State<AccountTab> {
                             ),
                           ],
                         ),
-                        child: Center(
-                          child: Text(
-                            _name.isNotEmpty ? _name[0] : '؟',
-                            style: TextStyle(
-                              color: _avatarColor(),
-                              fontSize: 44,
-                              fontWeight: FontWeight.bold,
-                            ),
+                        child: ClipOval(
+                            child: _uploadingAvatar
+                                ? const Center(
+                                    child: CircularProgressIndicator(
+                                      color: Color(0xFF1565C0),
+                                      strokeWidth: 3,
+                                    ),
+                                  )
+                                : (_avatarUrl != null &&
+                                        _avatarUrl!.isNotEmpty)
+                                    ? Image.network(
+                                        _avatarUrl!,
+                                        width: 100,
+                                        height: 100,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (_, __, ___) => Center(
+                                          child: Text(
+                                            _name.isNotEmpty ? _name[0] : '؟',
+                                            style: TextStyle(
+                                              color: _avatarColor(),
+                                              fontSize: 44,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                        loadingBuilder: (ctx, child, progress) {
+                                          if (progress == null) return child;
+                                          return const Center(
+                                            child: CircularProgressIndicator(
+                                              color: Color(0xFF1565C0),
+                                              strokeWidth: 3,
+                                            ),
+                                          );
+                                        },
+                                      )
+                                    : Center(
+                                        child: Text(
+                                          _name.isNotEmpty ? _name[0] : '؟',
+                                          style: TextStyle(
+                                            color: _avatarColor(),
+                                            fontSize: 44,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
                           ),
-                        ),
                       ),
                       Positioned(
                         bottom: 0,
                         right: 0,
                         child: GestureDetector(
-                          onTap: () => showKitabiSnack(
-                              context, 'تغيير الصورة — قريباً'),
+                          onTap: _uploadingAvatar
+                                ? null
+                                : _pickAvatar,
                           child: Container(
                             padding: const EdgeInsets.all(7),
                             decoration: BoxDecoration(
@@ -6115,10 +6293,19 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
 
     setState(() => _sending = true);
     try {
+      // نجيب بيانات الكاتب
+      final prefs = await SharedPreferences.getInstance();
+      final authorEmail = prefs.getString('user_email') ?? '';
+      final authorAvatar = authorEmail.isNotEmpty
+          ? await AvatarHelper.getAvatarUrl(authorEmail)
+          : null;
+
       await supabase.from('post_comments').insert({
         'post_id': widget.post['id'],
         'author_name': widget.userName,
         'author_role': widget.userRole,
+        'author_email': authorEmail.isEmpty ? null : authorEmail,
+        'author_avatar': authorAvatar,
         'content': text,
       });
       final currentCount = widget.post['comments_count'] ?? 0;
@@ -6491,16 +6678,12 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          CircleAvatar(
+          AvatarHelper.buildAvatar(
+            email: comment['author_email'] ?? '',
+            name: comment['author_name'] ?? '؟',
+            avatarUrl: comment['author_avatar'],
             radius: 18,
             backgroundColor: color,
-            child: Text(
-              (comment['author_name'] ?? '؟').toString().substring(0, 1),
-              style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold),
-            ),
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -6786,16 +6969,13 @@ class _ForumScreenState extends State<ForumScreen> {
                 // رأس المنشور
                 Row(
                   children: [
-                    CircleAvatar(
-                      backgroundColor: roleColor,
-                      radius: 20,
-                      child: Text(
-                        (post['author_name'] ?? '؟').toString().substring(0, 1),
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold),
+                    AvatarHelper.buildAvatar(
+                        email: post['author_email'] ?? '',
+                        name: post['author_name'] ?? '؟',
+                        avatarUrl: post['author_avatar'],
+                        radius: 20,
+                        backgroundColor: roleColor,
                       ),
-                    ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Column(
@@ -7017,9 +7197,18 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     setState(() => _saving = true);
 
     try {
+      // نجيب بيانات الكاتب
+      final prefs = await SharedPreferences.getInstance();
+      final authorEmail = prefs.getString('user_email') ?? '';
+      final authorAvatar = authorEmail.isNotEmpty
+          ? await AvatarHelper.getAvatarUrl(authorEmail)
+          : null;
+
       await supabase.from('posts').insert({
         'author_name': widget.userName,
         'author_role': widget.userRole,
+        'author_email': authorEmail.isEmpty ? null : authorEmail,
+        'author_avatar': authorAvatar,
         'title': _titleCtrl.text.trim(),
         'content': _contentCtrl.text.trim(),
         'post_type': _postType,
@@ -18763,5 +18952,228 @@ class TermsOfServiceScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+// ==================================================
+// AvatarHelper — إدارة الصور الرمزية
+// ==================================================
+class AvatarHelper {
+  /// يحمّل رابط الصورة الرمزية لمستخدم
+  static Future<String?> getAvatarUrl(String email) async {
+    if (email.isEmpty) return null;
+    try {
+      final data = await supabase
+          .from('users')
+          .select('avatar_url')
+          .eq('email', email)
+          .limit(1);
+      if (data.isEmpty) return null;
+      final url = data[0]['avatar_url'];
+      if (url == null || url.toString().isEmpty) return null;
+      return url.toString();
+    } catch (e) {
+      debugPrint('getAvatarUrl error: $e');
+      return null;
+    }
+  }
+
+  /// يحمّل روابط صور عدة مستخدمين (bulk)
+  static Future<Map<String, String>> getAvatarsMap(
+      List<String> emails) async {
+    if (emails.isEmpty) return {};
+    try {
+      final data = await supabase
+          .from('users')
+          .select('email, avatar_url')
+          .inFilter('email', emails);
+      final Map<String, String> map = {};
+      for (var row in data) {
+        final email = row['email']?.toString() ?? '';
+        final url = row['avatar_url']?.toString() ?? '';
+        if (email.isNotEmpty && url.isNotEmpty) {
+          map[email] = url;
+        }
+      }
+      return map;
+    } catch (e) {
+      debugPrint('getAvatarsMap error: $e');
+      return {};
+    }
+  }
+
+  /// يرفع صورة للمستخدم ويعيد الرابط
+  static Future<String?> uploadAvatar({
+    required String email,
+    required File imageFile,
+  }) async {
+    try {
+      // نقرأ الصورة كـ bytes
+      final bytes = await imageFile.readAsBytes();
+
+      // نحدد الامتداد
+      final ext = imageFile.path.split('.').last.toLowerCase();
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+
+      // اسم الملف: {sanitized_email}_{timestamp}.{ext}
+      final safeEmail = email.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
+      final fileName = '${safeEmail}_$timestamp.$ext';
+
+      // نحذف الصورة القديمة إن وُجدت
+      final oldData = await supabase
+          .from('users')
+          .select('avatar_url')
+          .eq('email', email)
+          .limit(1);
+
+      if (oldData.isNotEmpty) {
+        final oldUrl = oldData[0]['avatar_url']?.toString() ?? '';
+        if (oldUrl.isNotEmpty) {
+          try {
+            // نستخرج اسم الملف القديم من الرابط
+            final uri = Uri.parse(oldUrl);
+            final oldFileName = uri.pathSegments.last;
+            if (oldFileName.isNotEmpty) {
+              await supabase.storage
+                  .from('avatars')
+                  .remove([oldFileName]);
+            }
+          } catch (e) {
+            debugPrint('Delete old avatar error: $e');
+          }
+        }
+      }
+
+      // نرفع الصورة الجديدة
+      await supabase.storage
+          .from('avatars')
+          .uploadBinary(fileName, bytes);
+
+      // نجيب الرابط العام
+      final publicUrl = supabase.storage
+          .from('avatars')
+          .getPublicUrl(fileName);
+
+      // نحدّث قاعدة البيانات
+      await supabase
+          .from('users')
+          .update({'avatar_url': publicUrl})
+          .eq('email', email);
+
+      return publicUrl;
+    } catch (e) {
+      debugPrint('uploadAvatar error: $e');
+      return null;
+    }
+  }
+
+  /// يحذف صورة المستخدم
+  static Future<bool> deleteAvatar(String email) async {
+    try {
+      final data = await supabase
+          .from('users')
+          .select('avatar_url')
+          .eq('email', email)
+          .limit(1);
+
+      if (data.isEmpty) return false;
+
+      final url = data[0]['avatar_url']?.toString() ?? '';
+      if (url.isEmpty) return false;
+
+      // نستخرج اسم الملف
+      final uri = Uri.parse(url);
+      final fileName = uri.pathSegments.last;
+
+      // نحذف من Storage
+      if (fileName.isNotEmpty) {
+        await supabase.storage.from('avatars').remove([fileName]);
+      }
+
+      // نحدّث قاعدة البيانات
+      await supabase
+          .from('users')
+          .update({'avatar_url': null})
+          .eq('email', email);
+
+      return true;
+    } catch (e) {
+      debugPrint('deleteAvatar error: $e');
+      return false;
+    }
+  }
+
+  /// Widget لعرض الصورة (مع fallback للحرف)
+  static Widget buildAvatar({
+    required String email,
+    required String name,
+    String? avatarUrl,
+    double radius = 20,
+    Color? backgroundColor,
+  }) {
+    final fallbackColor = backgroundColor ?? _colorFromName(name);
+    if (avatarUrl == null || avatarUrl.isEmpty) {
+      return CircleAvatar(
+        radius: radius,
+        backgroundColor: fallbackColor,
+        child: Text(
+          name.isNotEmpty ? name[0] : '؟',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: radius * 0.8,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      );
+    }
+    return CircleAvatar(
+      radius: radius,
+      backgroundColor: fallbackColor,
+      child: ClipOval(
+        child: Image.network(
+          avatarUrl,
+          width: radius * 2,
+          height: radius * 2,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => Center(
+            child: Text(
+              name.isNotEmpty ? name[0] : '؟',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: radius * 0.8,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          loadingBuilder: (ctx, child, progress) {
+            if (progress == null) return child;
+            return Center(
+              child: SizedBox(
+                width: radius,
+                height: radius,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  static Color _colorFromName(String name) {
+    if (name.isEmpty) return const Color(0xFF1565C0);
+    final colors = [
+      const Color(0xFF1565C0),
+      const Color(0xFF00897B),
+      const Color(0xFF7B1FA2),
+      const Color(0xFFEF6C00),
+      const Color(0xFF283593),
+      const Color(0xFFD32F2F),
+      const Color(0xFF00838F),
+    ];
+    return colors[name.codeUnitAt(0) % colors.length];
   }
 }
