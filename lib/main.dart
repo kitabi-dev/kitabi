@@ -1973,7 +1973,7 @@ class HomeTab extends StatelessWidget {
               physics: const NeverScrollableScrollPhysics(),
               crossAxisSpacing: 8,
               mainAxisSpacing: 8,
-              childAspectRatio: 0.95,
+              childAspectRatio: 1.15,
               children: [
                 _quickBtn(context, 'المكتبة', Icons.menu_book_rounded,
                     const LinearGradient(
@@ -2100,7 +2100,7 @@ class HomeTab extends StatelessWidget {
             child: _stageHeader('المرحلة الابتدائية', Color(0xFF42A5F5),
                 Icons.emoji_nature),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 4),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: _gradesGrid(context, const [
@@ -2108,7 +2108,7 @@ class HomeTab extends StatelessWidget {
               'رابع ابتدائي', 'خامس ابتدائي', 'سادس ابتدائي',
             ], Color(0xFF42A5F5)),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 8),
 
           // المرحلة الإعدادية
           Padding(
@@ -2116,14 +2116,14 @@ class HomeTab extends StatelessWidget {
             child: _stageHeader('المرحلة الإعدادية', Color(0xFFFFA726),
                 Icons.school),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 4),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: _gradesGrid(context, const [
               'أول إعدادي', 'ثاني إعدادي', 'ثالث إعدادي',
             ], Color(0xFFFFA726)),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 8),
 
           // المرحلة الثانوية
           Padding(
@@ -2131,7 +2131,7 @@ class HomeTab extends StatelessWidget {
             child: _stageHeader('المرحلة الثانوية', Color(0xFF7E57C2),
                 Icons.workspace_premium),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 4),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: _gradesGrid(context, const [
@@ -2175,9 +2175,9 @@ class HomeTab extends StatelessWidget {
       crossAxisCount: 3,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      crossAxisSpacing: 3,
-      mainAxisSpacing: 3,
-      childAspectRatio: 1.7,
+      crossAxisSpacing: 6,
+      mainAxisSpacing: 6,
+      childAspectRatio: 2.6,
       children: grades.map((grade) {
         return Material(
           color: Colors.transparent,
