@@ -2119,14 +2119,28 @@ class HomeTab extends StatefulWidget {
   State<HomeTab> createState() => _HomeTabState();
 }
 
-class _HomeTabState extends State<HomeTab> {
+class _HomeTabState extends State<HomeTab> with WidgetsBindingObserver {
   bool _isPlus = false;
   bool _isAllowedUser = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _checkAccess();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _checkAccess();
+    }
   }
 
   Future<void> _checkAccess() async {
@@ -22391,6 +22405,16 @@ class TeacherAIPlusScreen extends StatefulWidget {
 
 class _TeacherAIPlusScreenState extends State<TeacherAIPlusScreen> {
   String _currentMode = 'chat';
+  String _selectedModel = 'nvidia/nemotron-3-ultra-550b-a55b:free';
+  bool _showModelPicker = false;
+
+  static const List<Map<String, String>> _models = [
+    {'id': 'nvidia/nemotron-3-ultra-550b-a55b:free', 'name': 'Nemotron Ultra (الأقوى)', 'icon': '⭐'},
+    {'id': 'meta-llama/llama-3.3-70b-instruct:free', 'name': 'Llama 3.3 70B', 'icon': '🦙'},
+    {'id': 'qwen/qwen-2.5-72b-instruct:free', 'name': 'Qwen 2.5 72B', 'icon': '🌟'},
+    {'id': 'google/gemma-2-9b-it:free', 'name': 'Gemma 2 9B (سريع)', 'icon': '💎'},
+    {'id': 'mistralai/mistral-7b-instruct:free', 'name': 'Mistral 7B', 'icon': '🌪️'},
+  ];
   final TextEditingController _inputCtrl = TextEditingController();
   final List<Map<String, String>> _messages = [];
   bool _sending = false;
@@ -22462,7 +22486,7 @@ class _TeacherAIPlusScreenState extends State<TeacherAIPlusScreen> {
           'HTTP-Referer': 'https://kitabi.app',
         },
         body: jsonEncode({
-          'model': 'nvidia/nemotron-3-ultra-550b-a55b:free',
+          'model': _selectedModel,
           'messages': [
             {'role': 'system', 'content': systemPrompt},
             {'role': 'user', 'content': prompt},
@@ -22474,11 +22498,24 @@ class _TeacherAIPlusScreenState extends State<TeacherAIPlusScreen> {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        return data['choices'][0]['message']['content'] ?? 'لا توجد إجابة';
+        if (data['choices'] == null || data['choices'] is! List) {
+          return '⚠️ استجابة غير متوقعة من AI:\n${response.body.substring(0, 300)}';
+        }
+        final choices = data['choices'] as List;
+        if (choices.isEmpty) return '⚠️ لا توجد إجابة من AI';
+        final msg = choices[0]['message'];
+        if (msg == null || msg['content'] == null) {
+          return '⚠️ استجابة فارغة من AI';
+        }
+        return msg['content'].toString();
       } else if (response.statusCode == 429) {
-        return '⏳ تم استهلاك الحد اليومي. حاول غداً.';
+        return '⏳ تم استهلاك الحد اليومي (50 طلب). حاول غداً.';
+      } else if (response.statusCode == 401) {
+        return '⚠️ مفتاح API غير صالح.';
+      } else if (response.statusCode == 404) {
+        return '⚠️ النموذج غير متاح حالياً. سيتم تحويلك للنموذج الاحتياطي.';
       } else {
-        return '⚠️ خطأ: ${response.statusCode}';
+        return '⚠️ خطأ ${response.statusCode}: ${response.body.substring(0, 200)}';
       }
     } catch (e) {
       return '⚠️ فشل الاتصال: $e';
