@@ -2098,7 +2098,7 @@ class _HomeShellState extends State<HomeShell> {
 }
 
 // ============ Home Tab ============
-class HomeTab extends StatelessWidget {
+class HomeTab extends StatefulWidget {
   final VoidCallback onStartLearning;
   final VoidCallback? onOpenNotifications;
   final VoidCallback? onOpenSettings;
@@ -2116,7 +2116,54 @@ class HomeTab extends StatelessWidget {
   });
 
   @override
+  State<HomeTab> createState() => _HomeTabState();
+}
+
+class _HomeTabState extends State<HomeTab> {
+  bool _isPlus = false;
+  bool _isAllowedUser = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkAccess();
+  }
+
+  Future<void> _checkAccess() async {
+    final prefs = await SharedPreferences.getInstance();
+    final email = prefs.getString('user_email') ?? '';
+    final role = widget.userRole;
+
+    // Admin, Moderator, Teacher → دائماً مسموح
+    if (role == 'admin' || role == 'moderator' || role == 'teacher') {
+      if (!mounted) return;
+      setState(() => _isAllowedUser = true);
+      return;
+    }
+
+    // Plus?
+    if (email.isNotEmpty) {
+      try {
+        final isPlus = await SubscriptionHelper.isPlusUser(email);
+        if (!mounted) return;
+        setState(() {
+          _isPlus = isPlus;
+          _isAllowedUser = isPlus;
+        });
+      } catch (e) {
+        debugPrint('Check plus error: $e');
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final onStartLearning = widget.onStartLearning;
+    final onOpenNotifications = widget.onOpenNotifications;
+    final onOpenSettings = widget.onOpenSettings;
+    final userName = widget.userName;
+    final userGrade = widget.userGrade;
+    final userRole = widget.userRole;
     return SingleChildScrollView(
       padding: EdgeInsets.only(
         top: MediaQuery.of(context).padding.top + 12,
@@ -2326,7 +2373,95 @@ class HomeTab extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 22),
-          Padding(
+                    
+          // AI+ (Plus/Admin/Moderator/Teacher فقط) — فوق المربعات
+          if (_isAllowedUser)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF7B1FA2), Color(0xFF9C27B0), Color(0xFFE91E63)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF7B1FA2).withOpacity(0.4),
+                      blurRadius: 20,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(24),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const TeacherAIPlusScreen()),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(18),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 55,
+                            height: 55,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: const Icon(Icons.auto_awesome,
+                                color: Colors.white, size: 32),
+                          ),
+                          const SizedBox(width: 14),
+                          const Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Text('AI+',
+                                        style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 22,
+                                            fontWeight: FontWeight.w900,
+                                            letterSpacing: 1)),
+                                    SizedBox(width: 6),
+                                    Icon(Icons.star,
+                                        color: Colors.amber, size: 18),
+                                  ],
+                                ),
+                                SizedBox(height: 4),
+                                Text('معلم ذكي متقدم — 5 أوضاع',
+                                    style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 12)),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.arrow_back_ios,
+                                color: Colors.white, size: 18),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          
+Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Column(
               children: [
@@ -4409,6 +4544,23 @@ class _AccountTabState extends State<AccountTab> {
                   }),
                   _menuDivider(),
 
+                  _menuItem(Icons.star, 'اشتراك Plus',
+                      const Color(0xFFFFA000), () async {
+                    final result = await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => SubscriptionScreen(
+                                userEmail: _email,
+                                userName: _name,
+                                isPlus: _isPlus,
+                              )),
+                    );
+                    if (result == true && mounted) {
+                      // نُعيد التحقق من Plus
+                      _checkPlus();
+                    }
+                  }),
+                  _menuDivider(),
                   _menuItem(Icons.timer_outlined, 'مؤقت الدراسة',
                       const Color(0xFFE91E63), () {
                     Navigator.push(
@@ -6252,6 +6404,22 @@ class PostDetailScreen extends StatefulWidget {
 }
 
 class _PostDetailScreenState extends State<PostDetailScreen> {
+  Set<String> _plusEmails = {};
+
+  Future<void> _loadPlusUsers() async {
+    try {
+      final data = await supabase.from('plus_users').select('user_email');
+      if (!mounted) return;
+      setState(() {
+        _plusEmails = (data as List)
+            .map((r) => r['user_email']?.toString() ?? '')
+            .where((e) => e.isNotEmpty)
+            .toSet();
+      });
+    } catch (e) {
+      debugPrint('Load plus users error: $e');
+    }
+  }
   final _commentCtrl = TextEditingController();
   List<Map<String, dynamic>> _comments = [];
   bool _loading = true;
@@ -6265,6 +6433,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     _likesCount = (widget.post['likes'] ?? 0) as int;
     _loadComments();
     _checkLiked();
+    _loadPlusUsers();
   }
 
   Future<void> _loadComments() async {
@@ -6756,6 +6925,33 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                               fontSize: 8,
                               fontWeight: FontWeight.bold)),
                     ),
+                    if (_plusEmails.contains(
+                        comment['author_email']?.toString() ?? '')) ...[
+                      const SizedBox(width: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 4, vertical: 1),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFFFFD700), Color(0xFFFFA000)],
+                          ),
+                          borderRadius: BorderRadius.circular(5),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.star,
+                                color: Colors.white, size: 8),
+                            SizedBox(width: 1),
+                            Text('PLUS',
+                                style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 7,
+                                    fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                      ),
+                    ],
                     const Spacer(),
                     Text(_formatDate(comment['created_at']),
                         style: const TextStyle(
@@ -6803,6 +6999,22 @@ class ForumScreen extends StatefulWidget {
 }
 
 class _ForumScreenState extends State<ForumScreen> {
+  Set<String> _plusEmails = {};
+
+  Future<void> _loadPlusUsers() async {
+    try {
+      final data = await supabase.from('plus_users').select('user_email');
+      if (!mounted) return;
+      setState(() {
+        _plusEmails = (data as List)
+            .map((r) => r['user_email']?.toString() ?? '')
+            .where((e) => e.isNotEmpty)
+            .toSet();
+      });
+    } catch (e) {
+      debugPrint('Load plus users error: $e');
+    }
+  }
   List<Map<String, dynamic>> _posts = [];
   bool _loading = true;
   String _filter = 'all'; // all / mygrade / general
@@ -6810,6 +7022,7 @@ class _ForumScreenState extends State<ForumScreen> {
   @override
   void initState() {
     super.initState();
+    _loadPlusUsers();
     _load();
   }
 
@@ -6843,6 +7056,7 @@ class _ForumScreenState extends State<ForumScreen> {
         _posts = filtered;
         _loading = false;
       });
+      _loadPlusUsers();
     } catch (e) {
       debugPrint('Load posts error: $e');
       if (!mounted) return;
@@ -7053,7 +7267,34 @@ class _ForumScreenState extends State<ForumScreen> {
                                 const SizedBox(width: 6),
                                 const Icon(Icons.push_pin,
                                     color: Color(0xFFFFA000), size: 14),
-                              ],
+                              
+                      if (_plusEmails.contains(
+                          post['author_email']?.toString() ?? '')) ...[
+                        const SizedBox(width: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 5, vertical: 2),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFFFFD700), Color(0xFFFFA000)],
+                            ),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.star,
+                                  color: Colors.white, size: 9),
+                              SizedBox(width: 2),
+                              Text('PLUS',
+                                  style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 8,
+                                      fontWeight: FontWeight.bold)),
+                            ],
+                          ),
+                        ),
+                      ],],
                             ],
                           ),
                           Text(_formatDate(post['created_at']),
@@ -7618,7 +7859,7 @@ class _TeacherAIScreenState extends State<TeacherAIScreen> {
         return 'خدمة المعلم غير مفعّلة. تواصل مع الإدارة.';
       }
 
-      final model = 'google/gemma-4-26b-a4b-it:free';
+      final model = 'nvidia/nemotron-3-ultra-550b-a55b:free';
 
       final sys = 'أنت "معلم كتابي"، معلم ذكي متخصص في المنهج الليبي الرسمي. '
           'تعمل في تطبيق كتابي التعليمي الليبي. '
@@ -15661,6 +15902,299 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
     }
   }
 
+  Future<void> _showSubscriptionRequests() async {
+    List<Map<String, dynamic>> requests = [];
+    bool loading = true;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSt) {
+          if (loading) {
+            supabase
+                .from('subscription_requests')
+                .select()
+                .eq('status', 'pending')
+                .order('created_at', ascending: false)
+                .then((data) {
+              setSt(() {
+                requests = List<Map<String, dynamic>>.from(data);
+                loading = false;
+              });
+            }).catchError((e) {
+              setSt(() => loading = false);
+            });
+          }
+
+          return Container(
+            height: MediaQuery.of(context).size.height * 0.85,
+            padding: const EdgeInsets.all(20),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(24),
+                topRight: Radius.circular(24),
+              ),
+            ),
+            child: Column(
+              children: [
+                Container(
+                  width: 50,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 15),
+                Row(
+                  children: [
+                    const Icon(Icons.receipt_long,
+                        color: Color(0xFFFFA000), size: 24),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'طلبات الاشتراك (${requests.length})',
+                        style: const TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => setSt(() => loading = true),
+                      icon: const Icon(Icons.refresh,
+                          color: Color(0xFF1565C0)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Expanded(
+                  child: loading
+                      ? const Center(
+                          child: CircularProgressIndicator(
+                              color: Color(0xFFFFA000)))
+                      : requests.isEmpty
+                          ? const Center(
+                              child: Column(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.inbox,
+                                      size: 60,
+                                      color: Color(0xFFBBBBBB)),
+                                  SizedBox(height: 10),
+                                  Text('لا توجد طلبات معلقة',
+                                      style: TextStyle(
+                                          color: Color(0xFF555555))),
+                                ],
+                              ),
+                            )
+                          : ListView.separated(
+                              itemCount: requests.length,
+                              separatorBuilder: (_, __) =>
+                                  const SizedBox(height: 10),
+                              itemBuilder: (_, i) {
+                                final r = requests[i];
+                                return _requestCard(r, setSt);
+                              },
+                            ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _requestCard(Map<String, dynamic> r, StateSetter setSt) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF8E1),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFFFA000)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.person,
+                  color: Color(0xFF1565C0), size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  r['user_name'] ?? 'مستخدم',
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold, fontSize: 14),
+                ),
+              ),
+              Text(
+                '${r['amount']} د.ل',
+                style: const TextStyle(
+                    color: Color(0xFFEF6C00),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(r['user_email'] ?? '',
+              style: const TextStyle(
+                  fontSize: 11, color: Color(0xFF666666))),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1565C0).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  '${r['plan_months']} شهر',
+                  style: const TextStyle(
+                      fontSize: 11,
+                      color: Color(0xFF1565C0),
+                      fontWeight: FontWeight.bold),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF00897B).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  'كود: ${r['verification_code'] ?? '-'}',
+                  style: const TextStyle(
+                      fontSize: 11,
+                      color: Color(0xFF00897B),
+                      fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () async {
+                    await _approveRequest(r, setSt);
+                  },
+                  icon: const Icon(Icons.check, size: 16),
+                  label: const Text('موافقة',
+                      style: TextStyle(fontSize: 12)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF00897B),
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () async {
+                    await _rejectRequest(r, setSt);
+                  },
+                  icon: const Icon(Icons.close, size: 16),
+                  label: const Text('رفض',
+                      style: TextStyle(fontSize: 12)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _approveRequest(
+      Map<String, dynamic> request, StateSetter setSt) async {
+    try {
+      final months = request['plan_months'] as int;
+      final email = request['user_email'] as String;
+      final name = request['user_name'] as String? ?? '';
+
+      // إضافة الاشتراك
+      final now = DateTime.now();
+      final expires = DateTime(now.year, now.month + months, now.day);
+
+      // نتحقق إذا عنده اشتراك
+      final existing = await supabase
+          .from('subscriptions')
+          .select('id, expires_at')
+          .eq('user_email', email)
+          .eq('is_active', true)
+          .limit(1);
+
+      if (existing.isNotEmpty) {
+        // نمدد
+        final currentExpiry =
+            DateTime.parse(existing[0]['expires_at'].toString());
+        final newExpiry = currentExpiry.add(Duration(days: months * 30));
+
+        await supabase.from('subscriptions').update({
+          'expires_at': newExpiry.toIso8601String(),
+        }).eq('id', existing[0]['id']);
+      } else {
+        await supabase.from('subscriptions').insert({
+          'user_email': email,
+          'user_name': name,
+          'plan': 'plus',
+          'is_active': true,
+          'started_at': now.toIso8601String(),
+          'expires_at': expires.toIso8601String(),
+          'created_by': 'admin_approval',
+        });
+      }
+
+      // نحدّث حالة الطلب
+      await supabase.from('subscription_requests').update({
+        'status': 'approved',
+        'reviewed_by': 'admin',
+        'reviewed_at': now.toIso8601String(),
+      }).eq('id', request['id']);
+
+      setSt(() {});
+      if (!mounted) return;
+      showKitabiSnack(context, '✅ تم تفعيل الاشتراك لـ $name');
+    } catch (e) {
+      if (!mounted) return;
+      showKitabiSnack(context, 'فشل: $e');
+    }
+  }
+
+  Future<void> _rejectRequest(
+      Map<String, dynamic> request, StateSetter setSt) async {
+    try {
+      await supabase.from('subscription_requests').update({
+        'status': 'rejected',
+        'reviewed_by': 'admin',
+        'reviewed_at': DateTime.now().toIso8601String(),
+        'rejection_reason': 'لم يتم التحقق من التحويل',
+      }).eq('id', request['id']);
+
+      setSt(() {});
+      if (!mounted) return;
+      showKitabiSnack(context, '❌ تم رفض الطلب');
+    } catch (e) {
+      if (!mounted) return;
+      showKitabiSnack(context, 'فشل: $e');
+    }
+  }
+
   Widget _panel() {
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -15800,6 +16334,10 @@ class _ControlRoomScreenState extends State<ControlRoomScreen> {
             ),
           ],
         ),
+        const SizedBox(height: 12),
+        _bigCard('طلبات الاشتراك', 'مراجعة',
+            Icons.receipt_long_rounded, const Color(0xFFEF6C00),
+            () => _showSubscriptionRequests()),
         const SizedBox(height: 12),
         Row(
           children: [
@@ -21328,6 +21866,854 @@ class _ScheduleScreenState extends State<ScheduleScreen>
               const Icon(Icons.edit,
                   color: Color(0xFF999999), size: 20),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+// ==================================================
+// SubscriptionScreen — شاشة اشتراك Plus
+// ==================================================
+class SubscriptionScreen extends StatefulWidget {
+  final String userEmail;
+  final String userName;
+  final bool isPlus;
+
+  const SubscriptionScreen({
+    super.key,
+    required this.userEmail,
+    required this.userName,
+    required this.isPlus,
+  });
+
+  @override
+  State<SubscriptionScreen> createState() => _SubscriptionScreenState();
+}
+
+class _SubscriptionScreenState extends State<SubscriptionScreen> {
+  int _selectedMonths = 1;
+  int get _price {
+    switch (_selectedMonths) {
+      case 1:
+        return 7;
+      case 6:
+        return 25;
+      case 12:
+        return 40;
+      default:
+        return 7;
+    }
+  }
+
+  final _codeCtrl = TextEditingController();
+  bool _submitting = false;
+
+  final String _myPhone = '0922251374';
+
+  @override
+  void dispose() {
+    _codeCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _copyPhone() async {
+    Clipboard.setData(ClipboardData(text: _myPhone));
+    if (!mounted) return;
+    showKitabiSnack(context, '📋 تم نسخ الرقم: $_myPhone');
+  }
+
+  Future<void> _submitRequest() async {
+    if (_codeCtrl.text.trim().isEmpty) {
+      showKitabiSnack(context, 'اكتب كود التحقق من رسالة ليبيانا');
+      return;
+    }
+
+    setState(() => _submitting = true);
+
+    try {
+      // نتحقق أولاً إذا عنده طلب معلق
+      final existing = await supabase
+          .from('subscription_requests')
+          .select('id')
+          .eq('user_email', widget.userEmail)
+          .eq('status', 'pending')
+          .limit(1);
+
+      if (existing.isNotEmpty) {
+        if (!mounted) return;
+        setState(() => _submitting = false);
+        showKitabiSnack(context, '⏳ لديك طلب قيد المراجعة بالفعل');
+        return;
+      }
+
+      // نضيف طلب جديد
+      await supabase.from('subscription_requests').insert({
+        'user_email': widget.userEmail,
+        'user_name': widget.userName,
+        'plan_months': _selectedMonths,
+        'amount': _price,
+        'verification_code': _codeCtrl.text.trim(),
+        'status': 'pending',
+      });
+
+      if (!mounted) return;
+      setState(() => _submitting = false);
+      _codeCtrl.clear();
+
+      // نعرض رسالة النجاح
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20)),
+          title: const Row(
+            children: [
+              Icon(Icons.check_circle,
+                  color: Color(0xFF00897B), size: 28),
+              SizedBox(width: 10),
+              Text('تم إرسال الطلب'),
+            ],
+          ),
+          content: const Text(
+            '✅ سيتم التحقق من التحويل وتفعيل الاشتراك خلال ساعات قليلة.\n\n'
+            'يمكنك متابعة حالة الطلب من "حسابي".',
+            style: TextStyle(fontSize: 14, height: 1.6),
+          ),
+          actions: [
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                Navigator.pop(context);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF00897B),
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('حسناً'),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _submitting = false);
+      showKitabiSnack(context, 'فشل الإرسال: $e');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFFFFA000),
+        foregroundColor: Colors.white,
+        elevation: 0,
+        title: const Text('اشتراك Plus ⭐',
+            style: TextStyle(fontWeight: FontWeight.bold)),
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          // الحالة الحالية
+          if (widget.isPlus)
+            Container(
+              padding: const EdgeInsets.all(16),
+              margin: const EdgeInsets.only(bottom: 16),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF4CAF50), Color(0xFF66BB6A)],
+                ),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.check_circle,
+                      color: Colors.white, size: 28),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'أنت مشترك في Plus حالياً ✅',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+          // المزايا
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFFFFD700), Color(0xFFFFA000)],
+                begin: Alignment.topRight,
+                end: Alignment.bottomLeft,
+              ),
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFFFFA000).withOpacity(0.3),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.star,
+                          color: Color(0xFFFFA000), size: 28),
+                    ),
+                    const SizedBox(width: 12),
+                    const Text(
+                      'مزايا Plus',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                _benefit('⭐ شارة PLUS بجانب اسمك'),
+                _benefit('🚫 بدون إعلانات (قريباً)'),
+                _benefit('📚 تحميل الكتب للقراءة بدون إنترنت (قريباً)'),
+                _benefit('🤖 معلم AI بلا حدود (قريباً)'),
+                _benefit('🎯 ميزات حصرية جديدة (قريباً)'),
+                _benefit('💬 شارة مميزة في المنتدى'),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // اختيار الباقة
+          const Text('اختر الباقة:',
+              style: TextStyle(
+                  fontSize: 16, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 12),
+
+          Row(
+            children: [
+              _planCard(1, 'شهر', 7, 'شهرياً'),
+              const SizedBox(width: 8),
+              _planCard(6, '6 أشهر', 25, 'توفير 40%'),
+            ],
+          ),
+          const SizedBox(height: 8),
+          _planCard(12, '12 شهر', 40, 'توفير 52% (الأفضل)'),
+          const SizedBox(height: 20),
+
+          // طريقة الدفع
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                  color: const Color(0xFF1565C0).withOpacity(0.3),
+                  width: 1.5),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Row(
+                  children: [
+                    Icon(Icons.payment,
+                        color: Color(0xFF1565C0), size: 22),
+                    SizedBox(width: 8),
+                    Text('طريقة الدفع',
+                        style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold)),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  '1️⃣ حوّل قيمة الاشتراك برصيد ليبيانا إلى:',
+                  style: TextStyle(fontSize: 14),
+                ),
+                const SizedBox(height: 8),
+                GestureDetector(
+                  onTap: _copyPhone,
+                  child: Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1565C0).withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                          color: const Color(0xFF1565C0).withOpacity(0.3)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.phone,
+                            color: Color(0xFF1565C0)),
+                        const SizedBox(width: 10),
+                        const Expanded(
+                          child: Text(
+                            _myPhone,
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 2,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.copy,
+                              color: Color(0xFF1565C0)),
+                          onPressed: _copyPhone,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  '2️⃣ قيمة التحويل: $_price دينار',
+                  style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFFEF6C00)),
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  '3️⃣ ستستلم رسالة SMS من ليبيانا تحتوي على كود التحقق. اكتبه هنا:',
+                  style: TextStyle(fontSize: 14),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _codeCtrl,
+                  keyboardType: TextInputType.number,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 3),
+                  decoration: InputDecoration(
+                    hintText: 'XXXXXX',
+                    prefixIcon:
+                        const Icon(Icons.verified_user_outlined),
+                    filled: true,
+                    fillColor: const Color(0xFFF5F7FA),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // زر الإرسال
+          SizedBox(
+            height: 55,
+            child: ElevatedButton.icon(
+              onPressed: _submitting ? null : _submitRequest,
+              icon: _submitting
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                          color: Colors.white, strokeWidth: 2),
+                    )
+                  : const Icon(Icons.check_circle),
+              label: Text(
+                _submitting
+                    ? 'جاري الإرسال...'
+                    : 'أرسل طلب التفعيل ($_price د.ل)',
+                style: const TextStyle(
+                    fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF00897B),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16)),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // ملاحظة
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFF3E0),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.info_outline,
+                    color: Color(0xFFEF6C00), size: 18),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'ملاحظة: سيتم التحقق من التحويل يدوياً خلال ساعات. '
+                    'سيتم تفعيل اشتراكك تلقائياً بعد التأكد من وصول المبلغ.',
+                    style: TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF5D4037),
+                        height: 1.5),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+        ],
+      ),
+    );
+  }
+
+  Widget _benefit(String text) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          const Icon(Icons.check_circle,
+              color: Colors.white, size: 18),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _planCard(int months, String label, int price, String note) {
+    final selected = _selectedMonths == months;
+    return GestureDetector(
+      onTap: () => setState(() => _selectedMonths = months),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: selected ? const Color(0xFFFFF3E0) : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: selected
+                ? const Color(0xFFFFA000)
+                : Colors.grey.shade200,
+            width: selected ? 2.5 : 1.5,
+          ),
+          boxShadow: selected
+              ? [
+                  BoxShadow(
+                    color: const Color(0xFFFFA000).withOpacity(0.3),
+                    blurRadius: 15,
+                    offset: const Offset(0, 5),
+                  ),
+                ]
+              : [],
+        ),
+        child: Row(
+          children: [
+            if (selected)
+              const Icon(Icons.check_circle,
+                  color: Color(0xFFFFA000), size: 24)
+            else
+              Icon(Icons.radio_button_unchecked,
+                  color: Colors.grey.shade400, size: 24),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: selected
+                          ? const Color(0xFFEF6C00)
+                          : Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    note,
+                    style: const TextStyle(
+                        fontSize: 11, color: Color(0xFF888888)),
+                  ),
+                ],
+              ),
+            ),
+            Text(
+              '$price د.ل',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: selected
+                    ? const Color(0xFFEF6C00)
+                    : const Color(0xFF1565C0),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+
+// ==================================================
+// TeacherAIPlusScreen — معلم AI+ (5 أوضاع متقدمة)
+// ==================================================
+class TeacherAIPlusScreen extends StatefulWidget {
+  const TeacherAIPlusScreen({super.key});
+  @override
+  State<TeacherAIPlusScreen> createState() => _TeacherAIPlusScreenState();
+}
+
+class _TeacherAIPlusScreenState extends State<TeacherAIPlusScreen> {
+  String _currentMode = 'chat';
+  final TextEditingController _inputCtrl = TextEditingController();
+  final List<Map<String, String>> _messages = [];
+  bool _sending = false;
+  String _userName = 'طالب';
+  String _userGrade = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUser();
+  }
+
+  Future<void> _loadUser() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() {
+      _userName = prefs.getString('user_name') ?? 'طالب';
+      _userGrade = prefs.getString('user_grade') ?? '';
+    });
+  }
+
+  @override
+  void dispose() {
+    _inputCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<String> _getApiKey() async {
+    try {
+      final data = await supabase
+          .from('admin_settings')
+          .select('gemini_api_key')
+          .eq('id', 1)
+          .single();
+      return data['gemini_api_key'] ?? '';
+    } catch (e) {
+      return '';
+    }
+  }
+
+  Future<String> _callAI(String prompt, String mode) async {
+    final apiKey = await _getApiKey();
+    if (apiKey.isEmpty) return '⚠️ مفتاح API غير متوفر.';
+
+    String systemPrompt;
+    switch (mode) {
+      case 'books':
+        systemPrompt = 'أنت معلم ذكي متخصص في شرح الكتب الدراسية الليبية. اشرح بوضوح وبالعربية.';
+        break;
+      case 'correct':
+        systemPrompt = 'أنت مصحح اختبارات خبير. صحح الإجابة وأعطِ الدرجة والشرح.';
+        break;
+      case 'generate':
+        systemPrompt = 'أنت مولّد أسئلة تعليمية. أنشئ 5 أسئلة مع إجاباتها.';
+        break;
+      case 'analyze':
+        systemPrompt = 'أنت محلل أداء تعليمي. حلل مستوى الطالب وأعطِ توصيات.';
+        break;
+      default:
+        systemPrompt = 'أنت معلم ذكي لتطبيق كتابي التعليمي. ساعد الطلاب الليبيين.';
+    }
+
+    try {
+      final response = await http.post(
+        Uri.parse('https://openrouter.ai/api/v1/chat/completions'),
+        headers: {
+          'Authorization': 'Bearer $apiKey',
+          'Content-Type': 'application/json',
+          'HTTP-Referer': 'https://kitabi.app',
+        },
+        body: jsonEncode({
+          'model': 'nvidia/nemotron-3-ultra-550b-a55b:free',
+          'messages': [
+            {'role': 'system', 'content': systemPrompt},
+            {'role': 'user', 'content': prompt},
+          ],
+          'temperature': 0.7,
+          'max_tokens': 2000,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['choices'][0]['message']['content'] ?? 'لا توجد إجابة';
+      } else if (response.statusCode == 429) {
+        return '⏳ تم استهلاك الحد اليومي. حاول غداً.';
+      } else {
+        return '⚠️ خطأ: ${response.statusCode}';
+      }
+    } catch (e) {
+      return '⚠️ فشل الاتصال: $e';
+    }
+  }
+
+  Future<void> _send() async {
+    final text = _inputCtrl.text.trim();
+    if (text.isEmpty || _sending) return;
+
+    setState(() {
+      _messages.add({'role': 'user', 'content': text});
+      _sending = true;
+      _inputCtrl.clear();
+    });
+
+    final response = await _callAI(text, _currentMode);
+
+    if (!mounted) return;
+    setState(() {
+      _messages.add({'role': 'assistant', 'content': response});
+      _sending = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF7B1FA2),
+        foregroundColor: Colors.white,
+        elevation: 0,
+        title: const Row(
+          children: [
+            Icon(Icons.auto_awesome, color: Colors.amber, size: 24),
+            SizedBox(width: 8),
+            Text('AI+', style: TextStyle(fontWeight: FontWeight.bold)),
+            SizedBox(width: 6),
+            Text('(Plus)', style: TextStyle(fontSize: 12, color: Colors.amber)),
+          ],
+        ),
+      ),
+      body: Column(
+        children: [
+          // الأوضاع
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+            color: Colors.white,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  _modeChip('chat', '💬 محادثة', Icons.chat),
+                  const SizedBox(width: 6),
+                  _modeChip('books', '📚 كتب', Icons.menu_book),
+                  const SizedBox(width: 6),
+                  _modeChip('correct', '📝 تصحيح', Icons.check_circle),
+                  const SizedBox(width: 6),
+                  _modeChip('generate', '🎯 أسئلة', Icons.quiz),
+                  const SizedBox(width: 6),
+                  _modeChip('analyze', '📊 تحليل', Icons.bar_chart),
+                ],
+              ),
+            ),
+          ),
+
+          // المحادثة
+          Expanded(
+            child: _messages.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF7B1FA2), Color(0xFF9C27B0)],
+                            ),
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF7B1FA2).withOpacity(0.3),
+                                blurRadius: 20,
+                              ),
+                            ],
+                          ),
+                          child: const Icon(Icons.auto_awesome,
+                              size: 50, color: Colors.white),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'مرحباً $_userName 👋',
+                          style: const TextStyle(
+                              fontSize: 20, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'معلم AI+ جاهز لمساعدتك',
+                          style: TextStyle(
+                              fontSize: 14, color: Colors.grey[600]),
+                        ),
+                      ],
+                    ),
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.all(12),
+                    itemCount: _messages.length,
+                    itemBuilder: (_, i) => _bubble(_messages[i]),
+                  ),
+          ),
+
+          // حقل الإدخال
+          Container(
+            padding: const EdgeInsets.all(12),
+            color: Colors.white,
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _inputCtrl,
+                    maxLines: 3,
+                    minLines: 1,
+                    decoration: InputDecoration(
+                      hintText: _hintForMode(),
+                      filled: true,
+                      fillColor: const Color(0xFFF5F7FA),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(24),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                CircleAvatar(
+                  radius: 24,
+                  backgroundColor: _sending
+                      ? Colors.grey
+                      : const Color(0xFF7B1FA2),
+                  child: IconButton(
+                    icon: _sending
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white))
+                        : const Icon(Icons.send, color: Colors.white, size: 20),
+                    onPressed: _sending ? null : _send,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _hintForMode() {
+    switch (_currentMode) {
+      case 'books':
+        return 'اكتب اسم الكتاب + سؤالك...';
+      case 'correct':
+        return 'اكتب السؤال + إجابتك...';
+      case 'generate':
+        return 'اكتب الموضوع لتوليد أسئلة...';
+      case 'analyze':
+        return 'اكتب عن أدائك الدراسي...';
+      default:
+        return 'اسأل أي سؤال...';
+    }
+  }
+
+  Widget _modeChip(String id, String label, IconData icon) {
+    final active = _currentMode == id;
+    return GestureDetector(
+      onTap: () => setState(() => _currentMode = id),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: active
+              ? const Color(0xFF7B1FA2)
+              : const Color(0xFFF5F7FA),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon,
+                size: 14, color: active ? Colors.white : Colors.black87),
+            const SizedBox(width: 4),
+            Text(label,
+                style: TextStyle(
+                    color: active ? Colors.white : Colors.black87,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _bubble(Map<String, String> msg) {
+    final isUser = msg['role'] == 'user';
+    return Align(
+      alignment: isUser ? Alignment.centerLeft : Alignment.centerRight,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.all(12),
+        constraints: BoxConstraints(
+            maxWidth: MediaQuery.of(context).size.width * 0.8),
+        decoration: BoxDecoration(
+          color: isUser
+              ? const Color(0xFF7B1FA2)
+              : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: SelectableText(
+          msg['content'] ?? '',
+          style: TextStyle(
+            color: isUser ? Colors.white : Colors.black87,
+            fontSize: 14,
+            height: 1.5,
+          ),
         ),
       ),
     );
