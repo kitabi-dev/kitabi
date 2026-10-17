@@ -2162,8 +2162,8 @@ class _HomeTabState extends State<HomeTab> with WidgetsBindingObserver {
     final email = prefs.getString('user_email') ?? '';
     final role = widget.userRole;
 
-    // Admin, Moderator, Teacher → دائماً مسموح
-    if (role == 'admin' || role == 'moderator' || role == 'teacher') {
+    // Admin, Moderator → دائماً مسموح
+    if (role == 'admin' || role == 'moderator') {
       if (!mounted) return;
       setState(() => _isAllowedUser = true);
       return;
