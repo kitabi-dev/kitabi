@@ -157,13 +157,14 @@ class RoleHelper {
 }
 
 class SubscriptionHelper {
-  static Future<bool> isPlusUser(String userName) async {
+  static Future<bool> isPlusUser(String email) async {
+    if (email.isEmpty) return false;
     try {
       final now = DateTime.now().toIso8601String();
       final data = await supabase
           .from('subscriptions')
           .select('id')
-          .eq('user_name', userName)
+          .eq('user_email', email)
           .eq('is_active', true)
           .gte('expires_at', now)
           .limit(1);
@@ -174,12 +175,13 @@ class SubscriptionHelper {
     }
   }
 
-  static Future<Map<String, dynamic>?> getSubscription(String userName) async {
+  static Future<Map<String, dynamic>?> getSubscription(String email) async {
+    if (email.isEmpty) return null;
     try {
       final data = await supabase
           .from('subscriptions')
           .select()
-          .eq('user_name', userName)
+          .eq('user_email', email)
           .eq('is_active', true)
           .order('expires_at', ascending: false)
           .limit(1);
