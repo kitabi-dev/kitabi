@@ -1976,6 +1976,7 @@ class _HomeShellState extends State<HomeShell> {
   Widget build(BuildContext context) {
     final tabs = [
       HomeTab(
+        key: ValueKey('home_$_index'),
         onStartLearning: () => _goToTab(1),
         onOpenNotifications: () => _goToTab(2),
         onOpenSettings: () {
@@ -1985,6 +1986,7 @@ class _HomeShellState extends State<HomeShell> {
                 builder: (_) => const SettingsScreen()),
           );
         },
+        currentIndex: _index,
         userName: _userName,
         userGrade: _userGrade,
         userRole: _userRole,
@@ -2102,6 +2104,7 @@ class HomeTab extends StatefulWidget {
   final VoidCallback onStartLearning;
   final VoidCallback? onOpenNotifications;
   final VoidCallback? onOpenSettings;
+  final int currentIndex;
   final String userName;
   final String userGrade;
   final String userRole;
@@ -2110,6 +2113,7 @@ class HomeTab extends StatefulWidget {
     required this.onStartLearning,
     this.onOpenNotifications,
     this.onOpenSettings,
+    this.currentIndex = 0,
     this.userName = 'طالب',
     this.userGrade = '',
     this.userRole = 'student',
@@ -2128,6 +2132,16 @@ class _HomeTabState extends State<HomeTab> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _checkAccess();
+  }
+
+  @override
+  void didUpdateWidget(HomeTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // إذا عاد المستخدم للتبويب الرئيسي — نُعيد الفحص
+    if (widget.currentIndex == 0 &&
+        oldWidget.currentIndex != 0) {
+      _checkAccess();
+    }
   }
 
   @override
