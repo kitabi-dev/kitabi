@@ -22163,10 +22163,10 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                         const Icon(Icons.phone,
                             color: Color(0xFF1565C0)),
                         const SizedBox(width: 10),
-                        const Expanded(
+                        Expanded(
                           child: Text(
                             _myPhone,
-                            style: TextStyle(
+                            style: const TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.bold,
                               letterSpacing: 2,
